@@ -791,25 +791,40 @@ function showDetail(name) {
             html += `<div class="side-label">${side}</div>`;
         }
         const fromTop = (side === 'South');
-        const vertClass = isVertical ? ` vertical${fromTop ? ' from-top' : ''}` : '';
-        html += `<div class="rows-container${vertClass}">`;
+        if (isVertical) {
+            const align = fromTop ? 'flex-start' : 'flex-end';
+            html += `<div style="display:flex;flex-direction:row-reverse;align-items:${align};gap:2px;overflow-x:auto;padding:8px 0">`;
+        } else {
+            html += `<div class="rows-container">`;
+        }
 
         gh.sides[side].forEach(entry => {
             const tipText = `Row ${entry.row_num}: ${entry.bags} bags \u00d7 ${entry.plants_per_bag} plants/bag = ${entry.total_plants} plants (${entry.variety})`;
             const infoText = `${entry.bags}\u00d7${entry.plants_per_bag} = ${entry.total_plants} (${entry.variety})`;
 
-            html += `<div class="row-row" onclick="toggleRowInfo(this)" onmouseenter="showTooltip(event, '${tipText.replace(/'/g, "\\'")}')" onmousemove="moveTooltip(event)" onmouseleave="hideTooltip()">`;
-            html += `<span class="row-label">${entry.row_num}</span>`;
-            html += `<div class="row-bags">`;
-
-            for (let i = 0; i < entry.bags; i++) {
-                html += `<div class="bag" style="background:${COLORS[entry.color_key]}"></div>`;
+            if (isVertical) {
+                const bagDir = fromTop ? 'column' : 'column-reverse';
+                html += `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:0 2px;min-width:20px;cursor:pointer" onmouseenter="showTooltip(event, '${tipText.replace(/'/g, "\\'")}')" onmousemove="moveTooltip(event)" onmouseleave="hideTooltip()">`;
+                if (fromTop) html += `<span style="font-size:0.7rem;color:var(--text-secondary)">${entry.row_num}</span>`;
+                html += `<div style="display:flex;flex-direction:${bagDir};gap:2px">`;
+                for (let i = 0; i < entry.bags; i++) {
+                    html += `<div style="width:18px;height:12px;border-radius:2px;background:${COLORS[entry.color_key]};opacity:0.85"></div>`;
+                }
+                html += `</div>`;
+                if (!fromTop) html += `<span style="font-size:0.7rem;color:var(--text-secondary)">${entry.row_num}</span>`;
+                html += `</div>`;
+            } else {
+                html += `<div class="row-row" onclick="toggleRowInfo(this)" onmouseenter="showTooltip(event, '${tipText.replace(/'/g, "\\'")}')" onmousemove="moveTooltip(event)" onmouseleave="hideTooltip()">`;
+                html += `<span class="row-label">${entry.row_num}</span>`;
+                html += `<div class="row-bags">`;
+                for (let i = 0; i < entry.bags; i++) {
+                    html += `<div class="bag" style="background:${COLORS[entry.color_key]}"></div>`;
+                }
+                html += `</div>`;
+                html += `<span class="row-info">${infoText}</span>`;
+                html += `<div class="row-info-mobile">${infoText}</div>`;
+                html += `</div>`;
             }
-
-            html += `</div>`;
-            html += `<span class="row-info">${infoText}</span>`;
-            html += `<div class="row-info-mobile">${infoText}</div>`;
-            html += `</div>`;
         });
 
         html += `</div></div>`;
