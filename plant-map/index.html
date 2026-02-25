@@ -717,16 +717,31 @@ function showOverview() {
         </div>`;
         html += `<div class="gh-card-body">`;
 
+        const VERTICAL_CARDS = ['GH1'];
+        const isVert = VERTICAL_CARDS.includes(name);
+
         sideNames.forEach(side => {
             if (sideNames.length > 1 || side !== 'Main') {
                 html += `<div class="card-side-label">${side}</div>`;
             }
-            html += `<div class="card-rows">`;
-            gh.sides[side].forEach(entry => {
-                const w = Math.max(10, Math.round((entry.bags / MAX_BAGS) * 100));
-                html += `<div class="card-row-bar" style="width:${w}%;background:${COLORS[entry.color_key]}"></div>`;
-            });
-            html += `</div>`;
+            if (isVert) {
+                const fromTop = (side === 'South');
+                const align = fromTop ? 'flex-start' : 'flex-end';
+                const maxH = 120; // max bar height in px
+                html += `<div style="display:flex;flex-direction:row-reverse;align-items:${align};gap:1px;height:${maxH + 10}px">`;
+                gh.sides[side].forEach(entry => {
+                    const h = Math.max(4, Math.round((entry.bags / MAX_BAGS) * maxH));
+                    html += `<div style="height:${h}px;width:4px;border-radius:2px;background:${COLORS[entry.color_key]};flex-shrink:0"></div>`;
+                });
+                html += `</div>`;
+            } else {
+                html += `<div class="card-rows">`;
+                gh.sides[side].forEach(entry => {
+                    const w = Math.max(10, Math.round((entry.bags / MAX_BAGS) * 100));
+                    html += `<div class="card-row-bar" style="width:${w}%;background:${COLORS[entry.color_key]}"></div>`;
+                });
+                html += `</div>`;
+            }
         });
 
         html += `</div>`;
