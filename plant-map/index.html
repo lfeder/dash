@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Greenhouse Plant Map</title>
+<style>
+:root {
+    --bg-primary: #1a1a2e;
+    --bg-secondary: #16213e;
+    --bg-card: #0f3460;
+    --bg-hover: #1a4a7a;
+    --text-primary: #e8e8e8;
+    --text-secondary: #a8a8b8;
+    --text-accent: #fff;
+    --border: #2a3a5e;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+}
+
+/* Header */
+.header {
+    background: var(--bg-secondary);
+    padding: 8px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.header h1 {
+    font-size: 1.7rem;
+    color: var(--text-accent);
+    white-space: nowrap;
+}
+
+.header-stats {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.header-stat {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+}
+
+.header-stat strong {
+    color: var(--text-accent);
+}
+
+.variety-legend {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.variety-chip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 1.05rem;
+    color: var(--text-secondary);
+}
+
+.variety-chip-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.btn {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn:hover { background: var(--bg-hover); }
+
+.btn-back {
+    display: none;
+    margin-left: auto;
+    background: #0f3460;
+    border-color: #4a6a9e;
+    font-weight: 600;
+    font-size: 1.1rem;
+    padding: 8px 18px;
+}
+
+/* Content area */
+.content {
+    padding: 12px 16px;
+}
+
+/* Detail header with inline legend */
+.detail-title-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.detail-title-row h2 {
+    font-size: 1.4rem;
+    color: var(--text-accent);
+    margin: 0;
+}
+
+.detail-title-row .detail-stats {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.detail-legend {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    flex-wrap: wrap;
+}
+
+.detail-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.detail-legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+}
+
+/* Overview grid */
+.overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 10px;
+}
+
+.gh-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+}
+
+.gh-card:hover {
+    transform: translateY(-2px);
+    border-color: #4a6a9e;
+}
+
+.gh-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.gh-card-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-accent);
+}
+
+.gh-card-stats {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.gh-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.card-side-label {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+}
+
+.card-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.card-line-bar {
+    height: 4px;
+    border-radius: 2px;
+    min-width: 10px;
+    transition: opacity 0.15s;
+}
+
+.gh-card:hover .card-line-bar {
+    opacity: 0.85;
+}
+
+.gh-card-footer {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.gh-card-footer strong {
+    color: var(--text-accent);
+}
+
+/* Detail view */
+.detail-view {
+    max-width: 1200px;
+}
+
+.side-section {
+    margin-bottom: 16px;
+}
+
+.side-label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+}
+
+.lines-container {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.line-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+    border-radius: 4px;
+    position: relative;
+}
+
+.line-row:hover {
+    background: rgba(255,255,255,0.03);
+}
+
+.line-label {
+    width: 50px;
+    text-align: right;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.line-bags {
+    display: flex;
+    gap: 2px;
+    flex-wrap: nowrap;
+}
+
+.bag {
+    width: 12px;
+    height: 18px;
+    border-radius: 2px;
+    flex-shrink: 0;
+    opacity: 0.85;
+    transition: opacity 0.15s;
+}
+
+.line-row:hover .bag {
+    opacity: 1;
+}
+
+.line-info {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    margin-left: 8px;
+}
+
+.line-info-mobile {
+    display: none;
+}
+
+/* Tooltip */
+.tooltip {
+    position: fixed;
+    background: #222;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    pointer-events: none;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    max-width: 350px;
+    display: none;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #4a6a9e; }
+
+@media (max-width: 768px) {
+    /* Header: stack vertically */
+    .header {
+        padding: 12px 16px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    .header h1 { font-size: 1.2rem; text-align: center; }
+    .btn {
+        font-size: 1rem;
+        padding: 10px 14px;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Content */
+    .content { padding: 12px; }
+
+    /* Overview: one card per screen */
+    .overview-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .gh-card {
+        padding: 16px;
+        min-height: calc(100svh - 180px);
+        display: flex;
+        flex-direction: column;
+    }
+    .gh-card-header {
+        margin-bottom: 12px;
+    }
+    .gh-card-name { font-size: 1.4rem; }
+    .gh-card-stats { font-size: 0.9rem; }
+    .gh-card-body {
+        flex: 1;
+        justify-content: center;
+        gap: 4px;
+    }
+    .card-side-label { font-size: 0.8rem; margin-top: 8px; }
+    .card-line-bar { height: 7px; border-radius: 3px; }
+    .gh-card-footer {
+        margin-top: 14px;
+        padding-top: 10px;
+        font-size: 0.9rem;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    /* Detail view: scroll bags horizontally */
+    .detail-view { max-width: 100%; }
+    .detail-header h2 { font-size: 1.3rem; }
+    .line-row {
+        gap: 6px;
+    }
+    .line-label {
+        width: 32px;
+        font-size: 0.75rem;
+    }
+    .line-bags {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        flex-shrink: 1;
+        min-width: 0;
+    }
+    .bag { width: 7px; height: 14px; }
+    .line-info {
+        display: none;
+    }
+    .line-info-mobile {
+        display: none;
+        width: 100%;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        background: rgba(255,255,255,0.05);
+        padding: 4px 8px;
+        border-radius: 4px;
+        margin-top: 2px;
+    }
+    .line-row {
+        flex-wrap: wrap;
+    }
+    .line-row.expanded .line-info-mobile {
+        display: block;
+    }
+
+    /* Hide tooltip on touch (unreliable) */
+    .tooltip { display: none !important; }
+}
+
+</style>
+</head>
+<body>
+
+<div class="header" id="headerBar">
+    <h1>Greenhouse Plant Map</h1>
+    <div class="header-stats" id="headerStats"></div>
+    <div class="variety-legend" id="headerLegend"></div>
+    <button class="btn btn-back" id="btnBack" onclick="showOverview()">All Greenhouses</button>
+</div>
+
+<div class="content" id="content"></div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// --- Configuration ---
+const SHEET_ID = '1ewWyvaXGkRCvZxjUxBOHGY4PKdMHwKeTA5jTIod48LE';
+const GID = '1615707612';
+const GVIZ_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:handleSheetResponse&gid=${GID}`;
+
+const COLORS = {"Keiki": "#4CAF50", "Japanese": "#E91E63", "Japanese (5/bag)": "#F8BBD0", "English": "#2196F3", "Mixed": "#FF9800"};
+const GH_ORDER = ["GH1", "GH2", "GH3", "GH4", "GH5", "GH6", "GH7", "GH8", "Hamakua / Kohala", "Hilo", "Kona", "Waimea"];
+const MERGE_GHS = {"Hamakua / Kohala": [["Hamakua", "Hamakua"], ["Kohala", "Kohala"]]};
+const SIDE_ORDER = {"North": 0, "Middle": 1, "South": 2, "East": 0, "West": 1, "Hamakua": 0, "Kohala": 1};
+
+let DATA = {};
+let SUMMARY = {};
+let GH_NAMES = [];
+let MAX_BAGS = 0;
+
+// --- Build DATA structure (matches generate_map.py logic) ---
+function buildData(rows) {
+    const greenhouses = {};
+
+    rows.forEach(row => {
+        if (isNaN(row.line) || isNaN(row.bags)) return; // skip invalid rows
+        const gh = row.greenhouse;
+        const sideKey = row.side || 'Main';
+
+        if (!greenhouses[gh]) {
+            greenhouses[gh] = { sides: {}, total_plants: 0, total_lines: 0 };
+        }
+        if (!greenhouses[gh].sides[sideKey]) {
+            greenhouses[gh].sides[sideKey] = [];
+        }
+
+        const colorKey = row.plants_per_bag === 5 ? `${row.variety} (5/bag)` : row.variety;
+
+        greenhouses[gh].sides[sideKey].push({
+            line: row.line,
+            bags: row.bags,
+            plants_per_bag: row.plants_per_bag,
+            total_plants: row.total_plants,
+            variety: row.variety,
+            color_key: colorKey
+        });
+
+        greenhouses[gh].total_plants += row.total_plants;
+        greenhouses[gh].total_lines += 1;
+    });
+
+    // Merge greenhouses (e.g. Hamakua + Kohala -> "Hamakua / Kohala")
+    for (const [combinedName, sources] of Object.entries(MERGE_GHS)) {
+        const merged = { sides: {}, total_plants: 0, total_lines: 0 };
+        for (const [origName, sideLabel] of sources) {
+            if (greenhouses[origName]) {
+                const orig = greenhouses[origName];
+                delete greenhouses[origName];
+                const allLines = [];
+                for (const lines of Object.values(orig.sides)) {
+                    allLines.push(...lines);
+                }
+                merged.sides[sideLabel] = allLines;
+                merged.total_plants += orig.total_plants;
+                merged.total_lines += orig.total_lines;
+            }
+        }
+        if (merged.total_lines > 0) {
+            greenhouses[combinedName] = merged;
+        }
+    }
+
+    // Sort greenhouses by GH_ORDER
+    const sorted = {};
+    GH_ORDER.forEach(name => {
+        if (greenhouses[name]) sorted[name] = greenhouses[name];
+    });
+    Object.keys(greenhouses).forEach(name => {
+        if (!sorted[name]) sorted[name] = greenhouses[name];
+    });
+
+    // Sort sides within each greenhouse
+    for (const ghData of Object.values(sorted)) {
+        const sortedSides = {};
+        Object.keys(ghData.sides)
+            .sort((a, b) => (SIDE_ORDER[a] ?? 99) - (SIDE_ORDER[b] ?? 99))
+            .forEach(key => { sortedSides[key] = ghData.sides[key]; });
+        ghData.sides = sortedSides;
+    }
+
+    return sorted;
+}
+
+function computeSummary(data) {
+    let totalPlants = 0;
+    const varietyCounts = {};
+
+    for (const ghData of Object.values(data)) {
+        totalPlants += ghData.total_plants;
+        for (const lines of Object.values(ghData.sides)) {
+            for (const line of lines) {
+                varietyCounts[line.color_key] = (varietyCounts[line.color_key] || 0) + line.total_plants;
+            }
+        }
+    }
+
+    return {
+        total_plants: totalPlants,
+        total_greenhouses: Object.keys(data).length,
+        total_lines: Object.values(data).reduce((s, g) => s + g.total_lines, 0),
+        variety_counts: varietyCounts
+    };
+}
+
+// --- Parse Google Visualization API response into rows ---
+function parseGvizResponse(response) {
+    if (response.status !== 'ok') {
+        throw new Error('Google Sheets returned status: ' + response.status);
+    }
+    const table = response.table;
+    const rows = [];
+    for (const row of table.rows) {
+        const c = row.c;
+        // Columns: Greenhouse, Side, Line, Bags, Plants per Bag, Total Plants, Variety
+        const gh = c[0] ? (c[0].v || '') : '';
+        if (!gh) continue;
+        rows.push({
+            greenhouse: String(gh),
+            side: (c[1] && c[1].v) ? String(c[1].v) : 'Main',
+            line: c[2] ? Number(c[2].v) : 0,
+            bags: c[3] ? Number(c[3].v) : 0,
+            plants_per_bag: c[4] ? Number(c[4].v) : 0,
+            total_plants: c[5] ? Number(c[5].v) : 0,
+            variety: (c[6] && c[6].v) ? String(c[6].v) : ''
+        });
+    }
+    return rows;
+}
+
+// --- Global callback for the JSONP-style <script> load ---
+function handleSheetResponse(response) {
+    try {
+        const rows = parseGvizResponse(response);
+        if (rows.length === 0) throw new Error('No data rows found in the sheet.');
+
+        DATA = buildData(rows);
+        SUMMARY = computeSummary(DATA);
+        GH_NAMES = Object.keys(DATA);
+
+        MAX_BAGS = 0;
+        for (const gh of Object.values(DATA)) {
+            for (const lines of Object.values(gh.sides)) {
+                for (const line of lines) {
+                    if (line.bags > MAX_BAGS) MAX_BAGS = line.bags;
+                }
+            }
+        }
+
+        renderHeader();
+        showOverview();
+    } catch (err) {
+        document.getElementById('content').innerHTML =
+            '<div style="text-align:center;padding:60px 20px;color:#e57373;font-size:1.1rem;">' +
+            '<p>Failed to process sheet data.</p>' +
+            '<p style="font-size:0.9rem;margin-top:10px;color:var(--text-secondary);">' + err.message + '</p>' +
+            '</div>';
+        console.error('Sheet parse error:', err);
+    }
+}
+
+// --- Init: inject <script> to load data (bypasses CORS for file:// URLs) ---
+function init() {
+    document.getElementById('content').innerHTML =
+        '<div style="text-align:center;padding:80px 20px;color:var(--text-secondary);font-size:1.2rem;">Loading data from Google Sheets\u2026</div>';
+    const script = document.createElement('script');
+    script.src = GVIZ_URL;
+    script.onerror = function() {
+        document.getElementById('content').innerHTML =
+            '<div style="text-align:center;padding:60px 20px;color:#e57373;font-size:1.1rem;">' +
+            '<p>Failed to load data from Google Sheets.</p>' +
+            '<p style="font-size:0.85rem;margin-top:16px;color:var(--text-secondary);">Make sure the sheet is shared as &ldquo;Anyone with the link&rdquo; can view.</p>' +
+            '</div>';
+    };
+    document.head.appendChild(script);
+}
+
+// --- Rendering (unchanged) ---
+function renderHeader() {
+    const total = SUMMARY.total_plants;
+    document.getElementById('headerStats').innerHTML = `
+        <span class="header-stat"><strong>${SUMMARY.total_greenhouses}</strong> greenhouses</span>
+        <span class="header-stat"><strong>${SUMMARY.total_lines.toLocaleString()}</strong> lines</span>
+        <span class="header-stat"><strong>${total.toLocaleString()}</strong> plants</span>
+    `;
+
+    function chipHtml(v) {
+        const count = SUMMARY.variety_counts[v] || 0;
+        if (count === 0) return '';
+        const pct = Math.round((count / total) * 100);
+        return `<span class="variety-chip"><span class="variety-chip-dot" style="background:${COLORS[v]}"></span>${v} ${count.toLocaleString()} (${pct}%)</span>`;
+    }
+
+    document.getElementById('headerLegend').innerHTML =
+        chipHtml('Keiki') + chipHtml('English') + chipHtml('Japanese') + chipHtml('Japanese (5/bag)') + chipHtml('Mixed');
+}
+
+function showOverview() {
+    document.getElementById('btnBack').style.display = 'none';
+
+    let html = '<div class="overview-grid">';
+
+    GH_NAMES.forEach(name => {
+        const gh = DATA[name];
+        const sideNames = Object.keys(gh.sides);
+
+        // Variety breakdown for this GH (by color_key)
+        const vCounts = {};
+        for (const lines of Object.values(gh.sides)) {
+            for (const line of lines) {
+                vCounts[line.color_key] = (vCounts[line.color_key] || 0) + line.total_plants;
+            }
+        }
+
+        html += `<div class="gh-card" onclick="showDetail('${name}')">`;
+        html += `<div class="gh-card-header">
+            <span class="gh-card-name">${name}</span>
+            <span class="gh-card-stats">${gh.total_lines} lines</span>
+        </div>`;
+        html += `<div class="gh-card-body">`;
+
+        sideNames.forEach(side => {
+            if (sideNames.length > 1 || side !== 'Main') {
+                html += `<div class="card-side-label">${side}</div>`;
+            }
+            html += `<div class="card-lines">`;
+            gh.sides[side].forEach(line => {
+                const w = Math.max(10, Math.round((line.bags / MAX_BAGS) * 100));
+                html += `<div class="card-line-bar" style="width:${w}%;background:${COLORS[line.color_key]}"></div>`;
+            });
+            html += `</div>`;
+        });
+
+        html += `</div>`;
+
+        // Footer with plant count and variety mini-breakdown
+        let breakdownParts = [];
+        ['Keiki', 'English', 'Japanese', 'Japanese (5/bag)', 'Mixed'].forEach(v => {
+            if (vCounts[v]) {
+                breakdownParts.push(`<span style="color:${COLORS[v]}">${v}: ${vCounts[v].toLocaleString()}</span>`);
+            }
+        });
+
+        html += `<div class="gh-card-footer">
+            <span><strong>${gh.total_plants.toLocaleString()}</strong> plants</span>
+            <span>${breakdownParts.join(' &middot; ')}</span>
+        </div>`;
+        html += `</div>`;
+    });
+
+    html += '</div>';
+    document.getElementById('content').innerHTML = html;
+}
+
+function showDetail(name) {
+    document.getElementById('btnBack').style.display = 'block';
+
+    const gh = DATA[name];
+    const sideNames = Object.keys(gh.sides);
+
+    // Variety breakdown for this GH
+    const vCounts = {};
+    for (const lines of Object.values(gh.sides)) {
+        for (const line of lines) {
+            vCounts[line.color_key] = (vCounts[line.color_key] || 0) + line.total_plants;
+        }
+    }
+
+    let html = '<div class="detail-view">';
+
+    // Header with stats and legend on one line
+    function legendChip(v) {
+        const count = vCounts[v] || 0;
+        if (count === 0) return '';
+        return `<span class="detail-legend-item"><span class="detail-legend-color" style="background:${COLORS[v]}"></span>${v}: ${count.toLocaleString()}</span>`;
+    }
+    html += `<div class="detail-title-row">
+        <h2>${name}</h2>
+        <span class="detail-stats">${gh.total_lines} lines &middot; ${gh.total_plants.toLocaleString()} plants</span>
+        <div class="detail-legend">
+            ${legendChip('Keiki')}${legendChip('English')}${legendChip('Japanese')}${legendChip('Japanese (5/bag)')}${legendChip('Mixed')}
+        </div>
+    </div>`;
+
+    // Sides
+    sideNames.forEach(side => {
+        html += `<div class="side-section">`;
+        if (sideNames.length > 1 || side !== 'Main') {
+            html += `<div class="side-label">${side}</div>`;
+        }
+        html += `<div class="lines-container">`;
+
+        gh.sides[side].forEach(line => {
+            const tipText = `Line ${line.line}: ${line.bags} bags \u00d7 ${line.plants_per_bag} plants/bag = ${line.total_plants} plants (${line.variety})`;
+            const infoText = `${line.bags}\u00d7${line.plants_per_bag} = ${line.total_plants} (${line.variety})`;
+
+            html += `<div class="line-row" onclick="toggleLineInfo(this)" onmouseenter="showTooltip(event, '${tipText.replace(/'/g, "\\'")}')" onmousemove="moveTooltip(event)" onmouseleave="hideTooltip()">`;
+            html += `<span class="line-label">${line.line}</span>`;
+            html += `<div class="line-bags">`;
+
+            for (let i = 0; i < line.bags; i++) {
+                html += `<div class="bag" style="background:${COLORS[line.color_key]}"></div>`;
+            }
+
+            html += `</div>`;
+            html += `<span class="line-info">${infoText}</span>`;
+            html += `<div class="line-info-mobile">${infoText}</div>`;
+            html += `</div>`;
+        });
+
+        html += `</div></div>`;
+    });
+
+    html += '</div>';
+    document.getElementById('content').innerHTML = html;
+}
+
+// Toggle line info on mobile tap
+function toggleLineInfo(el) {
+    if (window.innerWidth > 768) return;
+    el.classList.toggle('expanded');
+}
+
+// Tooltip
+function showTooltip(e, text) {
+    const tip = document.getElementById('tooltip');
+    tip.textContent = text;
+    tip.style.display = 'block';
+    moveTooltip(e);
+}
+
+function moveTooltip(e) {
+    const tip = document.getElementById('tooltip');
+    let x = e.clientX + 12;
+    let y = e.clientY + 12;
+    // Keep on screen
+    const rect = tip.getBoundingClientRect();
+    if (x + rect.width > window.innerWidth) x = e.clientX - rect.width - 12;
+    if (y + rect.height > window.innerHeight) y = e.clientY - rect.height - 12;
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+}
+
+function hideTooltip() {
+    document.getElementById('tooltip').style.display = 'none';
+}
+
+init();
+</script>
+</body>
+</html>
