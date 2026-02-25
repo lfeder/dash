@@ -540,10 +540,15 @@ function renderCard(name, cardHeight) {
             });
             html += `</div>`;
         } else {
-            html += `<div class="card-rows" style="overflow:hidden">`;
+            // Count total horizontal rows across all sides to compute bar height
+            let totalHorizRows = 0;
+            for (const s of Object.values(gh.sides)) totalHorizRows += s.length;
+            const availH = cardHeight - 70; // reserve for header+footer+labels
+            const barH = Math.max(2, Math.min(4, Math.floor(availH / (totalHorizRows + sideNames.length * 2))));
+            html += `<div style="display:flex;flex-direction:column;gap:${barH > 2 ? 1 : 0}px;flex:1;overflow:hidden">`;
             gh.sides[side].forEach(entry => {
                 const w = Math.max(10, Math.round((entry.bags / MAX_BAGS) * 100));
-                html += `<div class="card-row-bar" style="width:${w}%;background:${COLORS[entry.color_key]}"></div>`;
+                html += `<div style="width:${w}%;height:${barH}px;border-radius:1px;background:${COLORS[entry.color_key]};flex-shrink:0"></div>`;
             });
             html += `</div>`;
         }
