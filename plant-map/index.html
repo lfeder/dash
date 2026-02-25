@@ -205,20 +205,20 @@ body {
     margin-top: 2px;
 }
 
-.card-lines {
+.card-rows {
     display: flex;
     flex-direction: column;
     gap: 1px;
 }
 
-.card-line-bar {
+.card-row-bar {
     height: 4px;
     border-radius: 2px;
     min-width: 10px;
     transition: opacity 0.15s;
 }
 
-.gh-card:hover .card-line-bar {
+.gh-card:hover .card-row-bar {
     opacity: 0.85;
 }
 
@@ -256,13 +256,13 @@ body {
     border-bottom: 1px solid var(--border);
 }
 
-.lines-container {
+.rows-container {
     display: flex;
     flex-direction: column;
     gap: 3px;
 }
 
-.line-row {
+.row-row {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -271,11 +271,11 @@ body {
     position: relative;
 }
 
-.line-row:hover {
+.row-row:hover {
     background: rgba(255,255,255,0.03);
 }
 
-.line-label {
+.row-label {
     width: 50px;
     text-align: right;
     font-size: 0.8rem;
@@ -284,7 +284,7 @@ body {
     font-variant-numeric: tabular-nums;
 }
 
-.line-bags {
+.row-bags {
     display: flex;
     gap: 2px;
     flex-wrap: nowrap;
@@ -299,18 +299,18 @@ body {
     transition: opacity 0.15s;
 }
 
-.line-row:hover .bag {
+.row-row:hover .bag {
     opacity: 1;
 }
 
-.line-info {
+.row-info {
     font-size: 0.75rem;
     color: var(--text-secondary);
     white-space: nowrap;
     margin-left: 8px;
 }
 
-.line-info-mobile {
+.row-info-mobile {
     display: none;
 }
 
@@ -375,7 +375,7 @@ body {
         gap: 4px;
     }
     .card-side-label { font-size: 0.8rem; margin-top: 8px; }
-    .card-line-bar { height: 7px; border-radius: 3px; }
+    .card-row-bar { height: 7px; border-radius: 3px; }
     .gh-card-footer {
         margin-top: 14px;
         padding-top: 10px;
@@ -387,24 +387,24 @@ body {
     /* Detail view: scroll bags horizontally */
     .detail-view { max-width: 100%; }
     .detail-header h2 { font-size: 1.3rem; }
-    .line-row {
+    .row-row {
         gap: 6px;
     }
-    .line-label {
+    .row-label {
         width: 32px;
         font-size: 0.75rem;
     }
-    .line-bags {
+    .row-bags {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         flex-shrink: 1;
         min-width: 0;
     }
     .bag { width: 7px; height: 14px; }
-    .line-info {
+    .row-info {
         display: none;
     }
-    .line-info-mobile {
+    .row-info-mobile {
         display: none;
         width: 100%;
         font-size: 0.8rem;
@@ -414,10 +414,10 @@ body {
         border-radius: 4px;
         margin-top: 2px;
     }
-    .line-row {
+    .row-row {
         flex-wrap: wrap;
     }
-    .line-row.expanded .line-info-mobile {
+    .row-row.expanded .row-info-mobile {
         display: block;
     }
 
@@ -461,12 +461,12 @@ function buildData(rows) {
     const greenhouses = {};
 
     rows.forEach(row => {
-        if (isNaN(row.line) || isNaN(row.bags)) return; // skip invalid rows
+        if (isNaN(row.row_num) || isNaN(row.bags)) return; // skip invalid rows
         const gh = row.greenhouse;
         const sideKey = row.side || 'Main';
 
         if (!greenhouses[gh]) {
-            greenhouses[gh] = { sides: {}, total_plants: 0, total_lines: 0 };
+            greenhouses[gh] = { sides: {}, total_plants: 0, total_rows: 0 };
         }
         if (!greenhouses[gh].sides[sideKey]) {
             greenhouses[gh].sides[sideKey] = [];
@@ -475,7 +475,7 @@ function buildData(rows) {
         const colorKey = row.plants_per_bag === 5 ? `${row.variety} (5/bag)` : row.variety;
 
         greenhouses[gh].sides[sideKey].push({
-            line: row.line,
+            row_num: row.row_num,
             bags: row.bags,
             plants_per_bag: row.plants_per_bag,
             total_plants: row.total_plants,
@@ -484,26 +484,26 @@ function buildData(rows) {
         });
 
         greenhouses[gh].total_plants += row.total_plants;
-        greenhouses[gh].total_lines += 1;
+        greenhouses[gh].total_rows += 1;
     });
 
     // Merge greenhouses (e.g. Hamakua + Kohala -> "Hamakua / Kohala")
     for (const [combinedName, sources] of Object.entries(MERGE_GHS)) {
-        const merged = { sides: {}, total_plants: 0, total_lines: 0 };
+        const merged = { sides: {}, total_plants: 0, total_rows: 0 };
         for (const [origName, sideLabel] of sources) {
             if (greenhouses[origName]) {
                 const orig = greenhouses[origName];
                 delete greenhouses[origName];
-                const allLines = [];
-                for (const lines of Object.values(orig.sides)) {
-                    allLines.push(...lines);
+                const allEntries = [];
+                for (const entries of Object.values(orig.sides)) {
+                    allEntries.push(...entries);
                 }
-                merged.sides[sideLabel] = allLines;
+                merged.sides[sideLabel] = allEntries;
                 merged.total_plants += orig.total_plants;
-                merged.total_lines += orig.total_lines;
+                merged.total_rows += orig.total_rows;
             }
         }
-        if (merged.total_lines > 0) {
+        if (merged.total_rows > 0) {
             greenhouses[combinedName] = merged;
         }
     }
@@ -535,9 +535,9 @@ function computeSummary(data) {
 
     for (const ghData of Object.values(data)) {
         totalPlants += ghData.total_plants;
-        for (const lines of Object.values(ghData.sides)) {
-            for (const line of lines) {
-                varietyCounts[line.color_key] = (varietyCounts[line.color_key] || 0) + line.total_plants;
+        for (const entries of Object.values(ghData.sides)) {
+            for (const entry of entries) {
+                varietyCounts[entry.color_key] = (varietyCounts[entry.color_key] || 0) + entry.total_plants;
             }
         }
     }
@@ -545,7 +545,7 @@ function computeSummary(data) {
     return {
         total_plants: totalPlants,
         total_greenhouses: Object.keys(data).length,
-        total_lines: Object.values(data).reduce((s, g) => s + g.total_lines, 0),
+        total_rows: Object.values(data).reduce((s, g) => s + g.total_rows, 0),
         variety_counts: varietyCounts
     };
 }
@@ -559,13 +559,13 @@ function parseGvizResponse(response) {
     const rows = [];
     for (const row of table.rows) {
         const c = row.c;
-        // Columns: Greenhouse, Side, Line, Bags, Plants per Bag, Total Plants, Variety
+        // Columns: Greenhouse, Side, Row, Bags, Plants per Bag, Total Plants, Variety
         const gh = c[0] ? (c[0].v || '') : '';
         if (!gh) continue;
         rows.push({
             greenhouse: String(gh),
             side: (c[1] && c[1].v) ? String(c[1].v) : 'Main',
-            line: c[2] ? Number(c[2].v) : 0,
+            row_num: c[2] ? Number(c[2].v) : 0,
             bags: c[3] ? Number(c[3].v) : 0,
             plants_per_bag: c[4] ? Number(c[4].v) : 0,
             total_plants: c[5] ? Number(c[5].v) : 0,
@@ -587,9 +587,9 @@ function handleSheetResponse(response) {
 
         MAX_BAGS = 0;
         for (const gh of Object.values(DATA)) {
-            for (const lines of Object.values(gh.sides)) {
-                for (const line of lines) {
-                    if (line.bags > MAX_BAGS) MAX_BAGS = line.bags;
+            for (const entries of Object.values(gh.sides)) {
+                for (const entry of entries) {
+                    if (entry.bags > MAX_BAGS) MAX_BAGS = entry.bags;
                 }
             }
         }
@@ -627,7 +627,7 @@ function renderHeader() {
     const total = SUMMARY.total_plants;
     document.getElementById('headerStats').innerHTML = `
         <span class="header-stat"><strong>${SUMMARY.total_greenhouses}</strong> greenhouses</span>
-        <span class="header-stat"><strong>${SUMMARY.total_lines.toLocaleString()}</strong> lines</span>
+        <span class="header-stat"><strong>${SUMMARY.total_rows.toLocaleString()}</strong> rows</span>
         <span class="header-stat"><strong>${total.toLocaleString()}</strong> plants</span>
     `;
 
@@ -653,16 +653,16 @@ function showOverview() {
 
         // Variety breakdown for this GH (by color_key)
         const vCounts = {};
-        for (const lines of Object.values(gh.sides)) {
-            for (const line of lines) {
-                vCounts[line.color_key] = (vCounts[line.color_key] || 0) + line.total_plants;
+        for (const entries of Object.values(gh.sides)) {
+            for (const entry of entries) {
+                vCounts[entry.color_key] = (vCounts[entry.color_key] || 0) + entry.total_plants;
             }
         }
 
         html += `<div class="gh-card" onclick="showDetail('${name}')">`;
         html += `<div class="gh-card-header">
             <span class="gh-card-name">${name}</span>
-            <span class="gh-card-stats">${gh.total_lines} lines</span>
+            <span class="gh-card-stats">${gh.total_rows} rows</span>
         </div>`;
         html += `<div class="gh-card-body">`;
 
@@ -670,10 +670,10 @@ function showOverview() {
             if (sideNames.length > 1 || side !== 'Main') {
                 html += `<div class="card-side-label">${side}</div>`;
             }
-            html += `<div class="card-lines">`;
-            gh.sides[side].forEach(line => {
-                const w = Math.max(10, Math.round((line.bags / MAX_BAGS) * 100));
-                html += `<div class="card-line-bar" style="width:${w}%;background:${COLORS[line.color_key]}"></div>`;
+            html += `<div class="card-rows">`;
+            gh.sides[side].forEach(entry => {
+                const w = Math.max(10, Math.round((entry.bags / MAX_BAGS) * 100));
+                html += `<div class="card-row-bar" style="width:${w}%;background:${COLORS[entry.color_key]}"></div>`;
             });
             html += `</div>`;
         });
@@ -707,15 +707,15 @@ function showDetail(name) {
 
     // Variety breakdown for this GH
     const vCounts = {};
-    for (const lines of Object.values(gh.sides)) {
-        for (const line of lines) {
-            vCounts[line.color_key] = (vCounts[line.color_key] || 0) + line.total_plants;
+    for (const entries of Object.values(gh.sides)) {
+        for (const entry of entries) {
+            vCounts[entry.color_key] = (vCounts[entry.color_key] || 0) + entry.total_plants;
         }
     }
 
     let html = '<div class="detail-view">';
 
-    // Header with stats and legend on one line
+    // Header with stats and legend on one row
     function legendChip(v) {
         const count = vCounts[v] || 0;
         if (count === 0) return '';
@@ -723,7 +723,7 @@ function showDetail(name) {
     }
     html += `<div class="detail-title-row">
         <h2>${name}</h2>
-        <span class="detail-stats">${gh.total_lines} lines &middot; ${gh.total_plants.toLocaleString()} plants</span>
+        <span class="detail-stats">${gh.total_rows} rows &middot; ${gh.total_plants.toLocaleString()} plants</span>
         <div class="detail-legend">
             ${legendChip('Keiki')}${legendChip('English')}${legendChip('Japanese')}${legendChip('Japanese (5/bag)')}${legendChip('Mixed')}
         </div>
@@ -735,23 +735,23 @@ function showDetail(name) {
         if (sideNames.length > 1 || side !== 'Main') {
             html += `<div class="side-label">${side}</div>`;
         }
-        html += `<div class="lines-container">`;
+        html += `<div class="rows-container">`;
 
-        gh.sides[side].forEach(line => {
-            const tipText = `Line ${line.line}: ${line.bags} bags \u00d7 ${line.plants_per_bag} plants/bag = ${line.total_plants} plants (${line.variety})`;
-            const infoText = `${line.bags}\u00d7${line.plants_per_bag} = ${line.total_plants} (${line.variety})`;
+        gh.sides[side].forEach(entry => {
+            const tipText = `Row ${entry.row_num}: ${entry.bags} bags \u00d7 ${entry.plants_per_bag} plants/bag = ${entry.total_plants} plants (${entry.variety})`;
+            const infoText = `${entry.bags}\u00d7${entry.plants_per_bag} = ${entry.total_plants} (${entry.variety})`;
 
-            html += `<div class="line-row" onclick="toggleLineInfo(this)" onmouseenter="showTooltip(event, '${tipText.replace(/'/g, "\\'")}')" onmousemove="moveTooltip(event)" onmouseleave="hideTooltip()">`;
-            html += `<span class="line-label">${line.line}</span>`;
-            html += `<div class="line-bags">`;
+            html += `<div class="row-row" onclick="toggleRowInfo(this)" onmouseenter="showTooltip(event, '${tipText.replace(/'/g, "\\'")}')" onmousemove="moveTooltip(event)" onmouseleave="hideTooltip()">`;
+            html += `<span class="row-label">${entry.row_num}</span>`;
+            html += `<div class="row-bags">`;
 
-            for (let i = 0; i < line.bags; i++) {
-                html += `<div class="bag" style="background:${COLORS[line.color_key]}"></div>`;
+            for (let i = 0; i < entry.bags; i++) {
+                html += `<div class="bag" style="background:${COLORS[entry.color_key]}"></div>`;
             }
 
             html += `</div>`;
-            html += `<span class="line-info">${infoText}</span>`;
-            html += `<div class="line-info-mobile">${infoText}</div>`;
+            html += `<span class="row-info">${infoText}</span>`;
+            html += `<div class="row-info-mobile">${infoText}</div>`;
             html += `</div>`;
         });
 
@@ -762,8 +762,8 @@ function showDetail(name) {
     document.getElementById('content').innerHTML = html;
 }
 
-// Toggle line info on mobile tap
-function toggleLineInfo(el) {
+// Toggle row info on mobile tap
+function toggleRowInfo(el) {
     if (window.innerWidth > 768) return;
     el.classList.toggle('expanded');
 }
