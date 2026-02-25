@@ -159,7 +159,7 @@ body {
 
 .gh-card-header {
     display: flex;
-    justify-content: space-between;
+    gap: 8px;
     align-items: center;
     margin-bottom: 4px;
 }
@@ -207,13 +207,12 @@ body {
 }
 
 .gh-card-footer {
-    margin-top: 6px;
-    padding-top: 6px;
+    margin-top: 4px;
+    padding-top: 4px;
     border-top: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     color: var(--text-secondary);
+    line-height: 1.3;
 }
 
 .gh-card-footer strong {
@@ -582,8 +581,7 @@ function renderCard(name) {
     });
 
     html += `<div class="gh-card-footer">
-        <span><strong>${gh.total_plants.toLocaleString()}</strong> plants</span>
-        <span>${breakdownParts.join(' &middot; ')}</span>
+        <strong>${gh.total_plants.toLocaleString()}</strong> plants &middot; ${breakdownParts.join(' &middot; ')}
     </div>`;
     html += `</div>`;
     return html;
