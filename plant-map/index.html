@@ -530,10 +530,16 @@ function renderCard(name) {
         }
     }
 
+    // Compute total bags
+    let totalBags = 0;
+    for (const entries of Object.values(gh.sides)) {
+        for (const entry of entries) totalBags += entry.bags;
+    }
+
     let html = `<div class="gh-card">`;
     html += `<div class="gh-card-header">
         <span class="gh-card-name">${name}</span>
-        <span class="gh-card-stats">${gh.total_rows} rows</span>
+        <span class="gh-card-stats">${gh.total_rows}r ${totalBags.toLocaleString()}b ${gh.total_plants.toLocaleString()}p</span>
     </div>`;
     // For horizontal GHs (like GH4), sides sit left-to-right (West then East)
     const bodyDir = isVert ? 'column' : 'row';
@@ -573,16 +579,15 @@ function renderCard(name) {
 
     html += `</div>`;
 
+    const ABBREV = {'Keiki':'K','English':'E','Japanese':'J4','Japanese (5/bag)':'J5','Mixed':'M'};
     let breakdownParts = [];
     ['Keiki', 'English', 'Japanese', 'Japanese (5/bag)', 'Mixed'].forEach(v => {
         if (vCounts[v]) {
-            breakdownParts.push(`<span style="color:${COLORS[v]}">${v}: ${vCounts[v].toLocaleString()}</span>`);
+            breakdownParts.push(`<span style="color:${COLORS[v]}">${ABBREV[v]}:${vCounts[v].toLocaleString()}</span>`);
         }
     });
 
-    html += `<div class="gh-card-footer">
-        <strong>${gh.total_plants.toLocaleString()}</strong> plants &middot; ${breakdownParts.join(' &middot; ')}
-    </div>`;
+    html += `<div class="gh-card-footer">${breakdownParts.join(' ')}</div>`;
     html += `</div>`;
     return html;
 }
