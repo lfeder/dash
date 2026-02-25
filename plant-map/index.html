@@ -501,10 +501,12 @@ function renderHeader() {
         chipHtml('Keiki') + chipHtml('English') + chipHtml('Japanese') + chipHtml('Japanese (5/bag)') + chipHtml('Mixed');
 }
 
-// Uniform bar size across all greenhouses
-const BAR_SIZE = 6; // px — width for vertical bars, height for horizontal bars
+// Uniform sizing: each row is ROW_W px thick, each bag adds BAG_PX to the row length
+const ROW_W = 6;   // px — thickness of one row
+const BAG_PX = 2;  // px — length per bag
+const SIDE_GAP = 8; // px — sidewalk gap between sides
 
-function renderCard(name, cardHeight) {
+function renderCard(name) {
     const gh = DATA[name];
     if (!gh) return '';
     const sideNames = Object.keys(gh.sides);
@@ -519,34 +521,40 @@ function renderCard(name, cardHeight) {
         }
     }
 
-    // For vertical bars, max height scales with available card space
-    const barMaxH = isVert ? Math.max(40, Math.round((cardHeight - 80) / sideNames.length * 0.85)) : 0;
-
-    let html = `<div class="gh-card" style="height:${cardHeight}px">`;
+    let html = `<div class="gh-card">`;
     html += `<div class="gh-card-header">
         <span class="gh-card-name">${name}</span>
         <span class="gh-card-stats">${gh.total_rows} rows</span>
     </div>`;
-    html += `<div class="gh-card-body" style="overflow:hidden">`;
+    html += `<div class="gh-card-body">`;
 
-    sideNames.forEach(side => {
+    sideNames.forEach((side, sideIdx) => {
         if (sideNames.length > 1 || side !== 'Main') {
             html += `<div class="card-side-label">${side}</div>`;
         }
+        if (sideIdx > 0) {
+            html += `<div style="height:${isVert ? SIDE_GAP : 0}px;width:${isVert ? 0 : SIDE_GAP}px;flex-shrink:0"></div>`;
+        }
         if (isVert) {
+            // Vertical: columns right-to-left, row 1 on right
+            // Width of section = numRows × (ROW_W + 1)
+            // Height of each column = bags × BAG_PX
             const fromTop = (side === 'South');
             const align = fromTop ? 'flex-start' : 'flex-end';
-            html += `<div style="display:flex;flex-direction:row-reverse;align-items:${align};gap:1px;height:${barMaxH}px">`;
+            html += `<div style="display:flex;flex-direction:row-reverse;align-items:${align};gap:1px">`;
             gh.sides[side].forEach(entry => {
-                const h = Math.max(4, Math.round((entry.bags / MAX_BAGS) * barMaxH));
-                html += `<div style="height:${h}px;width:${BAR_SIZE}px;border-radius:1px;background:${COLORS[entry.color_key]};flex-shrink:0"></div>`;
+                const h = entry.bags * BAG_PX;
+                html += `<div style="height:${h}px;width:${ROW_W}px;border-radius:1px;background:${COLORS[entry.color_key]};flex-shrink:0"></div>`;
             });
             html += `</div>`;
         } else {
-            html += `<div style="display:flex;flex-direction:column;gap:1px;overflow:hidden">`;
+            // Horizontal: rows top-to-bottom
+            // Height of section = numRows × (ROW_W + 1)
+            // Width of each bar = bags × BAG_PX
+            html += `<div style="display:flex;flex-direction:column;gap:1px">`;
             gh.sides[side].forEach(entry => {
-                const w = Math.max(10, Math.round((entry.bags / MAX_BAGS) * 100));
-                html += `<div style="width:${w}%;height:${BAR_SIZE}px;border-radius:1px;background:${COLORS[entry.color_key]};flex-shrink:0"></div>`;
+                const w = entry.bags * BAG_PX;
+                html += `<div style="width:${w}px;height:${ROW_W}px;border-radius:1px;background:${COLORS[entry.color_key]};flex-shrink:0"></div>`;
             });
             html += `</div>`;
         }
@@ -577,23 +585,17 @@ function showOverview() {
     // Row 4: GH7, GH8
     let html = '<div class="farm-layout">';
 
-    // Card heights auto-calculated: rows × BAR_SIZE + overhead
-    // GH4: 42 rows horizontal, 2 sides → ~21 bars/side × 7px + header/footer
-    // GH1-3: 60 rows vertical, 2 sides → height driven by bag count
-    // GH5-6: 63 rows vertical, 3 sides
-    // GH7-8: 42 rows vertical, 2-3 sides
-
-    // Row 1: GH4 — wide, short (horizontal bars)
-    html += `<div style="grid-column:1/7">${renderCard('GH4', 220)}</div>`;
-    // Row 2: GH3, GH2, GH1 — equal, tall
-    html += `<div style="grid-column:1/5">${renderCard('GH3', 380)}</div>`;
-    html += `<div style="grid-column:5/9">${renderCard('GH2', 380)}</div>`;
-    html += `<div style="grid-column:9/13">${renderCard('GH1', 380)}</div>`;
-    // Row 3-4: GH5 tallest, GH6 medium, GH7/8 small stacked
-    html += `<div style="grid-column:1/6;grid-row:span 2">${renderCard('GH5', 440)}</div>`;
-    html += `<div style="grid-column:6/10;grid-row:span 2">${renderCard('GH6', 400)}</div>`;
-    html += `<div style="grid-column:10/13">${renderCard('GH7', 200)}</div>`;
-    html += `<div style="grid-column:10/13">${renderCard('GH8', 200)}</div>`;
+    // Row 1: GH4
+    html += `<div style="grid-column:1/7">${renderCard('GH4')}</div>`;
+    // Row 2: GH3, GH2, GH1
+    html += `<div style="grid-column:1/5">${renderCard('GH3')}</div>`;
+    html += `<div style="grid-column:5/9">${renderCard('GH2')}</div>`;
+    html += `<div style="grid-column:9/13">${renderCard('GH1')}</div>`;
+    // Row 3-4: GH5, GH6, GH7/8
+    html += `<div style="grid-column:1/6;grid-row:span 2">${renderCard('GH5')}</div>`;
+    html += `<div style="grid-column:6/10;grid-row:span 2">${renderCard('GH6')}</div>`;
+    html += `<div style="grid-column:10/13">${renderCard('GH7')}</div>`;
+    html += `<div style="grid-column:10/13">${renderCard('GH8')}</div>`;
 
     html += '</div>';
 
