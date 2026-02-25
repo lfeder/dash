@@ -95,62 +95,12 @@ body {
 
 .btn:hover { background: var(--bg-hover); }
 
-.btn-back {
-    display: none;
-    margin-left: auto;
-    background: #0f3460;
-    border-color: #4a6a9e;
-    font-weight: 600;
-    font-size: 1.1rem;
-    padding: 8px 18px;
-}
 
 /* Content area */
 .content {
     padding: 12px 16px;
 }
 
-/* Detail header with inline legend */
-.detail-title-row {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 8px;
-    flex-wrap: wrap;
-}
-
-.detail-title-row h2 {
-    font-size: 1.4rem;
-    color: var(--text-accent);
-    margin: 0;
-}
-
-.detail-title-row .detail-stats {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-}
-
-.detail-legend {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-left: auto;
-    flex-wrap: wrap;
-}
-
-.detail-legend-item {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-}
-
-.detail-legend-color {
-    width: 12px;
-    height: 12px;
-    border-radius: 2px;
-}
 
 /* Overview grid */
 .overview-grid {
@@ -164,12 +114,10 @@ body {
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 10px;
-    cursor: pointer;
     transition: transform 0.15s, border-color 0.15s;
 }
 
 .gh-card:hover {
-    transform: translateY(-2px);
     border-color: #4a6a9e;
 }
 
@@ -236,134 +184,6 @@ body {
     color: var(--text-accent);
 }
 
-/* Detail view */
-.detail-view {
-    max-width: 1200px;
-}
-
-.side-section {
-    margin-bottom: 16px;
-}
-
-.side-label {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 8px;
-    padding-bottom: 4px;
-    border-bottom: 1px solid var(--border);
-}
-
-.rows-container {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-
-.row-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 3px 0;
-    border-radius: 4px;
-    position: relative;
-}
-
-.row-row:hover {
-    background: rgba(255,255,255,0.03);
-}
-
-.row-label {
-    width: 50px;
-    text-align: right;
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    flex-shrink: 0;
-    font-variant-numeric: tabular-nums;
-}
-
-.row-bags {
-    display: flex;
-    gap: 2px;
-    flex-wrap: nowrap;
-}
-
-.bag {
-    width: 12px;
-    height: 18px;
-    border-radius: 2px;
-    flex-shrink: 0;
-    opacity: 0.85;
-    transition: opacity 0.15s;
-}
-
-.row-row:hover .bag {
-    opacity: 1;
-}
-
-.row-info {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    white-space: nowrap;
-    margin-left: 8px;
-}
-
-.row-info-mobile {
-    display: none;
-}
-
-/* Vertical (rotated) detail layout */
-.rows-container.vertical {
-    flex-direction: row-reverse !important;
-    align-items: flex-end !important;
-    gap: 2px !important;
-    overflow-x: auto;
-}
-
-.rows-container.vertical.from-top {
-    align-items: flex-start !important;
-}
-
-.rows-container.vertical .row-row {
-    flex-direction: column !important;
-    align-items: center !important;
-    gap: 2px !important;
-    padding: 0 2px !important;
-    min-width: 20px;
-}
-
-.rows-container.vertical .row-bags {
-    flex-direction: column !important;
-    flex-wrap: nowrap !important;
-    gap: 2px !important;
-}
-
-.rows-container.vertical:not(.from-top) .row-bags {
-    flex-direction: column-reverse !important;
-}
-
-.rows-container.vertical .row-label {
-    width: auto !important;
-    text-align: center !important;
-    font-size: 0.7rem;
-    order: 1;
-}
-
-.rows-container.vertical.from-top .row-label {
-    order: -1;
-}
-
-.rows-container.vertical .row-info,
-.rows-container.vertical .row-info-mobile {
-    display: none !important;
-}
-
-.rows-container.vertical .bag {
-    width: 18px !important;
-    height: 12px !important;
-}
 
 /* Tooltip */
 .tooltip {
@@ -435,43 +255,6 @@ body {
         gap: 4px;
     }
 
-    /* Detail view: scroll bags horizontally */
-    .detail-view { max-width: 100%; }
-    .detail-header h2 { font-size: 1.3rem; }
-    .row-row {
-        gap: 6px;
-    }
-    .row-label {
-        width: 32px;
-        font-size: 0.75rem;
-    }
-    .row-bags {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        flex-shrink: 1;
-        min-width: 0;
-    }
-    .bag { width: 7px; height: 14px; }
-    .row-info {
-        display: none;
-    }
-    .row-info-mobile {
-        display: none;
-        width: 100%;
-        font-size: 0.8rem;
-        color: var(--text-secondary);
-        background: rgba(255,255,255,0.05);
-        padding: 4px 8px;
-        border-radius: 4px;
-        margin-top: 2px;
-    }
-    .row-row {
-        flex-wrap: wrap;
-    }
-    .row-row.expanded .row-info-mobile {
-        display: block;
-    }
-
     /* Hide tooltip on touch (unreliable) */
     .tooltip { display: none !important; }
 }
@@ -484,7 +267,6 @@ body {
     <h1>Greenhouse Plant Map</h1>
     <div class="header-stats" id="headerStats"></div>
     <div class="variety-legend" id="headerLegend"></div>
-    <button class="btn btn-back" id="btnBack" onclick="showOverview()">All Greenhouses</button>
 </div>
 
 <div class="content" id="content"></div>
@@ -694,7 +476,6 @@ function renderHeader() {
 }
 
 function showOverview() {
-    document.getElementById('btnBack').style.display = 'none';
 
     let html = '<div class="overview-grid">';
 
@@ -710,14 +491,14 @@ function showOverview() {
             }
         }
 
-        html += `<div class="gh-card" onclick="showDetail('${name}')">`;
+        html += `<div class="gh-card">`;
         html += `<div class="gh-card-header">
             <span class="gh-card-name">${name}</span>
             <span class="gh-card-stats">${gh.total_rows} rows</span>
         </div>`;
         html += `<div class="gh-card-body">`;
 
-        const VERTICAL_CARDS = ['GH1'];
+        const VERTICAL_CARDS = ['GH1','GH2','GH3','GH5','GH6','GH7','GH8'];
         const isVert = VERTICAL_CARDS.includes(name);
 
         sideNames.forEach(side => {
@@ -765,95 +546,6 @@ function showOverview() {
     document.getElementById('content').innerHTML = html;
 }
 
-function showDetail(name) {
-    document.getElementById('btnBack').style.display = 'block';
-
-    const gh = DATA[name];
-    const sideNames = Object.keys(gh.sides);
-
-    // Variety breakdown for this GH
-    const vCounts = {};
-    for (const entries of Object.values(gh.sides)) {
-        for (const entry of entries) {
-            vCounts[entry.color_key] = (vCounts[entry.color_key] || 0) + entry.total_plants;
-        }
-    }
-
-    let html = '<div class="detail-view">';
-
-    // Header with stats and legend on one row
-    function legendChip(v) {
-        const count = vCounts[v] || 0;
-        if (count === 0) return '';
-        return `<span class="detail-legend-item"><span class="detail-legend-color" style="background:${COLORS[v]}"></span>${v}: ${count.toLocaleString()}</span>`;
-    }
-    html += `<div class="detail-title-row">
-        <h2>${name}</h2>
-        <span class="detail-stats">${gh.total_rows} rows &middot; ${gh.total_plants.toLocaleString()} plants</span>
-        <div class="detail-legend">
-            ${legendChip('Keiki')}${legendChip('English')}${legendChip('Japanese')}${legendChip('Japanese (5/bag)')}${legendChip('Mixed')}
-        </div>
-    </div>`;
-
-    // Which greenhouses use vertical (rotated) layout
-    const VERTICAL_GHS = ['GH1'];
-    const isVertical = VERTICAL_GHS.includes(name);
-
-    // Sides
-    sideNames.forEach(side => {
-        html += `<div class="side-section">`;
-        if (sideNames.length > 1 || side !== 'Main') {
-            html += `<div class="side-label">${side}</div>`;
-        }
-        const fromTop = (side === 'South');
-        if (isVertical) {
-            const align = fromTop ? 'flex-start' : 'flex-end';
-            html += `<div style="display:flex;flex-direction:row-reverse;align-items:${align};gap:2px;overflow-x:auto;padding:8px 0">`;
-        } else {
-            html += `<div class="rows-container">`;
-        }
-
-        gh.sides[side].forEach(entry => {
-            const tipText = `Row ${entry.row_num}: ${entry.bags} bags \u00d7 ${entry.plants_per_bag} plants/bag = ${entry.total_plants} plants (${entry.variety})`;
-            const infoText = `${entry.bags}\u00d7${entry.plants_per_bag} = ${entry.total_plants} (${entry.variety})`;
-
-            if (isVertical) {
-                const bagDir = fromTop ? 'column' : 'column-reverse';
-                html += `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:0 2px;min-width:20px;cursor:pointer" onmouseenter="showTooltip(event, '${tipText.replace(/'/g, "\\'")}')" onmousemove="moveTooltip(event)" onmouseleave="hideTooltip()">`;
-                if (fromTop) html += `<span style="font-size:0.7rem;color:var(--text-secondary)">${entry.row_num}</span>`;
-                html += `<div style="display:flex;flex-direction:${bagDir};gap:2px">`;
-                for (let i = 0; i < entry.bags; i++) {
-                    html += `<div style="width:18px;height:12px;border-radius:2px;background:${COLORS[entry.color_key]};opacity:0.85"></div>`;
-                }
-                html += `</div>`;
-                if (!fromTop) html += `<span style="font-size:0.7rem;color:var(--text-secondary)">${entry.row_num}</span>`;
-                html += `</div>`;
-            } else {
-                html += `<div class="row-row" onclick="toggleRowInfo(this)" onmouseenter="showTooltip(event, '${tipText.replace(/'/g, "\\'")}')" onmousemove="moveTooltip(event)" onmouseleave="hideTooltip()">`;
-                html += `<span class="row-label">${entry.row_num}</span>`;
-                html += `<div class="row-bags">`;
-                for (let i = 0; i < entry.bags; i++) {
-                    html += `<div class="bag" style="background:${COLORS[entry.color_key]}"></div>`;
-                }
-                html += `</div>`;
-                html += `<span class="row-info">${infoText}</span>`;
-                html += `<div class="row-info-mobile">${infoText}</div>`;
-                html += `</div>`;
-            }
-        });
-
-        html += `</div></div>`;
-    });
-
-    html += '</div>';
-    document.getElementById('content').innerHTML = html;
-}
-
-// Toggle row info on mobile tap
-function toggleRowInfo(el) {
-    if (window.innerWidth > 768) return;
-    el.classList.toggle('expanded');
-}
 
 // Tooltip
 function showTooltip(e, text) {
