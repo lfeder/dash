@@ -104,12 +104,22 @@ body {
 
 /* Overview grid — fixed layout matching aerial photo */
 .farm-layout {
-    display: grid;
-    grid-template-columns: repeat(12, 1fr);
-    grid-auto-rows: min-content;
+    display: flex;
+    flex-direction: column;
     gap: 8px;
+    align-items: flex-start;
     max-width: 1200px;
     margin: 0 auto 16px;
+}
+.farm-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+}
+.farm-col {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .other-greenhouses {
@@ -135,11 +145,12 @@ body {
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 10px;
+    padding: 6px 8px;
     transition: border-color 0.15s;
-    display: flex;
+    display: inline-flex;
     flex-direction: column;
     overflow: hidden;
+    width: fit-content;
 }
 
 .gh-card:hover {
@@ -150,7 +161,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 }
 
 .gh-card-name {
@@ -168,7 +179,6 @@ body {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    flex: 1;
 }
 
 .card-side-label {
@@ -543,7 +553,7 @@ function renderCard(name) {
             // Height of each column = bags × BAG_PX
             const fromTop = (side === 'South');
             const align = fromTop ? 'flex-start' : 'flex-end';
-            html += `<div style="display:flex;flex-direction:row-reverse;align-items:${align};gap:1px;justify-content:flex-start;margin-left:auto">`;
+            html += `<div style="display:flex;flex-direction:row-reverse;align-items:${align};gap:1px">`;
             gh.sides[side].forEach(entry => {
                 const h = entry.bags * BAG_PX;
                 html += `<div style="height:${h}px;width:${ROW_W}px;border-radius:1px;background:${COLORS[entry.color_key]};flex-shrink:0"></div>`;
@@ -588,16 +598,11 @@ function showOverview() {
     let html = '<div class="farm-layout">';
 
     // Row 1: GH4
-    html += `<div style="grid-column:1/7">${renderCard('GH4')}</div>`;
+    html += `<div class="farm-row">${renderCard('GH4')}</div>`;
     // Row 2: GH3, GH2, GH1
-    html += `<div style="grid-column:1/5">${renderCard('GH3')}</div>`;
-    html += `<div style="grid-column:5/9">${renderCard('GH2')}</div>`;
-    html += `<div style="grid-column:9/13">${renderCard('GH1')}</div>`;
-    // Row 3-4: GH5, GH6, GH7/8
-    html += `<div style="grid-column:1/6;grid-row:span 2">${renderCard('GH5')}</div>`;
-    html += `<div style="grid-column:6/10;grid-row:span 2">${renderCard('GH6')}</div>`;
-    html += `<div style="grid-column:10/13">${renderCard('GH7')}</div>`;
-    html += `<div style="grid-column:10/13">${renderCard('GH8')}</div>`;
+    html += `<div class="farm-row">${renderCard('GH3')}${renderCard('GH2')}${renderCard('GH1')}</div>`;
+    // Row 3: GH5, GH6, GH7 stacked with GH8
+    html += `<div class="farm-row">${renderCard('GH5')}${renderCard('GH6')}<div class="farm-col">${renderCard('GH7')}${renderCard('GH8')}</div></div>`;
 
     html += '</div>';
 
