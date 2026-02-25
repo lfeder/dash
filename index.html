@@ -34,7 +34,7 @@ const frame = document.getElementById('frame');
 function navigate(id) {
   const dash = DASHBOARDS.find(d => d.id === id) || DASHBOARDS[0];
   location.hash = dash.id;
-  frame.src = dash.src;
+  frame.src = dash.src + '?v=' + Date.now();
   document.querySelectorAll('.tab').forEach(t =>
     t.classList.toggle('active', t.dataset.id === dash.id)
   );
