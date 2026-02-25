@@ -105,13 +105,12 @@ body {
 /* Overview grid — fixed layout matching aerial photo */
 .farm-layout {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(6, 1fr);
+    grid-auto-rows: min-content;
     gap: 10px;
     max-width: 1200px;
     margin: 0 auto 16px;
 }
-
-.farm-layout .gh4-slot { grid-column: 1 / -1; }
 
 .other-greenhouses {
     display: grid;
@@ -137,7 +136,10 @@ body {
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 10px;
-    transition: transform 0.15s, border-color 0.15s;
+    transition: border-color 0.15s;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 .gh-card:hover {
@@ -166,6 +168,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    flex: 1;
 }
 
 .card-side-label {
@@ -569,14 +572,17 @@ function showOverview() {
     // Row 4: GH7, GH8
     let html = '<div class="farm-layout">';
 
-    html += `<div class="gh4-slot">${renderCard('GH4')}</div>`;
-    html += renderCard('GH3');
-    html += renderCard('GH2');
-    html += renderCard('GH1');
-    html += `<div style="grid-column:1/2;grid-row:span 2">${renderCard('GH5')}</div>`;
-    html += `<div style="grid-column:2/3;grid-row:span 2">${renderCard('GH6')}</div>`;
-    html += `<div style="grid-column:3/4">${renderCard('GH7')}</div>`;
-    html += `<div style="grid-column:3/4">${renderCard('GH8')}</div>`;
+    // Row 1: GH4 — wide, shorter
+    html += `<div style="grid-column:1/-1;min-height:160px">${renderCard('GH4')}</div>`;
+    // Row 2: GH3, GH2, GH1 — equal width, medium height
+    html += `<div style="grid-column:1/3;min-height:240px">${renderCard('GH3')}</div>`;
+    html += `<div style="grid-column:3/5;min-height:240px">${renderCard('GH2')}</div>`;
+    html += `<div style="grid-column:5/7;min-height:240px">${renderCard('GH1')}</div>`;
+    // Row 3-4: GH5+GH6 taller on left, GH7+GH8 smaller stacked on right
+    html += `<div style="grid-column:1/3;grid-row:span 2;min-height:300px">${renderCard('GH5')}</div>`;
+    html += `<div style="grid-column:3/5;grid-row:span 2;min-height:300px">${renderCard('GH6')}</div>`;
+    html += `<div style="grid-column:5/7;min-height:140px">${renderCard('GH7')}</div>`;
+    html += `<div style="grid-column:5/7;min-height:140px">${renderCard('GH8')}</div>`;
 
     html += '</div>';
 
