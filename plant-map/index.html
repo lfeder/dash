@@ -102,11 +102,34 @@ body {
 }
 
 
-/* Overview grid */
-.overview-grid {
+/* Overview grid — fixed layout matching aerial photo */
+.farm-layout {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    max-width: 1200px;
+    margin: 0 auto 16px;
+}
+
+.farm-layout .gh4-slot { grid-column: 1 / -1; }
+
+.other-greenhouses {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 10px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.section-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 16px 0 6px;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .gh-card {
@@ -475,74 +498,98 @@ function renderHeader() {
         chipHtml('Keiki') + chipHtml('English') + chipHtml('Japanese') + chipHtml('Japanese (5/bag)') + chipHtml('Mixed');
 }
 
-function showOverview() {
+function renderCard(name) {
+    const gh = DATA[name];
+    if (!gh) return '';
+    const sideNames = Object.keys(gh.sides);
 
-    let html = '<div class="overview-grid">';
+    const VERTICAL_CARDS = ['GH1','GH2','GH3','GH5','GH6','GH7','GH8'];
+    const isVert = VERTICAL_CARDS.includes(name);
 
-    GH_NAMES.forEach(name => {
-        const gh = DATA[name];
-        const sideNames = Object.keys(gh.sides);
-
-        // Variety breakdown for this GH (by color_key)
-        const vCounts = {};
-        for (const entries of Object.values(gh.sides)) {
-            for (const entry of entries) {
-                vCounts[entry.color_key] = (vCounts[entry.color_key] || 0) + entry.total_plants;
-            }
+    const vCounts = {};
+    for (const entries of Object.values(gh.sides)) {
+        for (const entry of entries) {
+            vCounts[entry.color_key] = (vCounts[entry.color_key] || 0) + entry.total_plants;
         }
+    }
 
-        html += `<div class="gh-card">`;
-        html += `<div class="gh-card-header">
-            <span class="gh-card-name">${name}</span>
-            <span class="gh-card-stats">${gh.total_rows} rows</span>
-        </div>`;
-        html += `<div class="gh-card-body">`;
+    let html = `<div class="gh-card">`;
+    html += `<div class="gh-card-header">
+        <span class="gh-card-name">${name}</span>
+        <span class="gh-card-stats">${gh.total_rows} rows</span>
+    </div>`;
+    html += `<div class="gh-card-body">`;
 
-        const VERTICAL_CARDS = ['GH1','GH2','GH3','GH5','GH6','GH7','GH8'];
-        const isVert = VERTICAL_CARDS.includes(name);
-
-        sideNames.forEach(side => {
-            if (sideNames.length > 1 || side !== 'Main') {
-                html += `<div class="card-side-label">${side}</div>`;
-            }
-            if (isVert) {
-                const fromTop = (side === 'South');
-                const align = fromTop ? 'flex-start' : 'flex-end';
-                const maxH = 120; // max bar height in px
-                html += `<div style="display:flex;flex-direction:row-reverse;align-items:${align};gap:1px;height:${maxH + 10}px">`;
-                gh.sides[side].forEach(entry => {
-                    const h = Math.max(4, Math.round((entry.bags / MAX_BAGS) * maxH));
-                    html += `<div style="height:${h}px;width:4px;border-radius:2px;background:${COLORS[entry.color_key]};flex-shrink:0"></div>`;
-                });
-                html += `</div>`;
-            } else {
-                html += `<div class="card-rows">`;
-                gh.sides[side].forEach(entry => {
-                    const w = Math.max(10, Math.round((entry.bags / MAX_BAGS) * 100));
-                    html += `<div class="card-row-bar" style="width:${w}%;background:${COLORS[entry.color_key]}"></div>`;
-                });
-                html += `</div>`;
-            }
-        });
-
-        html += `</div>`;
-
-        // Footer with plant count and variety mini-breakdown
-        let breakdownParts = [];
-        ['Keiki', 'English', 'Japanese', 'Japanese (5/bag)', 'Mixed'].forEach(v => {
-            if (vCounts[v]) {
-                breakdownParts.push(`<span style="color:${COLORS[v]}">${v}: ${vCounts[v].toLocaleString()}</span>`);
-            }
-        });
-
-        html += `<div class="gh-card-footer">
-            <span><strong>${gh.total_plants.toLocaleString()}</strong> plants</span>
-            <span>${breakdownParts.join(' &middot; ')}</span>
-        </div>`;
-        html += `</div>`;
+    sideNames.forEach(side => {
+        if (sideNames.length > 1 || side !== 'Main') {
+            html += `<div class="card-side-label">${side}</div>`;
+        }
+        if (isVert) {
+            const fromTop = (side === 'South');
+            const align = fromTop ? 'flex-start' : 'flex-end';
+            const maxH = 120;
+            html += `<div style="display:flex;flex-direction:row-reverse;align-items:${align};gap:1px;height:${maxH + 10}px">`;
+            gh.sides[side].forEach(entry => {
+                const h = Math.max(4, Math.round((entry.bags / MAX_BAGS) * maxH));
+                html += `<div style="height:${h}px;width:4px;border-radius:2px;background:${COLORS[entry.color_key]};flex-shrink:0"></div>`;
+            });
+            html += `</div>`;
+        } else {
+            html += `<div class="card-rows">`;
+            gh.sides[side].forEach(entry => {
+                const w = Math.max(10, Math.round((entry.bags / MAX_BAGS) * 100));
+                html += `<div class="card-row-bar" style="width:${w}%;background:${COLORS[entry.color_key]}"></div>`;
+            });
+            html += `</div>`;
+        }
     });
 
+    html += `</div>`;
+
+    let breakdownParts = [];
+    ['Keiki', 'English', 'Japanese', 'Japanese (5/bag)', 'Mixed'].forEach(v => {
+        if (vCounts[v]) {
+            breakdownParts.push(`<span style="color:${COLORS[v]}">${v}: ${vCounts[v].toLocaleString()}</span>`);
+        }
+    });
+
+    html += `<div class="gh-card-footer">
+        <span><strong>${gh.total_plants.toLocaleString()}</strong> plants</span>
+        <span>${breakdownParts.join(' &middot; ')}</span>
+    </div>`;
+    html += `</div>`;
+    return html;
+}
+
+function showOverview() {
+    // Fixed layout matching aerial photo of JTL greenhouses
+    // Row 1: GH4 (full width, East/West)
+    // Row 2: GH3, GH2, GH1 (left to right)
+    // Row 3: GH5, GH6
+    // Row 4: GH7, GH8
+    let html = '<div class="farm-layout">';
+
+    html += `<div class="gh4-slot">${renderCard('GH4')}</div>`;
+    html += renderCard('GH3');
+    html += renderCard('GH2');
+    html += renderCard('GH1');
+    html += `<div style="grid-column:1/2;grid-row:span 2">${renderCard('GH5')}</div>`;
+    html += `<div style="grid-column:2/3;grid-row:span 2">${renderCard('GH6')}</div>`;
+    html += `<div style="grid-column:3/4">${renderCard('GH7')}</div>`;
+    html += `<div style="grid-column:3/4">${renderCard('GH8')}</div>`;
+
     html += '</div>';
+
+    // Other greenhouses below
+    const jtlNames = ['GH1','GH2','GH3','GH4','GH5','GH6','GH7','GH8'];
+    const others = GH_NAMES.filter(n => !jtlNames.includes(n));
+    if (others.length > 0) {
+        html += '<div class="section-label">Other Locations</div>';
+        html += '<div class="other-greenhouses">';
+        others.forEach(name => { html += renderCard(name); });
+        html += '</div>';
+    }
+
     document.getElementById('content').innerHTML = html;
 }
 
