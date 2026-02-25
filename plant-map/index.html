@@ -314,6 +314,63 @@ body {
     display: none;
 }
 
+/* Vertical (rotated) detail layout */
+.rows-container.vertical {
+    flex-direction: row-reverse;
+    align-items: flex-end;
+    gap: 2px;
+    overflow-x: auto;
+}
+
+.rows-container.vertical.from-top {
+    align-items: flex-start;
+}
+
+.rows-container.vertical .row-row {
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 0 2px;
+    min-width: 20px;
+}
+
+.rows-container.vertical .row-bags {
+    flex-direction: column;
+    gap: 2px;
+}
+
+.rows-container.vertical.from-top .row-bags {
+    flex-direction: column;
+}
+
+.rows-container.vertical:not(.from-top) .row-bags {
+    flex-direction: column-reverse;
+}
+
+.rows-container.vertical .row-label {
+    width: auto;
+    text-align: center;
+    font-size: 0.7rem;
+    order: 1;
+}
+
+.rows-container.vertical:not(.from-top) .row-label {
+    order: 1;
+}
+
+.rows-container.vertical.from-top .row-label {
+    order: -1;
+}
+
+.rows-container.vertical .row-info {
+    display: none;
+}
+
+.rows-container.vertical .bag {
+    width: 18px;
+    height: 12px;
+}
+
 /* Tooltip */
 .tooltip {
     position: fixed;
@@ -729,13 +786,19 @@ function showDetail(name) {
         </div>
     </div>`;
 
+    // Which greenhouses use vertical (rotated) layout
+    const VERTICAL_GHS = ['GH1'];
+    const isVertical = VERTICAL_GHS.includes(name);
+
     // Sides
     sideNames.forEach(side => {
         html += `<div class="side-section">`;
         if (sideNames.length > 1 || side !== 'Main') {
             html += `<div class="side-label">${side}</div>`;
         }
-        html += `<div class="rows-container">`;
+        const fromTop = (side === 'South');
+        const vertClass = isVertical ? ` vertical${fromTop ? ' from-top' : ''}` : '';
+        html += `<div class="rows-container${vertClass}">`;
 
         gh.sides[side].forEach(entry => {
             const tipText = `Row ${entry.row_num}: ${entry.bags} bags \u00d7 ${entry.plants_per_bag} plants/bag = ${entry.total_plants} plants (${entry.variety})`;
