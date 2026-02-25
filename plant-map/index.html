@@ -105,9 +105,9 @@ body {
 /* Overview grid — fixed layout matching aerial photo */
 .farm-layout {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(12, 1fr);
     grid-auto-rows: min-content;
-    gap: 10px;
+    gap: 8px;
     max-width: 1200px;
     margin: 0 auto 16px;
 }
@@ -572,17 +572,17 @@ function showOverview() {
     // Row 4: GH7, GH8
     let html = '<div class="farm-layout">';
 
-    // Row 1: GH4 — spans GH3 + half GH2 width
-    html += `<div style="grid-column:1/4;min-height:160px">${renderCard('GH4')}</div>`;
-    // Row 2: GH3, GH2, GH1 — equal width, medium height
-    html += `<div style="grid-column:1/3;min-height:240px">${renderCard('GH3')}</div>`;
-    html += `<div style="grid-column:3/5;min-height:240px">${renderCard('GH2')}</div>`;
-    html += `<div style="grid-column:5/7;min-height:240px">${renderCard('GH1')}</div>`;
-    // Row 3-4: GH5+GH6 taller on left, GH7+GH8 smaller stacked on right
-    html += `<div style="grid-column:1/3;grid-row:span 2;min-height:300px">${renderCard('GH5')}</div>`;
-    html += `<div style="grid-column:3/5;grid-row:span 2;min-height:300px">${renderCard('GH6')}</div>`;
-    html += `<div style="grid-column:5/7;min-height:140px">${renderCard('GH7')}</div>`;
-    html += `<div style="grid-column:5/7;min-height:140px">${renderCard('GH8')}</div>`;
+    // Row 1: GH4 — spans left ~58% (above GH3 + half GH2), shorter
+    html += `<div style="grid-column:1/8;min-height:130px">${renderCard('GH4')}</div>`;
+    // Row 2: GH3, GH2, GH1 — equal width
+    html += `<div style="grid-column:1/5;min-height:250px">${renderCard('GH3')}</div>`;
+    html += `<div style="grid-column:5/9;min-height:250px">${renderCard('GH2')}</div>`;
+    html += `<div style="grid-column:9/13;min-height:250px">${renderCard('GH1')}</div>`;
+    // Row 3-4: GH5 widest+tallest left, GH6 center, GH7/8 smaller stacked right
+    html += `<div style="grid-column:1/6;grid-row:span 2;min-height:300px">${renderCard('GH5')}</div>`;
+    html += `<div style="grid-column:6/10;grid-row:span 2;min-height:280px">${renderCard('GH6')}</div>`;
+    html += `<div style="grid-column:10/13;min-height:140px">${renderCard('GH7')}</div>`;
+    html += `<div style="grid-column:10/13;min-height:140px">${renderCard('GH8')}</div>`;
 
     html += '</div>';
 
