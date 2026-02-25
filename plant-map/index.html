@@ -531,10 +531,10 @@ function renderCard(name) {
             const fromTop = (side === 'South');
             const align = fromTop ? 'flex-start' : 'flex-end';
             const maxH = 120;
-            html += `<div style="display:flex;flex-direction:row-reverse;align-items:${align};gap:1px;height:${maxH + 10}px">`;
+            html += `<div style="display:flex;flex-direction:row-reverse;align-items:${align};gap:1px;height:${maxH + 10}px;flex:1">`;
             gh.sides[side].forEach(entry => {
                 const h = Math.max(4, Math.round((entry.bags / MAX_BAGS) * maxH));
-                html += `<div style="height:${h}px;width:4px;border-radius:2px;background:${COLORS[entry.color_key]};flex-shrink:0"></div>`;
+                html += `<div style="height:${h}px;flex:1;min-width:2px;border-radius:2px;background:${COLORS[entry.color_key]}"></div>`;
             });
             html += `</div>`;
         } else {
@@ -572,8 +572,8 @@ function showOverview() {
     // Row 4: GH7, GH8
     let html = '<div class="farm-layout">';
 
-    // Row 1: GH4 — wide, shorter
-    html += `<div style="grid-column:1/-1;min-height:160px">${renderCard('GH4')}</div>`;
+    // Row 1: GH4 — spans GH3 + half GH2 width
+    html += `<div style="grid-column:1/4;min-height:160px">${renderCard('GH4')}</div>`;
     // Row 2: GH3, GH2, GH1 — equal width, medium height
     html += `<div style="grid-column:1/3;min-height:240px">${renderCard('GH3')}</div>`;
     html += `<div style="grid-column:3/5;min-height:240px">${renderCard('GH2')}</div>`;
