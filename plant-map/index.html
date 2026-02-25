@@ -534,9 +534,6 @@ function renderCard(name) {
     const renderSides = isVert ? sideNames : [...sideNames].reverse();
 
     renderSides.forEach((side, sideIdx) => {
-        if (renderSides.length > 1 || side !== 'Main') {
-            html += `<div class="card-side-label">${side}</div>`;
-        }
         if (sideIdx > 0) {
             html += `<div style="${isVert ? 'height' : 'width'}:${SIDE_GAP}px;flex-shrink:0"></div>`;
         }
@@ -546,7 +543,7 @@ function renderCard(name) {
             // Height of each column = bags × BAG_PX
             const fromTop = (side === 'South');
             const align = fromTop ? 'flex-start' : 'flex-end';
-            html += `<div style="display:flex;flex-direction:row-reverse;align-items:${align};gap:1px">`;
+            html += `<div style="display:flex;flex-direction:row-reverse;align-items:${align};gap:1px;justify-content:flex-start;margin-left:auto">`;
             gh.sides[side].forEach(entry => {
                 const h = entry.bags * BAG_PX;
                 html += `<div style="height:${h}px;width:${ROW_W}px;border-radius:1px;background:${COLORS[entry.color_key]};flex-shrink:0"></div>`;
