@@ -137,9 +137,9 @@ body {
     border-radius: 8px;
     padding: 10px;
     transition: border-color 0.15s;
-    height: 100%;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 .gh-card:hover {
@@ -501,7 +501,7 @@ function renderHeader() {
         chipHtml('Keiki') + chipHtml('English') + chipHtml('Japanese') + chipHtml('Japanese (5/bag)') + chipHtml('Mixed');
 }
 
-function renderCard(name) {
+function renderCard(name, cardHeight) {
     const gh = DATA[name];
     if (!gh) return '';
     const sideNames = Object.keys(gh.sides);
@@ -516,12 +516,15 @@ function renderCard(name) {
         }
     }
 
-    let html = `<div class="gh-card">`;
+    // Scale vertical bar height based on card height (reserve ~80px for header+footer+labels)
+    const barMaxH = isVert ? Math.max(40, Math.round((cardHeight - 80) / sideNames.length * 0.8)) : 0;
+
+    let html = `<div class="gh-card" style="height:${cardHeight}px">`;
     html += `<div class="gh-card-header">
         <span class="gh-card-name">${name}</span>
         <span class="gh-card-stats">${gh.total_rows} rows</span>
     </div>`;
-    html += `<div class="gh-card-body">`;
+    html += `<div class="gh-card-body" style="overflow:hidden">`;
 
     sideNames.forEach(side => {
         if (sideNames.length > 1 || side !== 'Main') {
@@ -530,15 +533,14 @@ function renderCard(name) {
         if (isVert) {
             const fromTop = (side === 'South');
             const align = fromTop ? 'flex-start' : 'flex-end';
-            const maxH = 120;
-            html += `<div style="display:flex;flex-direction:row-reverse;align-items:${align};gap:1px;height:${maxH + 10}px;flex:1">`;
+            html += `<div style="display:flex;flex-direction:row-reverse;align-items:${align};gap:1px;height:${barMaxH}px;flex:1">`;
             gh.sides[side].forEach(entry => {
-                const h = Math.max(4, Math.round((entry.bags / MAX_BAGS) * maxH));
+                const h = Math.max(4, Math.round((entry.bags / MAX_BAGS) * barMaxH));
                 html += `<div style="height:${h}px;flex:1;min-width:2px;border-radius:2px;background:${COLORS[entry.color_key]}"></div>`;
             });
             html += `</div>`;
         } else {
-            html += `<div class="card-rows">`;
+            html += `<div class="card-rows" style="overflow:hidden">`;
             gh.sides[side].forEach(entry => {
                 const w = Math.max(10, Math.round((entry.bags / MAX_BAGS) * 100));
                 html += `<div class="card-row-bar" style="width:${w}%;background:${COLORS[entry.color_key]}"></div>`;
@@ -572,17 +574,17 @@ function showOverview() {
     // Row 4: GH7, GH8
     let html = '<div class="farm-layout">';
 
-    // Row 1: GH4 — spans left ~58% (above GH3 + half GH2), shorter
-    html += `<div style="grid-column:1/8;min-height:130px">${renderCard('GH4')}</div>`;
-    // Row 2: GH3, GH2, GH1 — equal width
-    html += `<div style="grid-column:1/5;min-height:250px">${renderCard('GH3')}</div>`;
-    html += `<div style="grid-column:5/9;min-height:250px">${renderCard('GH2')}</div>`;
-    html += `<div style="grid-column:9/13;min-height:250px">${renderCard('GH1')}</div>`;
-    // Row 3-4: GH5 widest+tallest left, GH6 center, GH7/8 smaller stacked right
-    html += `<div style="grid-column:1/6;grid-row:span 2;min-height:300px">${renderCard('GH5')}</div>`;
-    html += `<div style="grid-column:6/10;grid-row:span 2;min-height:280px">${renderCard('GH6')}</div>`;
-    html += `<div style="grid-column:10/13;min-height:140px">${renderCard('GH7')}</div>`;
-    html += `<div style="grid-column:10/13;min-height:140px">${renderCard('GH8')}</div>`;
+    // Row 1: GH4 — wide but short, spans ~half total width
+    html += `<div style="grid-column:1/7">${renderCard('GH4', 120)}</div>`;
+    // Row 2: GH3, GH2, GH1 — equal width, tall portrait
+    html += `<div style="grid-column:1/5">${renderCard('GH3', 350)}</div>`;
+    html += `<div style="grid-column:5/9">${renderCard('GH2', 350)}</div>`;
+    html += `<div style="grid-column:9/13">${renderCard('GH1', 350)}</div>`;
+    // Row 3-4: GH5 widest+tallest, GH6 medium, GH7/8 small stacked right
+    html += `<div style="grid-column:1/6;grid-row:span 2">${renderCard('GH5', 400)}</div>`;
+    html += `<div style="grid-column:6/10;grid-row:span 2">${renderCard('GH6', 350)}</div>`;
+    html += `<div style="grid-column:10/13">${renderCard('GH7', 190)}</div>`;
+    html += `<div style="grid-column:10/13">${renderCard('GH8', 190)}</div>`;
 
     html += '</div>';
 
