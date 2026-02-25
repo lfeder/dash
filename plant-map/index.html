@@ -526,14 +526,19 @@ function renderCard(name) {
         <span class="gh-card-name">${name}</span>
         <span class="gh-card-stats">${gh.total_rows} rows</span>
     </div>`;
-    html += `<div class="gh-card-body">`;
+    // For horizontal GHs (like GH4), sides sit left-to-right (West then East)
+    const bodyDir = isVert ? 'column' : 'row';
+    html += `<div class="gh-card-body" style="flex-direction:${bodyDir}">`;
 
-    sideNames.forEach((side, sideIdx) => {
-        if (sideNames.length > 1 || side !== 'Main') {
+    // For horizontal GHs, reverse side order so West is on left
+    const renderSides = isVert ? sideNames : [...sideNames].reverse();
+
+    renderSides.forEach((side, sideIdx) => {
+        if (renderSides.length > 1 || side !== 'Main') {
             html += `<div class="card-side-label">${side}</div>`;
         }
         if (sideIdx > 0) {
-            html += `<div style="height:${isVert ? SIDE_GAP : 0}px;width:${isVert ? 0 : SIDE_GAP}px;flex-shrink:0"></div>`;
+            html += `<div style="${isVert ? 'height' : 'width'}:${SIDE_GAP}px;flex-shrink:0"></div>`;
         }
         if (isVert) {
             // Vertical: columns right-to-left, row 1 on right
