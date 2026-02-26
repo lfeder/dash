@@ -632,7 +632,8 @@ function renderCard(name, opts) {
         html += `<div style="display:flex;flex-direction:${secDir};gap:1px;${align}${fixStyle}${padSide}">`;
         gh.sides[side].forEach(e => {
             const len = e.bags * BAG_PX;
-            html += `<div style="${lenProp}:${len}px;${thkProp}:${ROW_W}px;border-radius:1px;background:${COLORS[e.color_key]};flex-shrink:0"></div>`;
+            const tip = `Row ${e.row_num} · ${e.variety} · ${e.bags} bags · ${e.total_plants} plants`;
+            html += `<div style="${lenProp}:${len}px;${thkProp}:${ROW_W}px;border-radius:1px;background:${COLORS[e.color_key]};flex-shrink:0;cursor:pointer" onmouseover="showTooltip(event,'${tip}')" onmousemove="moveTooltip(event)" onmouseout="hideTooltip()"></div>`;
         });
         html += `</div>`;
     });
