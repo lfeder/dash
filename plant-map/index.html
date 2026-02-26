@@ -103,13 +103,18 @@ body {
 
 
 /* Overview grid — fixed layout matching aerial photo */
+.overview-wrapper {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+    padding: 12px;
+}
 .farm-layout {
     display: flex;
     flex-direction: column;
     gap: 8px;
     align-items: flex-start;
-    max-width: 1200px;
-    margin: 0 auto 16px;
+    flex-shrink: 0;
 }
 .farm-row {
     display: flex;
@@ -122,12 +127,12 @@ body {
     gap: 8px;
 }
 
-.other-greenhouses {
+.other-locations {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 10px;
-    max-width: 1200px;
-    margin: 0 auto;
+    grid-template-columns: auto auto;
+    gap: 8px;
+    align-items: start;
+    align-content: start;
 }
 
 .section-label {
@@ -626,27 +631,47 @@ function showOverview() {
     });
     const opts56 = { sideHeights: maxSides56 };
 
-    let html = '<div class="farm-layout">';
+    let html = '<div class="overview-wrapper">';
 
-    // Row 1: GH4
+    // Left: JTL GH1-8
+    html += '<div class="farm-layout">';
     html += `<div class="farm-row">${renderCard('GH4')}</div>`;
-    // Row 2: GH3, GH2, GH1 — uniform height, aligned sidewalks
     html += `<div class="farm-row">${renderCard('GH3', opts123)}${renderCard('GH2', opts123)}${renderCard('GH1', opts123)}</div>`;
-    // Row 3: GH5, GH6 (uniform), GH7, GH8 (aligned from top)
     html += `<div class="farm-row">${renderCard('GH5', opts56)}${renderCard('GH6', opts56)}<div class="farm-col">${renderCard('GH7')}${renderCard('GH8', {alignTop: true})}</div></div>`;
-
     html += '</div>';
 
-    // Other greenhouses below
+    // Right: Other locations in 2-col grid
+    // Row 1: Kona (left), Hamakua (right)
+    // Row 2: Kohala (left), Waimea (right)
+    // Row 3: (empty), Hilo (right)
     const jtlNames = ['GH1','GH2','GH3','GH4','GH5','GH6','GH7','GH8'];
     const others = GH_NAMES.filter(n => !jtlNames.includes(n));
     if (others.length > 0) {
-        html += '<div class="section-label">Other Locations</div>';
-        html += '<div class="other-greenhouses">';
-        others.forEach(name => { html += renderCard(name); });
+        const findGH = (keyword) => others.find(n => n.toLowerCase().includes(keyword.toLowerCase())) || '';
+        const kona = findGH('kona');
+        const kohala = findGH('kohala');
+        const hamakua = findGH('hamakua');
+        const waimea = findGH('waimea');
+        const hilo = findGH('hilo');
+        // Ordered: row1: kona, hamakua; row2: kohala, waimea; row3: empty, hilo
+        const ordered = [kona, hamakua, kohala, waimea, '', hilo];
+        // Any remaining not in the named list
+        const named = [kona, kohala, hamakua, waimea, hilo].filter(Boolean);
+        const remaining = others.filter(n => !named.includes(n));
+
+        html += '<div class="other-locations">';
+        ordered.forEach(name => {
+            if (name) {
+                html += renderCard(name);
+            } else {
+                html += '<div></div>';
+            }
+        });
+        remaining.forEach(name => { html += renderCard(name); });
         html += '</div>';
     }
 
+    html += '</div>';
     document.getElementById('content').innerHTML = html;
 }
 
