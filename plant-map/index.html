@@ -320,32 +320,22 @@ const GID = '1615707612';
 const GVIZ_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:handleSheetResponse&gid=${GID}`;
 
 const COLORS = {"Keiki": "#4CAF50", "Japanese": "#E91E63", "Japanese (5/bag)": "#F8BBD0", "English": "#2196F3", "Mixed": "#FF9800"};
-const GH_ORDER = ["GH1", "GH2", "GH3", "GH4", "GH5", "GH6", "GH7", "GH8", "Hamakua", "Kohala", "Hilo", "Kona", "Waimea"];
-const MERGE_GHS = {};
-const SIDE_ORDER = {"North": 0, "Middle": 1, "South": 2, "East": 0, "West": 1, "Hamakua": 0, "Kohala": 1};
 
 let DATA = {};
 let SUMMARY = {};
 let GH_NAMES = [];
 let MAX_BAGS = 0;
 
-// --- Build DATA structure (matches generate_map.py logic) ---
 function buildData(rows) {
     const greenhouses = {};
 
     rows.forEach(row => {
-        if (isNaN(row.row_num) || isNaN(row.bags)) return; // skip invalid rows
+        if (isNaN(row.row_num) || isNaN(row.bags)) return;
         const gh = row.greenhouse;
         const sideKey = row.side || 'Main';
 
-        if (!greenhouses[gh]) {
-            greenhouses[gh] = { sides: {}, total_plants: 0, total_rows: 0 };
-        }
-        if (!greenhouses[gh].sides[sideKey]) {
-            greenhouses[gh].sides[sideKey] = [];
-        }
-
-        const colorKey = row.plants_per_bag === 5 ? `${row.variety} (5/bag)` : row.variety;
+        if (!greenhouses[gh]) greenhouses[gh] = { sides: {}, total_plants: 0, total_rows: 0 };
+        if (!greenhouses[gh].sides[sideKey]) greenhouses[gh].sides[sideKey] = [];
 
         greenhouses[gh].sides[sideKey].push({
             row_num: row.row_num,
@@ -353,50 +343,28 @@ function buildData(rows) {
             plants_per_bag: row.plants_per_bag,
             total_plants: row.total_plants,
             variety: row.variety,
-            color_key: colorKey
+            color_key: row.plants_per_bag === 5 ? `${row.variety} (5/bag)` : row.variety
         });
 
         greenhouses[gh].total_plants += row.total_plants;
         greenhouses[gh].total_rows += 1;
     });
 
-    // Merge greenhouses (e.g. Hamakua + Kohala -> "Hamakua / Kohala")
-    for (const [combinedName, sources] of Object.entries(MERGE_GHS)) {
-        const merged = { sides: {}, total_plants: 0, total_rows: 0 };
-        for (const [origName, sideLabel] of sources) {
-            if (greenhouses[origName]) {
-                const orig = greenhouses[origName];
-                delete greenhouses[origName];
-                const allEntries = [];
-                for (const entries of Object.values(orig.sides)) {
-                    allEntries.push(...entries);
-                }
-                merged.sides[sideLabel] = allEntries;
-                merged.total_plants += orig.total_plants;
-                merged.total_rows += orig.total_rows;
-            }
-        }
-        if (merged.total_rows > 0) {
-            greenhouses[combinedName] = merged;
-        }
-    }
-
-    // Sort greenhouses by GH_ORDER
+    // Sort GHs by GH_CONFIG order, then any extras
+    const configOrder = Object.keys(GH_CONFIG);
     const sorted = {};
-    GH_ORDER.forEach(name => {
-        if (greenhouses[name]) sorted[name] = greenhouses[name];
-    });
-    Object.keys(greenhouses).forEach(name => {
-        if (!sorted[name]) sorted[name] = greenhouses[name];
-    });
+    configOrder.forEach(name => { if (greenhouses[name]) sorted[name] = greenhouses[name]; });
+    Object.keys(greenhouses).forEach(name => { if (!sorted[name]) sorted[name] = greenhouses[name]; });
 
-    // Sort sides within each greenhouse
-    for (const ghData of Object.values(sorted)) {
-        const sortedSides = {};
-        Object.keys(ghData.sides)
-            .sort((a, b) => (SIDE_ORDER[a] ?? 99) - (SIDE_ORDER[b] ?? 99))
-            .forEach(key => { sortedSides[key] = ghData.sides[key]; });
-        ghData.sides = sortedSides;
+    // Sort sides within each GH using config sideOrder or alphabetical
+    for (const [name, ghData] of Object.entries(sorted)) {
+        const order = (GH_CONFIG[name] || {}).sideOrder;
+        if (order) {
+            const s = {};
+            order.forEach(k => { if (ghData.sides[k]) s[k] = ghData.sides[k]; });
+            Object.keys(ghData.sides).forEach(k => { if (!s[k]) s[k] = ghData.sides[k]; });
+            ghData.sides = s;
+        }
     }
 
     return sorted;
@@ -521,61 +489,43 @@ const BAG_PX = 6;  // px — length per bag
 const SIDE_GAP = 8; // px — sidewalk gap between sides
 
 // --- GH Config ---
-// vert: bars run vertically (true) or horizontally (false)
-// sections: number of sidewalk-separated sections
-// sidewalk: 'middle'|'top'|'bottom'|'left' — where the sidewalk gap goes
-// merge: collapse all sheet sides into one before rendering
-// split: auto-split single 'Main' side into N equal sections
-// alignTop: all bars grow from top instead of toward-sidewalk default
+// GH_CONFIG: single source of truth for all greenhouse rendering
+// vert: bars vertical (true) or horizontal (false)
+// sidewalk: 'middle'|'top'|'bottom'|'left' — gap position
+// merge: collapse all sheet sides into one section
+// alignTop: all bars grow from top
 // stackSections: horizontal bars with sections stacked vertically
+// sideOrder: explicit ordering of sides from sheet data
 // group: 'JTL' or 'BIP'
 // heightGroup: GHs sharing this key get uniform section heights
-// layout: [row, col] position in group grid
+// layout: [row, col] or [row, col, stackPos] position in group grid
 const GH_CONFIG = {
-    'GH1':     { vert: true,  sections: 2, sidewalk: 'middle', group: 'JTL', heightGroup: 'row2', layout: [1,2] },
-    'GH2':     { vert: true,  sections: 2, sidewalk: 'middle', group: 'JTL', heightGroup: 'row2', layout: [1,1] },
-    'GH3':     { vert: true,  sections: 2, sidewalk: 'middle', group: 'JTL', heightGroup: 'row2', layout: [1,0] },
-    'GH4':     { vert: false, sections: 2, sidewalk: 'middle', group: 'JTL', layout: [0,0] },
-    'GH5':     { vert: true,  sections: 3, sidewalk: 'middle', group: 'JTL', heightGroup: 'row3', layout: [2,0] },
-    'GH6':     { vert: true,  sections: 3, sidewalk: 'middle', group: 'JTL', heightGroup: 'row3', layout: [2,1] },
-    'GH7':     { vert: true,  sections: 1, sidewalk: 'bottom', merge: true, group: 'JTL', layout: [2,2,'top'] },
-    'GH8':     { vert: true,  sections: 1, sidewalk: 'top',    merge: true, alignTop: true, group: 'JTL', layout: [2,2,'bottom'] },
-    'Kona':    { vert: true,  sections: 2, sidewalk: 'middle', split: true, group: 'BIP', layout: [0,0] },
-    'Kohala':  { vert: false, sections: 1, sidewalk: 'left',   group: 'BIP', layout: [0,1] },
-    'Hamakua': { vert: true,  sections: 1, sidewalk: 'top',    alignTop: true, group: 'BIP', layout: [1,0] },
-    'Waimea':  { vert: false, sections: 2, sidewalk: 'left',   stackSections: true, group: 'BIP', layout: [1,1] },
-    'Hilo':    { vert: false, sections: 1, sidewalk: 'left',   group: 'BIP', layout: [2,1] },
+    'GH1':     { vert: true,  sidewalk: 'middle', group: 'JTL', heightGroup: 'row2', layout: [1,2] },
+    'GH2':     { vert: true,  sidewalk: 'middle', group: 'JTL', heightGroup: 'row2', layout: [1,1] },
+    'GH3':     { vert: true,  sidewalk: 'middle', group: 'JTL', heightGroup: 'row2', layout: [1,0] },
+    'GH4':     { vert: false, sidewalk: 'middle', group: 'JTL', sideOrder: ['East','West'], layout: [0,0] },
+    'GH5':     { vert: true,  sidewalk: 'middle', group: 'JTL', heightGroup: 'row3', layout: [2,0] },
+    'GH6':     { vert: true,  sidewalk: 'middle', group: 'JTL', heightGroup: 'row3', layout: [2,1] },
+    'GH7':     { vert: true,  sidewalk: 'bottom', merge: true, group: 'JTL', layout: [2,2,'top'] },
+    'GH8':     { vert: true,  sidewalk: 'top',    merge: true, alignTop: true, group: 'JTL', layout: [2,2,'bottom'] },
+    'Kona':    { vert: true,  sidewalk: 'middle', group: 'BIP', layout: [0,0] },
+    'Kohala':  { vert: false, sidewalk: 'left',   group: 'BIP', layout: [0,1] },
+    'Hamakua': { vert: true,  sidewalk: 'top',    alignTop: true, group: 'BIP', layout: [1,0] },
+    'Waimea':  { vert: false, sidewalk: 'left',   stackSections: true, group: 'BIP', layout: [1,1] },
+    'Hilo':    { vert: false, sidewalk: 'left',   group: 'BIP', layout: [2,1] },
 };
-
-// JTL layout: array of rows, each row is array of columns
-// Each cell is a GH name, or an array of GH names stacked vertically
-const JTL_LAYOUT = [
-    ['GH4'],
-    ['GH3', 'GH2', 'GH1'],
-    ['GH5', 'GH6', ['GH7', 'GH8']],
-];
 
 const VARIETY_ORDER = ['Keiki', 'Japanese (5/bag)', 'Japanese', 'English', 'Mixed'];
 const ABBREV = {'Keiki':'K','English':'E','Japanese':'J4','Japanese (5/bag)':'J5','Mixed':'M'};
 
-// Prepare sections: merge or split sides based on config
+// Merge all sheet sides into one section if config says so
 function prepSections(name, gh) {
     const cfg = GH_CONFIG[name] || {};
-    const sideNames = Object.keys(gh.sides);
-    if (cfg.merge && sideNames.length > 1) {
+    if (cfg.merge && Object.keys(gh.sides).length > 1) {
         const allRows = [];
-        for (const s of sideNames) allRows.push(...gh.sides[s]);
+        for (const s of Object.keys(gh.sides)) allRows.push(...gh.sides[s]);
         allRows.sort((a, b) => a.row_num - b.row_num);
         gh.sides = { 'Main': allRows };
-    }
-    const cur = Object.keys(gh.sides);
-    if (cfg.split && cur.length === 1 && cur[0] === 'Main') {
-        const all = gh.sides['Main'];
-        const n = cfg.sections || 2;
-        const chunk = Math.ceil(all.length / n);
-        const labels = ['North','Middle','South'];
-        gh.sides = {};
-        for (let i = 0; i < n; i++) gh.sides[labels[i] || `S${i}`] = all.slice(i * chunk, (i + 1) * chunk);
     }
 }
 
@@ -661,39 +611,64 @@ function showOverview() {
         return g && hg[g] ? { sideHeights: hg[g] } : {};
     };
 
-    let html = '<div class="overview-wrapper">';
-
-    // JTL grid from layout config
-    html += '<div class="farm-layout">';
-    JTL_LAYOUT.forEach(row => {
-        html += '<div class="farm-row">';
-        row.forEach(cell => {
-            if (Array.isArray(cell)) {
-                html += '<div class="farm-col">';
-                cell.forEach(n => { html += renderCard(n, optsFor(n)); });
-                html += '</div>';
-            } else {
-                html += renderCard(cell, optsFor(cell));
-            }
+    // Build grid from layout coords: groups cells by [row, col], handles stacking
+    function buildGrid(group) {
+        const ghs = Object.entries(GH_CONFIG).filter(([,c]) => c.group === group && c.layout);
+        const grid = {};
+        ghs.forEach(([name, cfg]) => {
+            const [r, c, stackPos] = cfg.layout;
+            const key = `${r},${c}`;
+            if (!grid[key]) grid[key] = { r, c, items: [] };
+            grid[key].items.push({ name, stackPos: stackPos || '' });
         });
-        html += '</div>';
-    });
-    html += '</div>';
-
-    // BIP: two columns, each sorted by row
-    const bip = Object.entries(GH_CONFIG).filter(([,c]) => c.group === 'BIP' && c.layout);
-    if (bip.length) {
-        const maxCol = Math.max(...bip.map(([,c]) => c.layout[1]));
-        html += '<div class="other-locations">';
-        for (let c = 0; c <= maxCol; c++) {
-            const col = bip.filter(([,cfg]) => cfg.layout[1] === c).sort(([,a],[,b]) => a.layout[0] - b.layout[0]);
-            html += '<div class="bip-col">';
-            col.forEach(([n]) => { html += renderCard(n); });
-            html += '</div>';
-        }
-        html += '</div>';
+        // Sort stacked items
+        for (const cell of Object.values(grid))
+            cell.items.sort((a, b) => a.stackPos < b.stackPos ? -1 : a.stackPos > b.stackPos ? 1 : 0);
+        return grid;
     }
 
+    function renderCell(cell) {
+        if (cell.items.length > 1) {
+            let h = '<div class="farm-col">';
+            cell.items.forEach(it => { h += renderCard(it.name, optsFor(it.name)); });
+            return h + '</div>';
+        }
+        return renderCard(cell.items[0].name, optsFor(cell.items[0].name));
+    }
+
+    // JTL: rows of cards
+    function renderByRows(group, wrapClass, rowClass) {
+        const grid = buildGrid(group);
+        const cells = Object.values(grid);
+        if (!cells.length) return '';
+        const maxR = Math.max(...cells.map(c => c.r)), maxC = Math.max(...cells.map(c => c.c));
+        let html = `<div class="${wrapClass}">`;
+        for (let r = 0; r <= maxR; r++) {
+            html += `<div class="${rowClass}">`;
+            for (let c = 0; c <= maxC; c++) { const cell = grid[`${r},${c}`]; if (cell) html += renderCell(cell); }
+            html += '</div>';
+        }
+        return html + '</div>';
+    }
+
+    // BIP: columns of cards
+    function renderByCols(group, wrapClass, colClass) {
+        const grid = buildGrid(group);
+        const cells = Object.values(grid);
+        if (!cells.length) return '';
+        const maxR = Math.max(...cells.map(c => c.r)), maxC = Math.max(...cells.map(c => c.c));
+        let html = `<div class="${wrapClass}">`;
+        for (let c = 0; c <= maxC; c++) {
+            html += `<div class="${colClass}">`;
+            for (let r = 0; r <= maxR; r++) { const cell = grid[`${r},${c}`]; if (cell) html += renderCell(cell); }
+            html += '</div>';
+        }
+        return html + '</div>';
+    }
+
+    let html = '<div class="overview-wrapper">';
+    html += renderByRows('JTL', 'farm-layout', 'farm-row');
+    html += renderByCols('BIP', 'other-locations', 'bip-col');
     html += '</div>';
     document.getElementById('content').innerHTML = html;
 }
