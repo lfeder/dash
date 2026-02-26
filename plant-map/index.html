@@ -519,25 +519,25 @@ const BAG_PX = 6;  // px — length per bag
 const SIDE_GAP = 8; // px — sidewalk gap between sides
 
 // --- GH Config ---
-// vert: true = vertical bars, false = horizontal bars
-// sections: number of sidewalk-separated sections (from sheet sides or auto-split)
-// sidewalk: 'middle' = between sections, 'top'/'bottom'/'left' = edge gap
-// merge: true = merge all sheet sides into one before sectioning
-// split: true = auto-split single 'Main' side into N equal sections
-// alignTop: true = all bars grow from top
-// stackSections: true = horizontal bars with sections stacked vertically
+// vert: bars run vertically (true) or horizontally (false)
+// sections: number of sidewalk-separated sections
+// sidewalk: 'middle'|'top'|'bottom'|'left' — where the sidewalk gap goes
+// merge: collapse all sheet sides into one before rendering
+// split: auto-split single 'Main' side into N equal sections
+// alignTop: all bars grow from top instead of toward-sidewalk default
+// stackSections: horizontal bars with sections stacked vertically
 // group: 'JTL' or 'BIP'
 // heightGroup: GHs sharing this key get uniform section heights
-// layout: [row, col] position in grid (JTL uses custom rows, BIP uses 2-col grid)
+// layout: [row, col] position in group grid
 const GH_CONFIG = {
-    'GH1':     { vert: true,  sections: 2, sidewalk: 'middle', group: 'JTL', heightGroup: 'row2' },
-    'GH2':     { vert: true,  sections: 2, sidewalk: 'middle', group: 'JTL', heightGroup: 'row2' },
-    'GH3':     { vert: true,  sections: 2, sidewalk: 'middle', group: 'JTL', heightGroup: 'row2' },
-    'GH4':     { vert: false, sections: 2, sidewalk: 'middle', group: 'JTL' },
-    'GH5':     { vert: true,  sections: 3, sidewalk: 'middle', group: 'JTL', heightGroup: 'row3' },
-    'GH6':     { vert: true,  sections: 3, sidewalk: 'middle', group: 'JTL', heightGroup: 'row3' },
-    'GH7':     { vert: true,  sections: 1, sidewalk: 'bottom', merge: true, group: 'JTL' },
-    'GH8':     { vert: true,  sections: 1, sidewalk: 'top',    merge: true, alignTop: true, group: 'JTL' },
+    'GH1':     { vert: true,  sections: 2, sidewalk: 'middle', group: 'JTL', heightGroup: 'row2', layout: [1,2] },
+    'GH2':     { vert: true,  sections: 2, sidewalk: 'middle', group: 'JTL', heightGroup: 'row2', layout: [1,1] },
+    'GH3':     { vert: true,  sections: 2, sidewalk: 'middle', group: 'JTL', heightGroup: 'row2', layout: [1,0] },
+    'GH4':     { vert: false, sections: 2, sidewalk: 'middle', group: 'JTL', layout: [0,0] },
+    'GH5':     { vert: true,  sections: 3, sidewalk: 'middle', group: 'JTL', heightGroup: 'row3', layout: [2,0] },
+    'GH6':     { vert: true,  sections: 3, sidewalk: 'middle', group: 'JTL', heightGroup: 'row3', layout: [2,1] },
+    'GH7':     { vert: true,  sections: 1, sidewalk: 'bottom', merge: true, group: 'JTL', layout: [2,2,'top'] },
+    'GH8':     { vert: true,  sections: 1, sidewalk: 'top',    merge: true, alignTop: true, group: 'JTL', layout: [2,2,'bottom'] },
     'Kona':    { vert: true,  sections: 2, sidewalk: 'middle', split: true, group: 'BIP', layout: [0,0] },
     'Kohala':  { vert: false, sections: 1, sidewalk: 'left',   group: 'BIP', layout: [0,1] },
     'Hamakua': { vert: true,  sections: 1, sidewalk: 'top',    alignTop: true, group: 'BIP', layout: [1,0] },
@@ -545,47 +545,47 @@ const GH_CONFIG = {
     'Hilo':    { vert: false, sections: 1, sidewalk: 'left',   group: 'BIP', layout: [2,1] },
 };
 
+// JTL layout: array of rows, each row is array of columns
+// Each cell is a GH name, or an array of GH names stacked vertically
+const JTL_LAYOUT = [
+    ['GH4'],
+    ['GH3', 'GH2', 'GH1'],
+    ['GH5', 'GH6', ['GH7', 'GH8']],
+];
+
 const VARIETY_ORDER = ['Keiki', 'Japanese (5/bag)', 'Japanese', 'English', 'Mixed'];
 const ABBREV = {'Keiki':'K','English':'E','Japanese':'J4','Japanese (5/bag)':'J5','Mixed':'M'};
-
-// Compute the natural height of each side for a vertical GH (after section prep)
-function getSideHeights(name) {
-    const gh = DATA[name];
-    if (!gh) return {};
-    prepSections(name, gh);
-    const heights = {};
-    for (const [side, entries] of Object.entries(gh.sides)) {
-        const maxBags = Math.max(...entries.map(e => e.bags), 0);
-        heights[side] = maxBags * BAG_PX;
-    }
-    return heights;
-}
 
 // Prepare sections: merge or split sides based on config
 function prepSections(name, gh) {
     const cfg = GH_CONFIG[name] || {};
     const sideNames = Object.keys(gh.sides);
-
-    // Merge all sides into one
     if (cfg.merge && sideNames.length > 1) {
         const allRows = [];
-        for (const side of sideNames) allRows.push(...gh.sides[side]);
+        for (const s of sideNames) allRows.push(...gh.sides[s]);
         allRows.sort((a, b) => a.row_num - b.row_num);
         gh.sides = { 'Main': allRows };
     }
-
-    // Auto-split single 'Main' side into N sections
-    const currentSides = Object.keys(gh.sides);
-    if (cfg.split && currentSides.length === 1 && currentSides[0] === 'Main') {
-        const allRows = gh.sides['Main'];
+    const cur = Object.keys(gh.sides);
+    if (cfg.split && cur.length === 1 && cur[0] === 'Main') {
+        const all = gh.sides['Main'];
         const n = cfg.sections || 2;
-        const chunk = Math.ceil(allRows.length / n);
-        const labels = n === 2 ? ['North','South'] : ['North','Middle','South'];
+        const chunk = Math.ceil(all.length / n);
+        const labels = ['North','Middle','South'];
         gh.sides = {};
-        for (let i = 0; i < n; i++) {
-            gh.sides[labels[i] || `Section${i}`] = allRows.slice(i * chunk, (i + 1) * chunk);
-        }
+        for (let i = 0; i < n; i++) gh.sides[labels[i] || `S${i}`] = all.slice(i * chunk, (i + 1) * chunk);
     }
+}
+
+// Get max bar length per side (for uniform height groups)
+function getSideHeights(name) {
+    const gh = DATA[name];
+    if (!gh) return {};
+    prepSections(name, gh);
+    const h = {};
+    for (const [side, entries] of Object.entries(gh.sides))
+        h[side] = Math.max(...entries.map(e => e.bags), 0) * BAG_PX;
+    return h;
 }
 
 function renderCard(name, opts) {
@@ -593,131 +593,100 @@ function renderCard(name, opts) {
     const gh = DATA[name];
     if (!gh) return '';
     const cfg = GH_CONFIG[name] || {};
-
     prepSections(name, gh);
-    const sideNames = Object.keys(gh.sides);
-    const isVert = cfg.vert !== false;
-    const stackSections = cfg.stackSections || false;
 
-    // Variety counts and total bags
+    const v = cfg.vert !== false;
+    const stk = cfg.stackSections || false;
+    const col = v || stk;                          // body is column-direction
+    const sides = col ? Object.keys(gh.sides) : [...Object.keys(gh.sides)].reverse();
+
+    // Aggregate stats
     const vCounts = {};
     let totalBags = 0;
     for (const entries of Object.values(gh.sides)) {
-        for (const entry of entries) {
-            vCounts[entry.color_key] = (vCounts[entry.color_key] || 0) + entry.total_plants;
-            totalBags += entry.bags;
-        }
+        for (const e of entries) { vCounts[e.color_key] = (vCounts[e.color_key] || 0) + e.total_plants; totalBags += e.bags; }
     }
 
-    let html = `<div class="gh-card">`;
-    html += `<div class="gh-card-header">
-        <span class="gh-card-name">${name}</span>
-        <span class="gh-card-stats">${gh.total_rows} rows ${totalBags.toLocaleString()} bags ${gh.total_plants.toLocaleString()} plants</span>
-    </div>`;
+    // Bar dimensions: vertical bars have height=length, width=thickness; horizontal is swapped
+    const lenProp = v ? 'height' : 'width';
+    const thkProp = v ? 'width' : 'height';
+    const secDir  = v ? 'row-reverse' : 'column';  // how bars stack within a section
+    const gapProp = col ? 'height' : 'width';       // sidewalk gap direction
+    const padSide = cfg.sidewalk === 'left' ? `padding-left:${SIDE_GAP}px;` : '';
 
-    const bodyDir = (isVert || stackSections) ? 'column' : 'row';
-    html += `<div class="gh-card-body" style="flex-direction:${bodyDir}">`;
+    let html = `<div class="gh-card"><div class="gh-card-header"><span class="gh-card-name">${name}</span>` +
+        `<span class="gh-card-stats">${gh.total_rows} rows ${totalBags.toLocaleString()} bags ${gh.total_plants.toLocaleString()} plants</span></div>` +
+        `<div class="gh-card-body" style="flex-direction:${col ? 'column' : 'row'}">`;
 
-    // Edge sidewalk: top
-    if (cfg.sidewalk === 'top') {
-        html += `<div style="height:${SIDE_GAP}px;flex-shrink:0"></div>`;
-    }
+    // Edge sidewalk before bars
+    if (cfg.sidewalk === 'top') html += `<div style="height:${SIDE_GAP}px;flex-shrink:0"></div>`;
 
-    // For horizontal side-by-side, reverse sides so West is on left
-    const renderSides = (isVert || stackSections) ? sideNames : [...sideNames].reverse();
-
-    renderSides.forEach((side, sideIdx) => {
-        // Sidewalk gap between sections
-        if (sideIdx > 0) {
-            const gapProp = (isVert || stackSections) ? 'height' : 'width';
-            html += `<div style="${gapProp}:${SIDE_GAP}px;flex-shrink:0"></div>`;
-        }
-
-        if (isVert) {
-            const fixedH = opts.sideHeights && opts.sideHeights[side];
-            const heightStyle = fixedH ? `height:${fixedH}px;` : '';
-            // Align toward sidewalk: top sections align bottom, bottom sections align top
-            const fromTop = cfg.alignTop ? true : (side === 'South' || side === 'Middle');
-            const align = fromTop ? 'flex-start' : 'flex-end';
-            html += `<div style="display:flex;flex-direction:row-reverse;align-items:${align};gap:1px;${heightStyle}">`;
-            gh.sides[side].forEach(entry => {
-                const h = entry.bags * BAG_PX;
-                html += `<div style="height:${h}px;width:${ROW_W}px;border-radius:1px;background:${COLORS[entry.color_key]};flex-shrink:0"></div>`;
-            });
-            html += `</div>`;
-        } else {
-            const leftPad = cfg.sidewalk === 'left' ? `padding-left:${SIDE_GAP}px;` : '';
-            html += `<div style="display:flex;flex-direction:column;gap:1px;${leftPad}">`;
-            gh.sides[side].forEach(entry => {
-                const w = entry.bags * BAG_PX;
-                html += `<div style="width:${w}px;height:${ROW_W}px;border-radius:1px;background:${COLORS[entry.color_key]};flex-shrink:0"></div>`;
-            });
-            html += `</div>`;
-        }
+    sides.forEach((side, i) => {
+        if (i > 0) html += `<div style="${gapProp}:${SIDE_GAP}px;flex-shrink:0"></div>`;
+        const fixedLen = opts.sideHeights && opts.sideHeights[side];
+        const fixStyle = fixedLen ? `${lenProp}:${fixedLen}px;` : '';
+        const fromTop = cfg.alignTop || side === 'South' || side === 'Middle';
+        const align = v ? `align-items:${fromTop ? 'flex-start' : 'flex-end'};` : '';
+        html += `<div style="display:flex;flex-direction:${secDir};gap:1px;${align}${fixStyle}${padSide}">`;
+        gh.sides[side].forEach(e => {
+            const len = e.bags * BAG_PX;
+            html += `<div style="${lenProp}:${len}px;${thkProp}:${ROW_W}px;border-radius:1px;background:${COLORS[e.color_key]};flex-shrink:0"></div>`;
+        });
+        html += `</div>`;
     });
 
-    // Edge sidewalk: bottom
-    if (cfg.sidewalk === 'bottom') {
-        html += `<div style="height:${SIDE_GAP}px;flex-shrink:0"></div>`;
-    }
+    // Edge sidewalk after bars
+    if (cfg.sidewalk === 'bottom') html += `<div style="height:${SIDE_GAP}px;flex-shrink:0"></div>`;
 
-    html += `</div>`;
-
-    // Footer: abbreviated variety breakdown
-    let breakdownParts = [];
-    VARIETY_ORDER.forEach(v => {
-        if (vCounts[v]) {
-            breakdownParts.push(`<span style="color:${COLORS[v]}">${ABBREV[v]}:${vCounts[v].toLocaleString()}</span>`);
-        }
-    });
-    html += `<div class="gh-card-footer">${breakdownParts.join(' ')}</div>`;
-    html += `</div>`;
+    html += `</div><div class="gh-card-footer">`;
+    VARIETY_ORDER.forEach(va => { if (vCounts[va]) html += `<span style="color:${COLORS[va]}">${ABBREV[va]}:${vCounts[va].toLocaleString()}</span> `; });
+    html += `</div></div>`;
     return html;
 }
 
 function showOverview() {
     // Compute uniform side heights per heightGroup
-    const heightGroups = {};
+    const hg = {};
     for (const [name, cfg] of Object.entries(GH_CONFIG)) {
-        if (cfg.heightGroup) {
-            if (!heightGroups[cfg.heightGroup]) heightGroups[cfg.heightGroup] = {};
-            const sh = getSideHeights(name);
-            for (const [side, h] of Object.entries(sh)) {
-                heightGroups[cfg.heightGroup][side] = Math.max(heightGroups[cfg.heightGroup][side] || 0, h);
-            }
-        }
+        if (!cfg.heightGroup) continue;
+        if (!hg[cfg.heightGroup]) hg[cfg.heightGroup] = {};
+        for (const [side, h] of Object.entries(getSideHeights(name)))
+            hg[cfg.heightGroup][side] = Math.max(hg[cfg.heightGroup][side] || 0, h);
     }
-    function optsFor(name) {
-        const cfg = GH_CONFIG[name] || {};
-        const o = {};
-        if (cfg.heightGroup && heightGroups[cfg.heightGroup]) o.sideHeights = heightGroups[cfg.heightGroup];
-        return o;
-    }
+    const optsFor = (n) => {
+        const g = (GH_CONFIG[n] || {}).heightGroup;
+        return g && hg[g] ? { sideHeights: hg[g] } : {};
+    };
 
     let html = '<div class="overview-wrapper">';
 
-    // Left: JTL GH1-8
+    // JTL grid from layout config
     html += '<div class="farm-layout">';
-    html += `<div class="farm-row">${renderCard('GH4')}</div>`;
-    html += `<div class="farm-row">${renderCard('GH3', optsFor('GH3'))}${renderCard('GH2', optsFor('GH2'))}${renderCard('GH1', optsFor('GH1'))}</div>`;
-    html += `<div class="farm-row">${renderCard('GH5', optsFor('GH5'))}${renderCard('GH6', optsFor('GH6'))}<div class="farm-col">${renderCard('GH7')}${renderCard('GH8')}</div></div>`;
+    JTL_LAYOUT.forEach(row => {
+        html += '<div class="farm-row">';
+        row.forEach(cell => {
+            if (Array.isArray(cell)) {
+                html += '<div class="farm-col">';
+                cell.forEach(n => { html += renderCard(n, optsFor(n)); });
+                html += '</div>';
+            } else {
+                html += renderCard(cell, optsFor(cell));
+            }
+        });
+        html += '</div>';
+    });
     html += '</div>';
 
-    // Right: BIP locations in 2-col grid from config layout positions
-    const bipGHs = Object.entries(GH_CONFIG).filter(([,c]) => c.group === 'BIP' && c.layout);
-    const maxRow = Math.max(...bipGHs.map(([,c]) => c.layout[0]));
-    const others = GH_NAMES.filter(n => GH_CONFIG[n] && GH_CONFIG[n].group === 'BIP');
-    if (others.length > 0) {
+    // BIP grid from layout coordinates
+    const bip = Object.entries(GH_CONFIG).filter(([,c]) => c.group === 'BIP' && c.layout);
+    if (bip.length) {
+        const maxR = Math.max(...bip.map(([,c]) => c.layout[0]));
         html += '<div class="other-locations">';
-        for (let r = 0; r <= maxRow; r++) {
+        for (let r = 0; r <= maxR; r++)
             for (let c = 0; c <= 1; c++) {
-                const entry = bipGHs.find(([,cfg]) => cfg.layout[0] === r && cfg.layout[1] === c);
-                html += entry ? renderCard(entry[0]) : '<div></div>';
+                const e = bip.find(([,cfg]) => cfg.layout[0] === r && cfg.layout[1] === c);
+                html += e ? renderCard(e[0]) : '<div></div>';
             }
-        }
-        // Any BIP GHs without layout
-        const placed = new Set(bipGHs.map(([n]) => n));
-        others.filter(n => !placed.has(n)).forEach(n => { html += renderCard(n); });
         html += '</div>';
     }
 
