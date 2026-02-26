@@ -538,8 +538,17 @@ function renderCard(name, opts) {
     if (!gh) return '';
     const sideNames = Object.keys(gh.sides);
 
-    const VERTICAL_CARDS = ['GH1','GH2','GH3','GH5','GH6','GH7','GH8'];
+    const VERTICAL_CARDS = ['GH1','GH2','GH3','GH5','GH6','GH7','GH8','Kona'];
     const isVert = VERTICAL_CARDS.includes(name);
+
+    // Split single-side GHs into two halves for sidewalk effect
+    if (isVert && sideNames.length === 1 && sideNames[0] === 'Main') {
+        const allRows = gh.sides['Main'];
+        const mid = Math.ceil(allRows.length / 2);
+        gh.sides = { 'North': allRows.slice(0, mid), 'South': allRows.slice(mid) };
+        sideNames.length = 0;
+        sideNames.push('North', 'South');
+    }
 
     const vCounts = {};
     for (const entries of Object.values(gh.sides)) {
