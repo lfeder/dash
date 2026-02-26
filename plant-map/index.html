@@ -381,12 +381,14 @@ function buildData(rows) {
 function computeSummary(data) {
     let totalPlants = 0;
     const varietyCounts = {};
+    const varietyRows = {};
 
     for (const ghData of Object.values(data)) {
         totalPlants += ghData.total_plants;
         for (const entries of Object.values(ghData.sides)) {
             for (const entry of entries) {
                 varietyCounts[entry.color_key] = (varietyCounts[entry.color_key] || 0) + entry.total_plants;
+                varietyRows[entry.color_key] = (varietyRows[entry.color_key] || 0) + 1;
             }
         }
     }
@@ -395,7 +397,8 @@ function computeSummary(data) {
         total_plants: totalPlants,
         total_greenhouses: Object.keys(data).length,
         total_rows: Object.values(data).reduce((s, g) => s + g.total_rows, 0),
-        variety_counts: varietyCounts
+        variety_counts: varietyCounts,
+        variety_rows: varietyRows
     };
 }
 
@@ -509,11 +512,14 @@ function renderHeader() {
         <span class="header-stat"><strong>${total.toLocaleString()}</strong> plants</span>
     `;
 
+    const totalRows = SUMMARY.total_rows;
     function chipHtml(v) {
-        const count = SUMMARY.variety_counts[v] || 0;
-        if (count === 0) return '';
-        const pct = Math.round((count / total) * 100);
-        return `<span class="variety-chip"><span class="variety-chip-dot" style="background:${COLORS[v]}"></span>${v} ${count.toLocaleString()} (${pct}%)</span>`;
+        const plants = SUMMARY.variety_counts[v] || 0;
+        const rows = SUMMARY.variety_rows[v] || 0;
+        if (plants === 0) return '';
+        const rPct = Math.round((rows / totalRows) * 100);
+        const pPct = Math.round((plants / total) * 100);
+        return `<span class="variety-chip"><span class="variety-chip-dot" style="background:${COLORS[v]}"></span>${ABBREV[v]} (${rPct}%/${pPct}%)</span>`;
     }
 
     document.getElementById('headerLegend').innerHTML =
