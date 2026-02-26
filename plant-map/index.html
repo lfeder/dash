@@ -541,13 +541,25 @@ function renderCard(name, opts) {
     const VERTICAL_CARDS = ['GH1','GH2','GH3','GH5','GH6','GH7','GH8','Kona','Hamakua'];
     const STACK_VERTICAL = ['Waimea']; // horizontal bars but sections stacked top-to-bottom
     const ALIGN_TOP = ['GH8','Hamakua']; // all bars grow from top
-    const SIDEWALK_TOP = ['Hamakua']; // single-section GHs with a sidewalk gap above the bars
+    const MERGE_TO_SINGLE = ['GH7','GH8']; // merge all sides into one section
+    const SIDEWALK_TOP = ['GH8','Hamakua']; // single-section with sidewalk gap above
+    const SIDEWALK_BOTTOM = ['GH7']; // single-section with sidewalk gap below
     const SIDEWALK_LEFT = ['Hamakua','Kohala','Waimea','Hilo']; // horizontal shift for left sidewalk
     const isVert = VERTICAL_CARDS.includes(name);
     const isStacked = STACK_VERTICAL.includes(name);
 
-    // Split single-side vertical GHs into two halves for sidewalk (except SIDEWALK_TOP which stay single)
-    if (isVert && !SIDEWALK_TOP.includes(name) && sideNames.length === 1 && sideNames[0] === 'Main') {
+    // Merge all sides into one section for single-section GHs
+    if (MERGE_TO_SINGLE.includes(name) && sideNames.length > 1) {
+        const allRows = [];
+        for (const side of sideNames) allRows.push(...gh.sides[side]);
+        allRows.sort((a, b) => a.row_num - b.row_num);
+        gh.sides = { 'Main': allRows };
+        sideNames.length = 0;
+        sideNames.push('Main');
+    }
+
+    // Split single-side vertical GHs into two halves for sidewalk (except single-sidewalk GHs)
+    if (isVert && !SIDEWALK_TOP.includes(name) && !SIDEWALK_BOTTOM.includes(name) && sideNames.length === 1 && sideNames[0] === 'Main') {
         const allRows = gh.sides['Main'];
         const mid = Math.ceil(allRows.length / 2);
         gh.sides = { 'North': allRows.slice(0, mid), 'South': allRows.slice(mid) };
@@ -614,6 +626,11 @@ function renderCard(name, opts) {
             html += `</div>`;
         }
     });
+
+    // Sidewalk gap on bottom for single-section GHs
+    if (SIDEWALK_BOTTOM.includes(name)) {
+        html += `<div style="height:${SIDE_GAP}px;flex-shrink:0"></div>`;
+    }
 
     html += `</div>`;
 
