@@ -515,7 +515,20 @@ const ROW_W = 6;   // px — thickness of one row
 const BAG_PX = 6;  // px — length per bag
 const SIDE_GAP = 8; // px — sidewalk gap between sides
 
-function renderCard(name) {
+// Compute the natural height of each side for a vertical GH
+function getSideHeights(name) {
+    const gh = DATA[name];
+    if (!gh) return {};
+    const heights = {};
+    for (const [side, entries] of Object.entries(gh.sides)) {
+        const maxBags = Math.max(...entries.map(e => e.bags), 0);
+        heights[side] = maxBags * BAG_PX;
+    }
+    return heights;
+}
+
+function renderCard(name, opts) {
+    opts = opts || {};
     const gh = DATA[name];
     if (!gh) return '';
     const sideNames = Object.keys(gh.sides);
@@ -553,21 +566,19 @@ function renderCard(name) {
             html += `<div style="${isVert ? 'height' : 'width'}:${SIDE_GAP}px;flex-shrink:0"></div>`;
         }
         if (isVert) {
-            // Vertical: columns right-to-left, row 1 on right
-            // Width of section = numRows × (ROW_W + 1)
-            // Height of each column = bags × BAG_PX
-            const fromTop = (side === 'South');
+            // Use fixed height from opts if provided, otherwise natural height
+            const fixedH = opts.sideHeights && opts.sideHeights[side];
+            const heightStyle = fixedH ? `height:${fixedH}px;` : '';
+            // alignTop: all bars grow from top; default: North from bottom, South from top
+            const fromTop = opts.alignTop ? true : (side === 'South');
             const align = fromTop ? 'flex-start' : 'flex-end';
-            html += `<div style="display:flex;flex-direction:row-reverse;align-items:${align};gap:1px">`;
+            html += `<div style="display:flex;flex-direction:row-reverse;align-items:${align};gap:1px;${heightStyle}">`;
             gh.sides[side].forEach(entry => {
                 const h = entry.bags * BAG_PX;
                 html += `<div style="height:${h}px;width:${ROW_W}px;border-radius:1px;background:${COLORS[entry.color_key]};flex-shrink:0"></div>`;
             });
             html += `</div>`;
         } else {
-            // Horizontal: rows top-to-bottom
-            // Height of section = numRows × (ROW_W + 1)
-            // Width of each bar = bags × BAG_PX
             html += `<div style="display:flex;flex-direction:column;gap:1px">`;
             gh.sides[side].forEach(entry => {
                 const w = entry.bags * BAG_PX;
@@ -593,19 +604,36 @@ function renderCard(name) {
 }
 
 function showOverview() {
-    // Fixed layout matching aerial photo of JTL greenhouses
-    // Row 1: GH4 (full width, East/West)
-    // Row 2: GH3, GH2, GH1 (left to right)
-    // Row 3: GH5, GH6
-    // Row 4: GH7, GH8
+    // Compute uniform side heights for GH1-3 group
+    const group123 = ['GH1','GH2','GH3'];
+    const maxSides123 = {};
+    group123.forEach(name => {
+        const sh = getSideHeights(name);
+        for (const [side, h] of Object.entries(sh)) {
+            maxSides123[side] = Math.max(maxSides123[side] || 0, h);
+        }
+    });
+    const opts123 = { sideHeights: maxSides123 };
+
+    // Compute uniform side heights for GH5-6 group
+    const group56 = ['GH5','GH6'];
+    const maxSides56 = {};
+    group56.forEach(name => {
+        const sh = getSideHeights(name);
+        for (const [side, h] of Object.entries(sh)) {
+            maxSides56[side] = Math.max(maxSides56[side] || 0, h);
+        }
+    });
+    const opts56 = { sideHeights: maxSides56 };
+
     let html = '<div class="farm-layout">';
 
     // Row 1: GH4
     html += `<div class="farm-row">${renderCard('GH4')}</div>`;
-    // Row 2: GH3, GH2, GH1
-    html += `<div class="farm-row">${renderCard('GH3')}${renderCard('GH2')}${renderCard('GH1')}</div>`;
-    // Row 3: GH5, GH6, GH7 stacked with GH8
-    html += `<div class="farm-row">${renderCard('GH5')}${renderCard('GH6')}<div class="farm-col">${renderCard('GH7')}${renderCard('GH8')}</div></div>`;
+    // Row 2: GH3, GH2, GH1 — uniform height, aligned sidewalks
+    html += `<div class="farm-row">${renderCard('GH3', opts123)}${renderCard('GH2', opts123)}${renderCard('GH1', opts123)}</div>`;
+    // Row 3: GH5, GH6 (uniform), GH7, GH8 (aligned from top)
+    html += `<div class="farm-row">${renderCard('GH5', opts56)}${renderCard('GH6', opts56)}<div class="farm-col">${renderCard('GH7')}${renderCard('GH8', {alignTop: true})}</div></div>`;
 
     html += '</div>';
 
