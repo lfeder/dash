@@ -512,7 +512,7 @@ function renderHeader() {
     }
 
     document.getElementById('headerLegend').innerHTML =
-        chipHtml('Keiki') + chipHtml('English') + chipHtml('Japanese') + chipHtml('Japanese (5/bag)') + chipHtml('Mixed');
+        chipHtml('Keiki') + chipHtml('Japanese (5/bag)') + chipHtml('Japanese') + chipHtml('English') + chipHtml('Mixed');
 }
 
 // Uniform sizing: each row is ROW_W px thick, each bag adds BAG_PX to the row length
@@ -539,7 +539,9 @@ function renderCard(name, opts) {
     const sideNames = Object.keys(gh.sides);
 
     const VERTICAL_CARDS = ['GH1','GH2','GH3','GH5','GH6','GH7','GH8','Kona'];
+    const STACK_VERTICAL = ['Waimea']; // horizontal bars but sections stacked top-to-bottom
     const isVert = VERTICAL_CARDS.includes(name);
+    const isStacked = STACK_VERTICAL.includes(name);
 
     // Split single-side GHs into two halves for sidewalk effect
     if (isVert && sideNames.length === 1 && sideNames[0] === 'Main') {
@@ -568,16 +570,17 @@ function renderCard(name, opts) {
         <span class="gh-card-name">${name}</span>
         <span class="gh-card-stats">${gh.total_rows}r ${totalBags.toLocaleString()}b ${gh.total_plants.toLocaleString()}p</span>
     </div>`;
-    // For horizontal GHs (like GH4), sides sit left-to-right (West then East)
-    const bodyDir = isVert ? 'column' : 'row';
+    // Body direction: vertical cards = column, stacked horizontal = column, default horizontal = row
+    const bodyDir = (isVert || isStacked) ? 'column' : 'row';
     html += `<div class="gh-card-body" style="flex-direction:${bodyDir}">`;
 
-    // For horizontal GHs, reverse side order so West is on left
-    const renderSides = isVert ? sideNames : [...sideNames].reverse();
+    // For horizontal side-by-side GHs (like GH4), reverse side order so West is on left
+    const renderSides = (isVert || isStacked) ? sideNames : [...sideNames].reverse();
 
     renderSides.forEach((side, sideIdx) => {
         if (sideIdx > 0) {
-            html += `<div style="${isVert ? 'height' : 'width'}:${SIDE_GAP}px;flex-shrink:0"></div>`;
+            const gapDir = (isVert || isStacked) ? 'height' : 'width';
+            html += `<div style="${gapDir}:${SIDE_GAP}px;flex-shrink:0"></div>`;
         }
         if (isVert) {
             // Use fixed height from opts if provided, otherwise natural height
@@ -593,6 +596,7 @@ function renderCard(name, opts) {
             });
             html += `</div>`;
         } else {
+            // Horizontal bars — for stacked or side-by-side, bars align left (toward sidewalk)
             html += `<div style="display:flex;flex-direction:column;gap:1px">`;
             gh.sides[side].forEach(entry => {
                 const w = entry.bags * BAG_PX;
@@ -606,7 +610,7 @@ function renderCard(name, opts) {
 
     const ABBREV = {'Keiki':'K','English':'E','Japanese':'J4','Japanese (5/bag)':'J5','Mixed':'M'};
     let breakdownParts = [];
-    ['Keiki', 'English', 'Japanese', 'Japanese (5/bag)', 'Mixed'].forEach(v => {
+    ['Keiki', 'Japanese (5/bag)', 'Japanese', 'English', 'Mixed'].forEach(v => {
         if (vCounts[v]) {
             breakdownParts.push(`<span style="color:${COLORS[v]}">${ABBREV[v]}:${vCounts[v].toLocaleString()}</span>`);
         }
