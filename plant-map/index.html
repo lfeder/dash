@@ -304,6 +304,7 @@ body {
 <body>
 
 <div class="header" id="headerBar">
+    <button id="toggleBtn" onclick="toggleView()" style="padding:4px 12px;border-radius:4px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:0.8rem;white-space:nowrap">Current</button>
     <h1>Greenhouse Plant Map</h1>
     <div class="header-stats" id="headerStats"></div>
     <div class="variety-legend" id="headerLegend"></div>
@@ -325,12 +326,19 @@ let DATA = {};
 let SUMMARY = {};
 let GH_NAMES = [];
 let MAX_BAGS = 0;
+let RAW_ROWS = [];
+let VIEW_MODE = 'current'; // 'current' or 'new'
 
 function buildData(rows) {
+    const useAlt = VIEW_MODE === 'new';
     const greenhouses = {};
 
     rows.forEach(row => {
-        if (isNaN(row.row_num) || isNaN(row.bags)) return;
+        const bags = useAlt && row.bags2 ? row.bags2 : row.bags;
+        const ppb = useAlt && row.plants_per_bag2 ? row.plants_per_bag2 : row.plants_per_bag;
+        const variety = useAlt && row.variety2 ? row.variety2 : row.variety;
+        const total_plants = bags * ppb;
+        if (isNaN(row.row_num) || isNaN(bags) || bags === 0) return;
         const gh = row.greenhouse;
         const sideKey = row.side || 'Main';
 
@@ -339,14 +347,14 @@ function buildData(rows) {
 
         greenhouses[gh].sides[sideKey].push({
             row_num: row.row_num,
-            bags: row.bags,
-            plants_per_bag: row.plants_per_bag,
-            total_plants: row.total_plants,
-            variety: row.variety,
-            color_key: row.plants_per_bag === 5 ? `${row.variety} (5/bag)` : row.variety
+            bags: bags,
+            plants_per_bag: ppb,
+            total_plants: total_plants,
+            variety: variety,
+            color_key: ppb === 5 ? `${variety} (5/bag)` : variety
         });
 
-        greenhouses[gh].total_plants += row.total_plants;
+        greenhouses[gh].total_plants += total_plants;
         greenhouses[gh].total_rows += 1;
     });
 
@@ -400,9 +408,12 @@ function parseGvizResponse(response) {
     const rows = [];
     for (const row of table.rows) {
         const c = row.c;
-        // Columns: Greenhouse, Side, Row, Bags, Plants per Bag, Total Plants, Variety
+        // Columns: Greenhouse, Side, Row, Bags, Plants/Bag, Total Plants, Variety, Bags2, Plants/Bag2, Variety2
         const gh = c[0] ? (c[0].v || '') : '';
         if (!gh) continue;
+        const bags2 = (c[7] && c[7].v) ? Number(c[7].v) : 0;
+        const ppb2 = (c[8] && c[8].v) ? Number(c[8].v) : 0;
+        const var2 = (c[9] && c[9].v) ? String(c[9].v) : '';
         rows.push({
             greenhouse: String(gh),
             side: (c[1] && c[1].v) ? String(c[1].v) : 'Main',
@@ -410,7 +421,11 @@ function parseGvizResponse(response) {
             bags: c[3] ? Number(c[3].v) : 0,
             plants_per_bag: c[4] ? Number(c[4].v) : 0,
             total_plants: c[5] ? Number(c[5].v) : 0,
-            variety: (c[6] && c[6].v) ? String(c[6].v) : ''
+            variety: (c[6] && c[6].v) ? String(c[6].v) : '',
+            bags2: bags2,
+            plants_per_bag2: ppb2,
+            total_plants2: bags2 * ppb2,
+            variety2: var2
         });
     }
     return rows;
@@ -419,10 +434,10 @@ function parseGvizResponse(response) {
 // --- Global callback for the JSONP-style <script> load ---
 function handleSheetResponse(response) {
     try {
-        const rows = parseGvizResponse(response);
-        if (rows.length === 0) throw new Error('No data rows found in the sheet.');
+        RAW_ROWS = parseGvizResponse(response);
+        if (RAW_ROWS.length === 0) throw new Error('No data rows found in the sheet.');
 
-        DATA = buildData(rows);
+        DATA = buildData(RAW_ROWS);
         SUMMARY = computeSummary(DATA);
         GH_NAMES = Object.keys(DATA);
 
@@ -445,6 +460,28 @@ function handleSheetResponse(response) {
             '</div>';
         console.error('Sheet parse error:', err);
     }
+}
+
+function rebuild() {
+    DATA = buildData(RAW_ROWS);
+    SUMMARY = computeSummary(DATA);
+    GH_NAMES = Object.keys(DATA);
+    MAX_BAGS = 0;
+    for (const gh of Object.values(DATA))
+        for (const entries of Object.values(gh.sides))
+            for (const entry of entries)
+                if (entry.bags > MAX_BAGS) MAX_BAGS = entry.bags;
+    renderHeader();
+    showOverview();
+}
+
+function toggleView() {
+    VIEW_MODE = VIEW_MODE === 'current' ? 'new' : 'current';
+    const btn = document.getElementById('toggleBtn');
+    btn.textContent = VIEW_MODE === 'current' ? 'Current' : 'New';
+    btn.style.background = VIEW_MODE === 'new' ? '#4ecca3' : 'var(--bg-card)';
+    btn.style.color = VIEW_MODE === 'new' ? '#1a1a2e' : 'var(--text-primary)';
+    rebuild();
 }
 
 // --- Init: inject <script> to load data (bypasses CORS for file:// URLs) ---
