@@ -163,19 +163,18 @@ body {
 }
 
 .gh-card-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 6px;
     margin-bottom: 4px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
 }
 
 .gh-card-name {
     font-size: 1rem;
     font-weight: 700;
     color: var(--text-accent);
-}
-
-.gh-card-stats {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    display: block;
 }
 
 .gh-card-body {
@@ -277,7 +276,6 @@ body {
         margin-bottom: 12px;
     }
     .gh-card-name { font-size: 1.4rem; }
-    .gh-card-stats { font-size: 0.9rem; }
     .gh-card-body {
         flex: 1;
         justify-content: center;
@@ -615,7 +613,7 @@ function renderCard(name, opts) {
     const padSide = cfg.sidewalk === 'left' ? `padding-left:${SIDE_GAP}px;` : '';
 
     let html = `<div class="gh-card"><div class="gh-card-header"><span class="gh-card-name">${name}</span>` +
-        `<span class="gh-card-stats">${gh.total_rows} rows ${totalBags.toLocaleString()} bags ${gh.total_plants.toLocaleString()} plants</span></div>` +
+        `<span>${gh.total_rows} rows</span><span>${totalBags.toLocaleString()} bags</span><span>${gh.total_plants.toLocaleString()} plants</span></div>` +
         `<div class="gh-card-body" style="flex-direction:${col ? 'column' : 'row'}">`;
 
     // Edge sidewalk before bars
