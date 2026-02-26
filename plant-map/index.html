@@ -627,8 +627,8 @@ function renderCard(name, opts) {
         if (i > 0) html += `<div style="${gapProp}:${SIDE_GAP}px;flex-shrink:0"></div>`;
         const fixedLen = opts.sideHeights && opts.sideHeights[side];
         const fixStyle = fixedLen ? `${lenProp}:${fixedLen}px;` : '';
-        const fromTop = cfg.alignTop || side === 'South' || side === 'Middle';
-        const align = v ? `align-items:${fromTop ? 'flex-start' : 'flex-end'};` : '';
+        const isLowerSection = cfg.alignTop || (i > 0 && cfg.sidewalk === 'middle') || side === 'South' || side === 'Middle';
+        const align = v ? `align-items:${isLowerSection ? 'flex-start' : 'flex-end'};` : '';
         html += `<div style="display:flex;flex-direction:${secDir};gap:1px;${align}${fixStyle}${padSide}">`;
         gh.sides[side].forEach(e => {
             const len = e.bags * BAG_PX;
