@@ -128,11 +128,14 @@ body {
 }
 
 .other-locations {
-    display: grid;
-    grid-template-columns: auto auto;
+    display: flex;
     gap: 8px;
-    align-items: start;
-    align-content: start;
+    align-items: flex-start;
+}
+.bip-col {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .section-label {
@@ -165,6 +168,7 @@ body {
 .gh-card-header {
     display: flex;
     flex-wrap: wrap;
+    align-items: baseline;
     gap: 0 6px;
     margin-bottom: 4px;
     font-size: 0.8rem;
@@ -542,6 +546,7 @@ const GH_CONFIG = {
     'Waimea':  { vert: false, sections: 2, sidewalk: 'left',   stackSections: true, group: 'BIP', layout: [1,1] },
     'Hilo':    { vert: false, sections: 1, sidewalk: 'left',   group: 'BIP', layout: [2,1] },
 };
+};
 
 // JTL layout: array of rows, each row is array of columns
 // Each cell is a GH name, or an array of GH names stacked vertically
@@ -675,16 +680,17 @@ function showOverview() {
     });
     html += '</div>';
 
-    // BIP grid from layout coordinates
+    // BIP: two columns, each sorted by row
     const bip = Object.entries(GH_CONFIG).filter(([,c]) => c.group === 'BIP' && c.layout);
     if (bip.length) {
-        const maxR = Math.max(...bip.map(([,c]) => c.layout[0]));
+        const maxCol = Math.max(...bip.map(([,c]) => c.layout[1]));
         html += '<div class="other-locations">';
-        for (let r = 0; r <= maxR; r++)
-            for (let c = 0; c <= 1; c++) {
-                const e = bip.find(([,cfg]) => cfg.layout[0] === r && cfg.layout[1] === c);
-                html += e ? renderCard(e[0]) : '<div></div>';
-            }
+        for (let c = 0; c <= maxCol; c++) {
+            const col = bip.filter(([,cfg]) => cfg.layout[1] === c).sort(([,a],[,b]) => a.layout[0] - b.layout[0]);
+            html += '<div class="bip-col">';
+            col.forEach(([n]) => { html += renderCard(n); });
+            html += '</div>';
+        }
         html += '</div>';
     }
 
