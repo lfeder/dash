@@ -320,8 +320,8 @@ const GID = '1615707612';
 const GVIZ_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:handleSheetResponse&gid=${GID}`;
 
 const COLORS = {"Keiki": "#4CAF50", "Japanese": "#E91E63", "Japanese (5/bag)": "#F8BBD0", "English": "#2196F3", "Mixed": "#FF9800"};
-const GH_ORDER = ["GH1", "GH2", "GH3", "GH4", "GH5", "GH6", "GH7", "GH8", "Hamakua / Kohala", "Hilo", "Kona", "Waimea"];
-const MERGE_GHS = {"Hamakua / Kohala": [["Hamakua", "Hamakua"], ["Kohala", "Kohala"]]};
+const GH_ORDER = ["GH1", "GH2", "GH3", "GH4", "GH5", "GH6", "GH7", "GH8", "Hamakua", "Kohala", "Hilo", "Kona", "Waimea"];
+const MERGE_GHS = {};
 const SIDE_ORDER = {"North": 0, "Middle": 1, "South": 2, "East": 0, "West": 1, "Hamakua": 0, "Kohala": 1};
 
 let DATA = {};
@@ -653,9 +653,8 @@ function showOverview() {
         const hamakua = findGH('hamakua');
         const waimea = findGH('waimea');
         const hilo = findGH('hilo');
-        // Ordered: row1: kona, hamakua; row2: kohala, waimea; row3: empty, hilo
+        // Grid: row1: kona, hamakua; row2: kohala, waimea; row3: empty, hilo
         const ordered = [kona, hamakua, kohala, waimea, '', hilo];
-        // Any remaining not in the named list
         const named = [kona, kohala, hamakua, waimea, hilo].filter(Boolean);
         const remaining = others.filter(n => !named.includes(n));
 
