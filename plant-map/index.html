@@ -636,39 +636,29 @@ function showOverview() {
         return renderCard(cell.items[0].name, optsFor(cell.items[0].name));
     }
 
-    // JTL: rows of cards
-    function renderByRows(group, wrapClass, rowClass) {
+    // Render a group grid: byCols=false → outer=rows, inner=cols; byCols=true → outer=cols, inner=rows
+    function renderGrid(group, wrapClass, innerClass, byCols) {
         const grid = buildGrid(group);
         const cells = Object.values(grid);
         if (!cells.length) return '';
         const maxR = Math.max(...cells.map(c => c.r)), maxC = Math.max(...cells.map(c => c.c));
+        const [outerMax, innerMax] = byCols ? [maxC, maxR] : [maxR, maxC];
         let html = `<div class="${wrapClass}">`;
-        for (let r = 0; r <= maxR; r++) {
-            html += `<div class="${rowClass}">`;
-            for (let c = 0; c <= maxC; c++) { const cell = grid[`${r},${c}`]; if (cell) html += renderCell(cell); }
-            html += '</div>';
-        }
-        return html + '</div>';
-    }
-
-    // BIP: columns of cards
-    function renderByCols(group, wrapClass, colClass) {
-        const grid = buildGrid(group);
-        const cells = Object.values(grid);
-        if (!cells.length) return '';
-        const maxR = Math.max(...cells.map(c => c.r)), maxC = Math.max(...cells.map(c => c.c));
-        let html = `<div class="${wrapClass}">`;
-        for (let c = 0; c <= maxC; c++) {
-            html += `<div class="${colClass}">`;
-            for (let r = 0; r <= maxR; r++) { const cell = grid[`${r},${c}`]; if (cell) html += renderCell(cell); }
+        for (let o = 0; o <= outerMax; o++) {
+            html += `<div class="${innerClass}">`;
+            for (let i = 0; i <= innerMax; i++) {
+                const key = byCols ? `${i},${o}` : `${o},${i}`;
+                const cell = grid[key];
+                if (cell) html += renderCell(cell);
+            }
             html += '</div>';
         }
         return html + '</div>';
     }
 
     let html = '<div class="overview-wrapper">';
-    html += renderByRows('JTL', 'farm-layout', 'farm-row');
-    html += renderByCols('BIP', 'other-locations', 'bip-col');
+    html += renderGrid('JTL', 'farm-layout', 'farm-row', false);
+    html += renderGrid('BIP', 'other-locations', 'bip-col', true);
     html += '</div>';
     document.getElementById('content').innerHTML = html;
 }
