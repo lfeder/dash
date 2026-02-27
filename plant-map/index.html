@@ -664,10 +664,23 @@ function renderCard(name, opts) {
     const bc = BAG_CHANGES[name];
     if (bc) {
         const fmt = d => d ? `${d.getMonth()+1}/${d.getDate()}/${String(d.getFullYear()).slice(2)}` : '?';
+        const today = new Date();
+        const twoWeeksMs = 14 * 24 * 60 * 60 * 1000;
+        const cyclesNum = bc.cycles != null ? Number(bc.cycles) : null;
+        const nextSoon = bc.next ? (bc.next - today) <= twoWeeksMs : false;
+        const overdueNoNext = !bc.next && bc.current ? (bc.current < today) : false;
+        const danger = (cyclesNum != null && cyclesNum > 5) || nextSoon || overdueNoNext;
+        const color = danger ? 'red' : '#4ecca3';
         if (bc.next) {
             const tip = bc.current ? `Prior bag change: ${fmt(bc.current)}` : '';
-            bagHtml = `<span style="color:#4ecca3;cursor:default" ${tip ? `onmouseover="showTooltip(event,'${tip}')" onmousemove="moveTooltip(event)" onmouseout="hideTooltip()"` : ''}>Bag Chg ${fmt(bc.next)}`;
-            if (bc.cycles != null) bagHtml += ` (${Math.round(Number(bc.cycles))} cycles)`;
+            bagHtml = `<span style="color:${color};cursor:default" ${tip ? `onmouseover="showTooltip(event,'${tip}')" onmousemove="moveTooltip(event)" onmouseout="hideTooltip()"` : ''}>Bag Chg ${fmt(bc.next)}`;
+            if (bc.cycles != null) bagHtml += ` (${Math.round(cyclesNum)} cycles)`;
+            bagHtml += `</span>`;
+        } else if (bc.current) {
+            // No upcoming change recorded — show last change and highlight if overdue
+            const tip = bc.next ? `Next bag change: ${fmt(bc.next)}` : '';
+            bagHtml = `<span style="color:${color};cursor:default" ${tip ? `onmouseover="showTooltip(event,'${tip}')" onmousemove="moveTooltip(event)" onmouseout="hideTooltip()"` : ''}>Last Bag Chg ${fmt(bc.current)}`;
+            if (bc.cycles != null) bagHtml += ` (${Math.round(cyclesNum)} cycles)`;
             bagHtml += `</span>`;
         }
     }
