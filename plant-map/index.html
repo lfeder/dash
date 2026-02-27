@@ -665,11 +665,8 @@ function renderCard(name, opts) {
     if (bc) {
         const fmt = d => d ? `${d.getMonth()+1}/${d.getDate()}/${String(d.getFullYear()).slice(2)}` : '?';
         if (bc.next) {
-            const parens = [];
-            if (bc.current) parens.push(fmt(bc.current));
-            if (bc.cycles != null) parens.push(`${Math.round(Number(bc.cycles))} cycles`);
-            bagHtml = `<span style="color:#4ecca3">${fmt(bc.next)}`;
-            if (parens.length) bagHtml += ` (${parens.join(', ')})`;
+            bagHtml = `<span style="color:#4ecca3">Bag Chg ${fmt(bc.next)}`;
+            if (bc.cycles != null) bagHtml += ` (${Math.round(Number(bc.cycles))} cycles)`;
             bagHtml += `</span>`;
         }
     }
