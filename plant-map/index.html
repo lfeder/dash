@@ -463,7 +463,7 @@ function parseBagChanges(response) {
             else if (!next) next = d;
         }
         let cycles = null;
-        if (current && next) cycles = ((next - current) / (84 * 24 * 60 * 60 * 1000)).toFixed(1);
+        if (current && next) cycles = Math.round((next - current) / (84 * 24 * 60 * 60 * 1000));
         result[gh] = { current, next, cycles };
     }
     return result;
@@ -664,12 +664,12 @@ function renderCard(name, opts) {
     const bc = BAG_CHANGES[name];
     if (bc) {
         const fmt = d => d ? `${d.getMonth()+1}/${d.getDate()}/${String(d.getFullYear()).slice(2)}` : '?';
-        const parts = [];
-        if (bc.current) parts.push(fmt(bc.current));
-        if (bc.next) parts.push(fmt(bc.next));
-        if (parts.length) {
-            bagHtml = `<span style="color:#4ecca3">${parts.join(' \u2192 ')}`;
-            if (bc.cycles != null) bagHtml += ` (${bc.cycles} cycles)`;
+        if (bc.next) {
+            const parens = [];
+            if (bc.current) parens.push(fmt(bc.current));
+            if (bc.cycles != null) parens.push(`${Math.round(Number(bc.cycles))} cycles`);
+            bagHtml = `<span style="color:#4ecca3">${fmt(bc.next)}`;
+            if (parens.length) bagHtml += ` (${parens.join(', ')})`;
             bagHtml += `</span>`;
         }
     }
