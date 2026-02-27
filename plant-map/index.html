@@ -328,6 +328,7 @@ let GH_NAMES = [];
 let MAX_BAGS = 0;
 let RAW_ROWS = [];
 let VIEW_MODE = 'current'; // 'current' or 'new'
+let BAG_CHANGES = {}; // { 'GH1': { current: Date, next: Date, weeks: number }, ... }
 
 function buildData(rows) {
     const useAlt = VIEW_MODE === 'new';
@@ -434,6 +435,51 @@ function parseGvizResponse(response) {
     return rows;
 }
 
+// --- Bag changes: fetch & parse ---
+const BAG_CHANGES_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:handleBagChanges&sheet=bag_changes`;
+let bagChangesReady = false, mainDataReady = false;
+
+function parseBagChanges(response) {
+    if (response.status !== 'ok') return;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const byGH = {};
+    for (const row of response.table.rows) {
+        const c = row.c;
+        if (!c[0] || !c[0].v || !c[1] || !c[1].v) continue;
+        const gh = String(c[0].v);
+        // Parse date from "Date(year,month,day)"
+        const m = c[1].v.match(/Date\((\d+),(\d+),(\d+)\)/);
+        if (!m) continue;
+        const d = new Date(Number(m[1]), Number(m[2]), Number(m[3]));
+        if (!byGH[gh]) byGH[gh] = [];
+        byGH[gh].push(d);
+    }
+    const result = {};
+    for (const [gh, dates] of Object.entries(byGH)) {
+        dates.sort((a, b) => a - b);
+        let current = null, next = null;
+        for (const d of dates) {
+            if (d < today) current = d;
+            else if (!next) next = d;
+        }
+        let cycles = null;
+        if (current && next) cycles = ((next - current) / (84 * 24 * 60 * 60 * 1000)).toFixed(1);
+        result[gh] = { current, next, cycles };
+    }
+    return result;
+}
+
+function handleBagChanges(response) {
+    try { BAG_CHANGES = parseBagChanges(response); } catch(e) { console.error('Bag changes parse error:', e); }
+    bagChangesReady = true;
+    if (mainDataReady) finishInit();
+}
+
+function finishInit() {
+    renderHeader();
+    showOverview();
+}
+
 // --- Global callback for the JSONP-style <script> load ---
 function handleSheetResponse(response) {
     try {
@@ -453,8 +499,8 @@ function handleSheetResponse(response) {
             }
         }
 
-        renderHeader();
-        showOverview();
+        mainDataReady = true;
+        if (bagChangesReady) finishInit();
     } catch (err) {
         document.getElementById('content').innerHTML =
             '<div style="text-align:center;padding:60px 20px;color:#e57373;font-size:1.1rem;">' +
@@ -501,9 +547,13 @@ function init() {
             '</div>';
     };
     document.head.appendChild(script);
+    const script2 = document.createElement('script');
+    script2.src = BAG_CHANGES_URL;
+    script2.onerror = function() { bagChangesReady = true; if (mainDataReady) finishInit(); };
+    document.head.appendChild(script2);
 }
 
-// --- Rendering (unchanged) ---
+// --- Rendering ---
 function renderHeader() {
     const total = SUMMARY.total_plants;
     document.getElementById('headerStats').innerHTML = `
@@ -609,8 +659,23 @@ function renderCard(name, opts) {
     const gapProp = col ? 'height' : 'width';       // sidewalk gap direction
     const padSide = cfg.sidewalk === 'left' ? `padding-left:${SIDE_GAP}px;` : '';
 
+    // Bag change info
+    let bagHtml = '';
+    const bc = BAG_CHANGES[name];
+    if (bc) {
+        const fmt = d => d ? `${d.getMonth()+1}/${d.getDate()}/${String(d.getFullYear()).slice(2)}` : '?';
+        const parts = [];
+        if (bc.current) parts.push(fmt(bc.current));
+        if (bc.next) parts.push(fmt(bc.next));
+        if (parts.length) {
+            bagHtml = `<span style="color:#4ecca3">${parts.join(' \u2192 ')}`;
+            if (bc.cycles != null) bagHtml += ` (${bc.cycles} cycles)`;
+            bagHtml += `</span>`;
+        }
+    }
+
     let html = `<div class="gh-card"><div class="gh-card-header"><span class="gh-card-name">${name}</span>` +
-        `<span>${gh.total_rows} rows</span><span>${totalBags.toLocaleString()} bags</span><span>${gh.total_plants.toLocaleString()} plants</span></div>` +
+        `<span>${gh.total_rows} rows</span><span>${totalBags.toLocaleString()} bags</span><span>${gh.total_plants.toLocaleString()} plants</span>${bagHtml}</div>` +
         `<div class="gh-card-body" style="flex-direction:${col ? 'column' : 'row'}">`;
 
     // Edge sidewalk before bars
