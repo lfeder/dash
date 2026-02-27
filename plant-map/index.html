@@ -665,7 +665,8 @@ function renderCard(name, opts) {
     if (bc) {
         const fmt = d => d ? `${d.getMonth()+1}/${d.getDate()}/${String(d.getFullYear()).slice(2)}` : '?';
         if (bc.next) {
-            bagHtml = `<span style="color:#4ecca3">Bag Chg ${fmt(bc.next)}`;
+            const tip = bc.current ? `Prior bag change: ${fmt(bc.current)}` : '';
+            bagHtml = `<span style="color:#4ecca3;cursor:default" ${tip ? `onmouseover="showTooltip(event,'${tip}')" onmousemove="moveTooltip(event)" onmouseout="hideTooltip()"` : ''}>Bag Chg ${fmt(bc.next)}`;
             if (bc.cycles != null) bagHtml += ` (${Math.round(Number(bc.cycles))} cycles)`;
             bagHtml += `</span>`;
         }
