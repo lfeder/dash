@@ -328,7 +328,7 @@ let GH_NAMES = [];
 let MAX_BAGS = 0;
 let RAW_ROWS = [];
 let VIEW_MODE = 'current'; // 'current' or 'new'
-let BAG_CHANGES = {}; // { 'GH1': { current: Date, next: Date, weeks: number }, ... }
+let BAG_CHANGES = {}; // { 'GH1': { current: Date, next: Date, cycles: number, allDates: Date[] }, ... }
 
 function buildData(rows) {
     const useAlt = VIEW_MODE === 'new';
@@ -464,7 +464,7 @@ function parseBagChanges(response) {
         }
         let cycles = null;
         if (current && next) cycles = Math.round((next - current) / (84 * 24 * 60 * 60 * 1000));
-        result[gh] = { current, next, cycles };
+        result[gh] = { current, next, cycles, allDates: dates };
     }
     return result;
 }
@@ -671,15 +671,28 @@ function renderCard(name, opts) {
         const overdueNoNext = !bc.next && bc.current ? (bc.current < today) : false;
         const danger = (cyclesNum != null && cyclesNum > 5) || nextSoon || overdueNoNext;
         const color = danger ? 'red' : '#4ecca3';
+        // Build tooltip showing all dates with cycles between them
+        let tip = '';
+        if (bc.allDates && bc.allDates.length > 1) {
+            const lines = [];
+            for (let i = 0; i < bc.allDates.length; i++) {
+                let line = fmt(bc.allDates[i]);
+                if (i > 0) {
+                    const daysBetween = Math.round((bc.allDates[i] - bc.allDates[i-1]) / (24 * 60 * 60 * 1000));
+                    const cyc = (daysBetween / 84).toFixed(1);
+                    line += ` (${cyc} cycles)`;
+                }
+                lines.push(line);
+            }
+            tip = lines.join('\\n');
+        }
+        const tipAttr = tip ? `onmouseover="showTooltip(event,'${tip}')" onmousemove="moveTooltip(event)" onmouseout="hideTooltip()"` : '';
         if (bc.next) {
-            const tip = bc.current ? `Prior bag change: ${fmt(bc.current)}` : '';
-            bagHtml = `<span style="color:${color};cursor:default" ${tip ? `onmouseover="showTooltip(event,'${tip}')" onmousemove="moveTooltip(event)" onmouseout="hideTooltip()"` : ''}>Bag Chg ${fmt(bc.next)}`;
+            bagHtml = `<span style="color:${color};cursor:default" ${tipAttr}>Bag Chg ${fmt(bc.next)}`;
             if (bc.cycles != null) bagHtml += ` (${Math.round(cyclesNum)} cycles)`;
             bagHtml += `</span>`;
         } else if (bc.current) {
-            // No upcoming change recorded — show last change and highlight if overdue
-            const tip = bc.next ? `Next bag change: ${fmt(bc.next)}` : '';
-            bagHtml = `<span style="color:${color};cursor:default" ${tip ? `onmouseover="showTooltip(event,'${tip}')" onmousemove="moveTooltip(event)" onmouseout="hideTooltip()"` : ''}>Last Bag Chg ${fmt(bc.current)}`;
+            bagHtml = `<span style="color:${color};cursor:default" ${tipAttr}>Last Bag Chg ${fmt(bc.current)}`;
             if (bc.cycles != null) bagHtml += ` (${Math.round(cyclesNum)} cycles)`;
             bagHtml += `</span>`;
         }
@@ -786,7 +799,7 @@ function showOverview() {
 // Tooltip
 function showTooltip(e, text) {
     const tip = document.getElementById('tooltip');
-    tip.textContent = text;
+    tip.innerHTML = text.replace(/\n/g, '<br>');
     tip.style.display = 'block';
     moveTooltip(e);
 }
