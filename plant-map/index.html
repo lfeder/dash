@@ -676,10 +676,11 @@ function renderCard(name, opts) {
         if (bc.allDates && bc.allDates.length > 1) {
             const lines = [];
             for (let i = 0; i < bc.allDates.length; i++) {
-                let line = fmt(bc.allDates[i]);
+                const dd = bc.allDates[i];
+                let line = `${String(dd.getMonth()+1).padStart(2,'0')}/${String(dd.getDate()).padStart(2,'0')}/${String(dd.getFullYear()).slice(2)}`;
                 if (i > 0) {
                     const daysBetween = Math.round((bc.allDates[i] - bc.allDates[i-1]) / (24 * 60 * 60 * 1000));
-                    const cyc = (daysBetween / 84).toFixed(1);
+                    const cyc = Math.round(daysBetween / 84);
                     line += ` (${cyc} cycles)`;
                 }
                 lines.push(line);
