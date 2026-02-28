@@ -433,8 +433,13 @@ function renderChart(type, rows, label) {
   const canvas = document.getElementById(type + 'Chart');
   titleEl.textContent = `${type === 'cuke' ? 'Cuke' : 'Lettuce'} — ${label}`;
 
-  // Find all products in this data
-  const products = [...new Set(rows.map(r => r.ProductCode))].sort();
+  // Find all products in this data, ordered by custom legend order
+  const legendOrder = type === 'cuke'
+    ? ['KW','KR','JW','JR','EF']
+    : ['LW','LR','LF','WR','WF','AR','AF'];
+  const productSet = new Set(rows.map(r => r.ProductCode));
+  const products = legendOrder.filter(p => productSet.has(p))
+    .concat([...productSet].filter(p => !legendOrder.includes(p)).sort());
 
   // Aggregate by product + year + week
   const data = {}; // { product: { year: { week: cases } } }
