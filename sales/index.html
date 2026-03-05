@@ -61,6 +61,9 @@
   <div style="display:flex;align-items:center;gap:12px;">
     <button id="toggle25" onclick="toggle25Lines()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer;">Show '25</button>
     <button id="toggleByCust" onclick="toggleByCust()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer;">By Customer</button>
+    <select id="productFilter" onchange="filterByProduct()" style="display:none;padding:4px 8px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer;">
+      <option value="">All Products</option>
+    </select>
     <button id="toggleAll" onclick="toggleAllLines()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer;">Clear All</button>
     <div class="info" id="status">Loading data...</div>
   </div>
@@ -128,6 +131,7 @@ let cukeChart, lettuceChart;
 let show25 = false;
 let byCust = false;
 let lastGroup = null, lastCust = null;
+let productFilter = '';
 
 // Virtual customers: combine multiple CustomerNames into one
 const VIRTUAL_CUSTOMERS = {
@@ -158,6 +162,13 @@ function toggleByCust() {
   const btn = document.getElementById('toggleByCust');
   btn.textContent = byCust ? 'By Product' : 'By Customer';
   btn.style.borderColor = byCust ? '#4ecca3' : '#555';
+  if (lastGroup || lastCust) updateCharts(lastGroup, lastCust);
+}
+
+function filterByProduct() {
+  productFilter = document.getElementById('productFilter').value;
+  document.getElementById('productFilter').style.borderColor = productFilter ? '#4ecca3' : '#555';
+  buildTable();
   if (lastGroup || lastCust) updateCharts(lastGroup, lastCust);
 }
 
@@ -214,6 +225,14 @@ async function loadData() {
     }
   });
   allRows = allRows.concat(virtualRows);
+  // Populate product filter dropdown
+  const allProducts = [...new Set(allRows.map(r => r.ProductCode))].sort();
+  const sel = document.getElementById('productFilter');
+  allProducts.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p; opt.textContent = p;
+    sel.appendChild(opt);
+  });
   document.getElementById('status').textContent =
     `${allRows.length.toLocaleString()} invoices | YTD through week ${MAX_WEEK}`;
   buildTable();
@@ -221,6 +240,7 @@ async function loadData() {
   document.getElementById('main').style.display = 'flex';
   document.getElementById('toggle25').style.display = 'inline-block';
   document.getElementById('toggleByCust').style.display = 'inline-block';
+  document.getElementById('productFilter').style.display = 'inline-block';
   document.getElementById('toggleAll').style.display = 'inline-block';
   // Start with blank charts
 }
@@ -239,6 +259,11 @@ function toggleAllLines() {
     });
     chart.update();
   });
+}
+
+function getFilteredRows() {
+  if (!productFilter) return allRows;
+  return allRows.filter(r => r.ProductCode === productFilter);
 }
 
 // Group data for the left table (YTD cases)
@@ -261,8 +286,9 @@ function fmtPct(cur, prev) {
 }
 
 function buildTable() {
+  const rows = getFilteredRows();
   const groups = {};
-  allRows.forEach(r => {
+  rows.forEach(r => {
     const g = r.CustomerGroup || 'Unknown';
     const c = r.CustomerName || 'Unknown';
     if (!groups[g]) groups[g] = {};
@@ -373,13 +399,13 @@ function buildTable() {
   });
 
   // Total row at bottom
-  const totY25 = ytdCases(allRows, 2025);
-  const totY26 = ytdCases(allRows, 2026);
+  const totY25 = ytdCases(rows, 2025);
+  const totY26 = ytdCases(rows, 2026);
   const totDiff = totY26 - totY25;
-  const totCuke25 = ytdCasesByFarm(allRows, 2025, 'Cuke');
-  const totCuke26 = ytdCasesByFarm(allRows, 2026, 'Cuke');
-  const totLett25 = ytdCasesByFarm(allRows, 2025, 'Lettuce');
-  const totLett26 = ytdCasesByFarm(allRows, 2026, 'Lettuce');
+  const totCuke25 = ytdCasesByFarm(rows, 2025, 'Cuke');
+  const totCuke26 = ytdCasesByFarm(rows, 2026, 'Cuke');
+  const totLett25 = ytdCasesByFarm(rows, 2025, 'Lettuce');
+  const totLett26 = ytdCasesByFarm(rows, 2026, 'Lettuce');
   const totTr = document.createElement('tr');
   totTr.className = 'group-row';
   totTr.style.borderTop = '2px solid #4ecca3';
@@ -421,7 +447,8 @@ function updateCharts(groupName, custName) {
   lastGroup = groupName;
   lastCust = custName;
   const label = custName || groupName || 'All';
-  const filtered = allRows.filter(r => {
+  const base = getFilteredRows();
+  const filtered = base.filter(r => {
     if (custName) return r.CustomerName === custName;
     if (groupName) return r.CustomerGroup === groupName;
     return true;
