@@ -194,11 +194,10 @@ function fetchTab(gid) {
 async function loadData() {
   const results = await Promise.all(TABS.map(t => fetchTab(t.gid)));
   allRows = results.flat();
-  // Apply virtual customer remapping
+  // Apply virtual customer group remapping (keep original CustomerName)
   allRows.forEach(r => {
     if (CUSTOMER_REMAP[r.CustomerName]) {
       r.CustomerGroup = CUSTOMER_REMAP[r.CustomerName];
-      r.CustomerName = CUSTOMER_REMAP[r.CustomerName];
     }
   });
   document.getElementById('status').textContent =
@@ -269,7 +268,7 @@ function buildTable() {
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
 
-  const EXPANDABLE_GROUPS = ['costco', 'armstrong produce', "sam's", 'small'];
+  const EXPANDABLE_GROUPS = ['costco', 'armstrong produce', "sam's", 'foodland/ap', 'small'];
 
   sorted.forEach(([groupName, customers]) => {
     const isExpandable = EXPANDABLE_GROUPS.includes(groupName.toLowerCase());
