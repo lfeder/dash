@@ -125,6 +125,16 @@ let allRows = [];
 let cukeChart, lettuceChart;
 let show25 = false;
 
+// Virtual customers: combine multiple CustomerNames into one
+const VIRTUAL_CUSTOMERS = {
+  'Foodland/AP': ['Foodland', 'AP - Foodland', 'AP Kona - Foodland']
+};
+// Build reverse lookup: original name -> virtual name
+const CUSTOMER_REMAP = {};
+Object.entries(VIRTUAL_CUSTOMERS).forEach(([virtual, originals]) => {
+  originals.forEach(name => { CUSTOMER_REMAP[name] = virtual; });
+});
+
 function toggle25Lines() {
   show25 = !show25;
   const btn = document.getElementById('toggle25');
@@ -184,6 +194,13 @@ function fetchTab(gid) {
 async function loadData() {
   const results = await Promise.all(TABS.map(t => fetchTab(t.gid)));
   allRows = results.flat();
+  // Apply virtual customer remapping
+  allRows.forEach(r => {
+    if (CUSTOMER_REMAP[r.CustomerName]) {
+      r.CustomerGroup = CUSTOMER_REMAP[r.CustomerName];
+      r.CustomerName = CUSTOMER_REMAP[r.CustomerName];
+    }
+  });
   document.getElementById('status').textContent =
     `${allRows.length.toLocaleString()} invoices | YTD through week ${MAX_WEEK}`;
   buildTable();
