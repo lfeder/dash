@@ -478,18 +478,25 @@ function renderChart(type, rows, label, useByCust) {
   let weeks, datasets;
 
   if (useByCust) {
-    // By-customer mode: one line per customer+product, 2026 only
-    const data = {}; // { "CustName|Product": { week: cases } }
+    // By-customer mode: one line per customer+product+year
+    const data = {}; // { "CustName|Product": { year: { week: cases } } }
     rows.forEach(r => {
-      if (r.ISOYear !== 2026 || r.ISOWeek > MAX_WEEK) return;
+      const y = r.ISOYear;
+      if (y !== 2025 && y !== 2026) return;
+      if (y === 2026 && r.ISOWeek > MAX_WEEK) return;
       const key = `${r.CustomerName}|${r.ProductCode}`;
-      if (!data[key]) data[key] = {};
-      if (!data[key][r.ISOWeek]) data[key][r.ISOWeek] = 0;
-      data[key][r.ISOWeek] += Number(r.Cases) || 0;
+      if (!data[key]) data[key] = { 2025: {}, 2026: {} };
+      if (!data[key][y][r.ISOWeek]) data[key][y][r.ISOWeek] = 0;
+      data[key][y][r.ISOWeek] += Number(r.Cases) || 0;
     });
 
+    let maxW = MAX_WEEK;
+    Object.values(data).forEach(d => {
+      const wks = Object.keys(d[2025]).map(Number);
+      if (wks.length) maxW = Math.max(maxW, ...wks);
+    });
     weeks = [];
-    for (let w = 1; w <= MAX_WEEK; w++) weeks.push(w);
+    for (let w = 1; w <= maxW; w++) weeks.push(w);
 
     // Sort keys by customer then product order
     const keys = Object.keys(data).sort((a, b) => {
@@ -500,16 +507,32 @@ function renderChart(type, rows, label, useByCust) {
     });
 
     const colorMap = assignColors(keys);
-    datasets = keys.map(key => {
+    datasets = [];
+    keys.forEach(key => {
       const [custName, prod] = key.split('|');
       const color = colorMap[key];
-      return {
-        label: `${custName} – ${prod}`,
-        year: 2026,
-        data: weeks.map(w => data[key][w] ?? null),
-        borderColor: color, backgroundColor: color,
-        tension: 0, pointRadius: 0, spanGaps: false, borderWidth: 2
-      };
+      const fadedColor = hexToRgba(color, 0.3);
+      const has26 = Object.keys(data[key][2026]).length > 0;
+      if (has26) {
+        datasets.push({
+          label: `${custName} – ${prod} '26`,
+          year: 2026,
+          data: weeks.map(w => data[key][2026][w] ?? null),
+          borderColor: color, backgroundColor: color,
+          tension: 0, pointRadius: 0, spanGaps: false, borderWidth: 2
+        });
+      }
+      const has25 = Object.keys(data[key][2025]).length > 0;
+      if (has25) {
+        datasets.push({
+          label: `${custName} – ${prod} '25`,
+          year: 2025,
+          data: weeks.map(w => data[key][2025][w] ?? null),
+          borderColor: fadedColor, backgroundColor: fadedColor,
+          tension: 0, pointRadius: 0, spanGaps: false, borderWidth: 1.5,
+          hidden: !show25
+        });
+      }
     });
   } else {
     // Standard mode: aggregate by product + year + week
