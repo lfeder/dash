@@ -303,6 +303,7 @@ body {
 
 <div class="header" id="headerBar">
     <h1>Plant Map</h1>
+    <span id="version" style="font-size:0.65rem;color:#555;"></span>
     <div class="header-stats" id="headerStats"></div>
     <div class="variety-legend" id="headerLegend"></div>
     <button id="toggleBtn" onclick="toggleView()" style="margin-left:auto;padding:4px 12px;border-radius:4px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:0.8rem;white-space:nowrap">Current</button>
@@ -313,6 +314,17 @@ body {
 <div class="tooltip" id="tooltip"></div>
 
 <script>
+// Version label (MMDD-HH:MM in HST)
+(function() {
+  const now = new Date();
+  const hst = new Date(now.getTime() - 10 * 60 * 60 * 1000);
+  const mm = String(hst.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(hst.getUTCDate()).padStart(2, '0');
+  const hh = String(hst.getUTCHours()).padStart(2, '0');
+  const min = String(hst.getUTCMinutes()).padStart(2, '0');
+  document.getElementById('version').textContent = `v${mm}${dd}-${hh}:${min}`;
+})();
+
 // --- Configuration ---
 const SHEET_ID = '1ewWyvaXGkRCvZxjUxBOHGY4PKdMHwKeTA5jTIod48LE';
 const GID = '1615707612';
