@@ -194,12 +194,14 @@ function fetchTab(gid) {
 async function loadData() {
   const results = await Promise.all(TABS.map(t => fetchTab(t.gid)));
   allRows = results.flat();
-  // Apply virtual customer group remapping (keep original CustomerName)
+  // Create virtual group by duplicating rows (originals stay untouched)
+  const virtualRows = [];
   allRows.forEach(r => {
     if (CUSTOMER_REMAP[r.CustomerName]) {
-      r.CustomerGroup = CUSTOMER_REMAP[r.CustomerName];
+      virtualRows.push({ ...r, CustomerGroup: CUSTOMER_REMAP[r.CustomerName] });
     }
   });
+  allRows = allRows.concat(virtualRows);
   document.getElementById('status').textContent =
     `${allRows.length.toLocaleString()} invoices | YTD through week ${MAX_WEEK}`;
   buildTable();
