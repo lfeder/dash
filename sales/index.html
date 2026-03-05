@@ -59,6 +59,7 @@
   <h1>Sales Dashboard</h1>
   <div style="display:flex;align-items:center;gap:12px;">
     <button id="toggle25" onclick="toggle25Lines()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer;">Show '25</button>
+    <button id="toggleByCust" onclick="toggleByCust()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer;">By Customer</button>
     <button id="toggleAll" onclick="toggleAllLines()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer;">Clear All</button>
     <div class="info" id="status">Loading data...</div>
   </div>
@@ -124,6 +125,8 @@ const MAX_WEEK = maxWeek();
 let allRows = [];
 let cukeChart, lettuceChart;
 let show25 = false;
+let byCust = false;
+let lastGroup = null, lastCust = null;
 
 // Virtual customers: combine multiple CustomerNames into one
 const VIRTUAL_CUSTOMERS = {
@@ -147,6 +150,14 @@ function toggle25Lines() {
     });
     chart.update();
   });
+}
+
+function toggleByCust() {
+  byCust = !byCust;
+  const btn = document.getElementById('toggleByCust');
+  btn.textContent = byCust ? 'By Product' : 'By Customer';
+  btn.style.borderColor = byCust ? '#4ecca3' : '#555';
+  if (lastGroup || lastCust) updateCharts(lastGroup, lastCust);
 }
 
 // Parse gviz JSON response into array of objects
@@ -208,6 +219,7 @@ async function loadData() {
   document.getElementById('loading').style.display = 'none';
   document.getElementById('main').style.display = 'flex';
   document.getElementById('toggle25').style.display = 'inline-block';
+  document.getElementById('toggleByCust').style.display = 'inline-block';
   document.getElementById('toggleAll').style.display = 'inline-block';
   // Start with blank charts
 }
@@ -405,15 +417,19 @@ function selectCustomer(tr, groupName, custName) {
 }
 
 function updateCharts(groupName, custName) {
+  lastGroup = groupName;
+  lastCust = custName;
   const label = custName || groupName || 'All';
   const filtered = allRows.filter(r => {
     if (custName) return r.CustomerName === custName;
     if (groupName) return r.CustomerGroup === groupName;
     return true;
   });
+  // Use by-customer mode only when a group (not individual customer) is selected
+  const useByCust = byCust && groupName && !custName;
 
-  renderChart('cuke', filtered.filter(r => r.Farm === 'Cuke'), label);
-  renderChart('lettuce', filtered.filter(r => r.Farm === 'Lettuce'), label);
+  renderChart('cuke', filtered.filter(r => r.Farm === 'Cuke'), label, useByCust);
+  renderChart('lettuce', filtered.filter(r => r.Farm === 'Lettuce'), label, useByCust);
 }
 
 // Product color palette
@@ -446,10 +462,10 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-function renderChart(type, rows, label) {
+function renderChart(type, rows, label, useByCust) {
   const titleEl = document.getElementById(type + '-title');
   const canvas = document.getElementById(type + 'Chart');
-  titleEl.textContent = `${type === 'cuke' ? 'Cuke' : 'Lettuce'} — ${label}`;
+  titleEl.textContent = `${type === 'cuke' ? 'Cuke' : 'Lettuce'} — ${label}${useByCust ? ' (by customer)' : ''}`;
 
   // Find all products in this data, ordered by custom legend order
   const legendOrder = type === 'cuke'
@@ -459,59 +475,93 @@ function renderChart(type, rows, label) {
   const products = legendOrder.filter(p => productSet.has(p))
     .concat([...productSet].filter(p => !legendOrder.includes(p)).sort());
 
-  // Aggregate by product + year + week
-  const data = {}; // { product: { year: { week: cases } } }
-  rows.forEach(r => {
-    const y = r.ISOYear;
-    if (y !== 2025 && y !== 2026) return;
-    if (y === 2026 && r.ISOWeek > MAX_WEEK) return;
-    const p = r.ProductCode;
-    if (!data[p]) data[p] = { 2025: {}, 2026: {} };
-    if (!data[p][y][r.ISOWeek]) data[p][y][r.ISOWeek] = 0;
-    data[p][y][r.ISOWeek] += Number(r.Cases) || 0;
-  });
+  let weeks, datasets;
 
-  // Build week labels — show all 2025 weeks, cap 2026 at MAX_WEEK
-  let maxW = MAX_WEEK;
-  products.forEach(p => {
-    if (!data[p]) return;
-    const wks = Object.keys(data[p][2025]).map(Number);
-    if (wks.length) maxW = Math.max(maxW, ...wks);
-  });
-  const weeks = [];
-  for (let w = 1; w <= maxW; w++) weeks.push(w);
+  if (useByCust) {
+    // By-customer mode: one line per customer+product, 2026 only
+    const data = {}; // { "CustName|Product": { week: cases } }
+    rows.forEach(r => {
+      if (r.ISOYear !== 2026 || r.ISOWeek > MAX_WEEK) return;
+      const key = `${r.CustomerName}|${r.ProductCode}`;
+      if (!data[key]) data[key] = {};
+      if (!data[key][r.ISOWeek]) data[key][r.ISOWeek] = 0;
+      data[key][r.ISOWeek] += Number(r.Cases) || 0;
+    });
 
-  // Build datasets: 2026 = solid full color, 2025 = solid faded color
-  const activeProducts = products.filter(p => data[p]);
-  const colorMap = assignColors(activeProducts);
-  const datasets = [];
-  activeProducts.forEach(p => {
-    const color = colorMap[p];
-    const fadedColor = hexToRgba(color, 0.3);
-    // 2026 — solid, full color
-    const has26 = Object.keys(data[p][2026]).length > 0;
-    if (has26) {
-      datasets.push({
-        label: `${p} '26`,
+    weeks = [];
+    for (let w = 1; w <= MAX_WEEK; w++) weeks.push(w);
+
+    // Sort keys by customer then product order
+    const keys = Object.keys(data).sort((a, b) => {
+      const [aCust, aProd] = a.split('|');
+      const [bCust, bProd] = b.split('|');
+      if (aCust !== bCust) return aCust.localeCompare(bCust);
+      return (legendOrder.indexOf(aProd) ?? 99) - (legendOrder.indexOf(bProd) ?? 99);
+    });
+
+    const colorMap = assignColors(keys);
+    datasets = keys.map(key => {
+      const [custName, prod] = key.split('|');
+      const color = colorMap[key];
+      return {
+        label: `${custName} – ${prod}`,
         year: 2026,
-        data: weeks.map(w => data[p][2026][w] ?? null),
+        data: weeks.map(w => data[key][w] ?? null),
         borderColor: color, backgroundColor: color,
         tension: 0, pointRadius: 0, spanGaps: false, borderWidth: 2
-      });
-    }
-    // 2025 — solid, faded color, hidden from legend
-    const has25 = Object.keys(data[p][2025]).length > 0;
-    if (has25) {
-      datasets.push({
-        label: `${p} '25`,
-        year: 2025,
-        data: weeks.map(w => data[p][2025][w] ?? null),
-        borderColor: fadedColor, backgroundColor: fadedColor,
-        tension: 0, pointRadius: 0, spanGaps: false, borderWidth: 1.5,
-        hidden: !show25
-      });
-    }
-  });
+      };
+    });
+  } else {
+    // Standard mode: aggregate by product + year + week
+    const data = {}; // { product: { year: { week: cases } } }
+    rows.forEach(r => {
+      const y = r.ISOYear;
+      if (y !== 2025 && y !== 2026) return;
+      if (y === 2026 && r.ISOWeek > MAX_WEEK) return;
+      const p = r.ProductCode;
+      if (!data[p]) data[p] = { 2025: {}, 2026: {} };
+      if (!data[p][y][r.ISOWeek]) data[p][y][r.ISOWeek] = 0;
+      data[p][y][r.ISOWeek] += Number(r.Cases) || 0;
+    });
+
+    let maxW = MAX_WEEK;
+    products.forEach(p => {
+      if (!data[p]) return;
+      const wks = Object.keys(data[p][2025]).map(Number);
+      if (wks.length) maxW = Math.max(maxW, ...wks);
+    });
+    weeks = [];
+    for (let w = 1; w <= maxW; w++) weeks.push(w);
+
+    const activeProducts = products.filter(p => data[p]);
+    const colorMap = assignColors(activeProducts);
+    datasets = [];
+    activeProducts.forEach(p => {
+      const color = colorMap[p];
+      const fadedColor = hexToRgba(color, 0.3);
+      const has26 = Object.keys(data[p][2026]).length > 0;
+      if (has26) {
+        datasets.push({
+          label: `${p} '26`,
+          year: 2026,
+          data: weeks.map(w => data[p][2026][w] ?? null),
+          borderColor: color, backgroundColor: color,
+          tension: 0, pointRadius: 0, spanGaps: false, borderWidth: 2
+        });
+      }
+      const has25 = Object.keys(data[p][2025]).length > 0;
+      if (has25) {
+        datasets.push({
+          label: `${p} '25`,
+          year: 2025,
+          data: weeks.map(w => data[p][2025][w] ?? null),
+          borderColor: fadedColor, backgroundColor: fadedColor,
+          tension: 0, pointRadius: 0, spanGaps: false, borderWidth: 1.5,
+          hidden: !show25
+        });
+      }
+    });
+  }
 
   const chartRef = type === 'cuke' ? cukeChart : lettuceChart;
   if (chartRef) chartRef.destroy();
