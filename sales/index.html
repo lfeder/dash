@@ -139,6 +139,7 @@ const VIRTUAL_CUSTOMERS = {
 };
 // Build reverse lookup: original name -> virtual name
 const CUSTOMER_REMAP = {};
+const VIRTUAL_GROUPS = new Set(Object.keys(VIRTUAL_CUSTOMERS));
 Object.entries(VIRTUAL_CUSTOMERS).forEach(([virtual, originals]) => {
   originals.forEach(name => { CUSTOMER_REMAP[name] = virtual; });
 });
@@ -398,14 +399,15 @@ function buildTable() {
     }
   });
 
-  // Total row at bottom
-  const totY25 = ytdCases(rows, 2025);
-  const totY26 = ytdCases(rows, 2026);
+  // Total row at bottom — exclude virtual groups to avoid double-counting
+  const totRows = rows.filter(r => !VIRTUAL_GROUPS.has(r.CustomerGroup));
+  const totY25 = ytdCases(totRows, 2025);
+  const totY26 = ytdCases(totRows, 2026);
   const totDiff = totY26 - totY25;
-  const totCuke25 = ytdCasesByFarm(rows, 2025, 'Cuke');
-  const totCuke26 = ytdCasesByFarm(rows, 2026, 'Cuke');
-  const totLett25 = ytdCasesByFarm(rows, 2025, 'Lettuce');
-  const totLett26 = ytdCasesByFarm(rows, 2026, 'Lettuce');
+  const totCuke25 = ytdCasesByFarm(totRows, 2025, 'Cuke');
+  const totCuke26 = ytdCasesByFarm(totRows, 2026, 'Cuke');
+  const totLett25 = ytdCasesByFarm(totRows, 2025, 'Lettuce');
+  const totLett26 = ytdCasesByFarm(totRows, 2026, 'Lettuce');
   const totTr = document.createElement('tr');
   totTr.className = 'group-row';
   totTr.style.borderTop = '2px solid #4ecca3';
