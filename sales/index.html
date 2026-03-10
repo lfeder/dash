@@ -451,7 +451,7 @@ function updateCharts(groupName, custName) {
   const label = custName || groupName || 'All';
   const base = getFilteredRows();
   const filtered = base.filter(r => {
-    if (custName) return r.CustomerName === custName;
+    if (custName) return r.CustomerName === custName && (!groupName || r.CustomerGroup === groupName);
     if (groupName) return r.CustomerGroup === groupName;
     return true;
   });
