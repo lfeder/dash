@@ -226,7 +226,8 @@ const BI_DISTRIBUTORS = ['AP Kona', 'AP Kona - Foodland', 'Honaunau Market', 'Hi
 // Store counts
 const STORE_COUNTS = { foodland: 9, safeway: 2, kta: 7 };
 
-function getSlider(id) { return Number(document.getElementById(id).value); }
+const SLIDER_DEFAULTS = { truckPayment: 1500, insurance: 400, fuel: 80, driverWage: 22, driverHours: 8, maintenance: 300 };
+function getSlider(id) { const el = document.getElementById(id); return el ? Number(el.value) : (SLIDER_DEFAULTS[id] || 0); }
 
 // Get recent weekly average cases for a customer name
 // Uses last 8 weeks of most recent year with data
