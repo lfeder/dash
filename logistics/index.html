@@ -615,38 +615,33 @@ function renderBreakdown(model) {
   const driverWage = getSlider('driverWage');
   const driverMonthly = driverWage * driverHrs * delivDays * model.WEEKS_PER_MONTH;
   const fuelMonthly = getSlider('fuel') * delivDays * model.WEEKS_PER_MONTH;
+  const sliderCss = 'width:120px;accent-color:#4ecca3;vertical-align:middle;';
   selfHtml += `<table style="width:100%;"><tbody>
     <tr>
-      <td>Truck Payment ($/mo)</td>
-      <td style="width:160px"><input type="range" id="truckPayment" min="500" max="3000" value="${getSlider('truckPayment')}" step="100" oninput="update()" style="width:100%;accent-color:#4ecca3;"></td>
-      <td class="num" style="width:80px">${fmt$(getSlider('truckPayment'))}</td>
+      <td>Truck Payment ($/mo) <input type="range" id="truckPayment" min="500" max="3000" value="${getSlider('truckPayment')}" step="100" oninput="update()" style="${sliderCss}"></td>
+      <td class="num">${fmt$(getSlider('truckPayment'))}</td>
     </tr>
     <tr>
-      <td>Insurance ($/mo)</td>
-      <td><input type="range" id="insurance" min="100" max="1000" value="${getSlider('insurance')}" step="50" oninput="update()" style="width:100%;accent-color:#4ecca3;"></td>
+      <td>Insurance ($/mo) <input type="range" id="insurance" min="100" max="1000" value="${getSlider('insurance')}" step="50" oninput="update()" style="${sliderCss}"></td>
       <td class="num">${fmt$(getSlider('insurance'))}</td>
     </tr>
     <tr>
-      <td>Maintenance ($/mo)</td>
-      <td><input type="range" id="maintenance" min="50" max="800" value="${getSlider('maintenance')}" step="50" oninput="update()" style="width:100%;accent-color:#4ecca3;"></td>
+      <td>Maintenance ($/mo) <input type="range" id="maintenance" min="50" max="800" value="${getSlider('maintenance')}" step="50" oninput="update()" style="${sliderCss}"></td>
       <td class="num">${fmt$(getSlider('maintenance'))}</td>
     </tr>
     <tr>
-      <td>Fuel ($/day, ${delivDays} days/wk)</td>
-      <td><input type="range" id="fuel" min="20" max="200" value="${getSlider('fuel')}" step="10" oninput="update()" style="width:100%;accent-color:#4ecca3;"></td>
+      <td>Fuel ($/day, ${delivDays} days/wk) <input type="range" id="fuel" min="20" max="200" value="${getSlider('fuel')}" step="10" oninput="update()" style="${sliderCss}"></td>
       <td class="num">${fmt$(fuelMonthly)}</td>
     </tr>
     <tr>
-      <td>Driver Wage ($/hr for ${driverHrs}hr/day, ${delivDays} days/wk)</td>
-      <td><input type="range" id="driverWage" min="15" max="40" value="${driverWage}" step="1" oninput="update()" style="width:100%;accent-color:#4ecca3;"></td>
+      <td>Driver Wage ($/hr for ${driverHrs}hr/day, ${delivDays} days/wk) <input type="range" id="driverWage" min="15" max="40" value="${driverWage}" step="1" oninput="update()" style="${sliderCss}"> <span style="color:#4ecca3;font-weight:600">$${driverWage}/hr</span></td>
       <td class="num">${fmt$(driverMonthly)}</td>
     </tr>
     <tr>
-      <td>Hours per Day</td>
-      <td><input type="range" id="driverHours" min="4" max="12" value="${driverHrs}" step="1" oninput="update()" style="width:100%;accent-color:#4ecca3;"></td>
-      <td class="num">${driverHrs}hr</td>
+      <td>Hours per Day <input type="range" id="driverHours" min="4" max="12" value="${driverHrs}" step="1" oninput="update()" style="${sliderCss}"> <span style="color:#4ecca3;font-weight:600">${driverHrs}hr</span></td>
+      <td class="num"></td>
     </tr>
-    <tr class="total-row"><td>Total Self-Delivery</td><td></td><td class="num">${fmt$(selfTotalMonthly)}/mo</td></tr>
+    <tr class="total-row"><td>Total Self-Delivery</td><td class="num">${fmt$(selfTotalMonthly)}/mo</td></tr>
   </tbody></table>`;
   selfSection.innerHTML = selfHtml;
 }
