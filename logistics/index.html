@@ -226,7 +226,7 @@ const BI_DISTRIBUTORS = ['AP Kona', 'AP Kona - Foodland', 'Honaunau Market', 'Hi
 // Store counts
 const STORE_COUNTS = { foodland: 9, safeway: 2, kta: 7 };
 
-const SLIDER_DEFAULTS = { truckPayment: 1500, insurance: 400, fuel: 80, driverWage: 22, driverHours: 8, maintenance: 300 };
+const SLIDER_DEFAULTS = { truckPayment: 2000, insurance: 200, fuel: 80, driverWage: 22, driverHours: 8, maintenance: 500 };
 function getSlider(id) { const el = document.getElementById(id); return el ? Number(el.value) : (SLIDER_DEFAULTS[id] || 0); }
 
 // Get recent weekly average cases for a customer name
@@ -624,17 +624,17 @@ function renderBreakdown(model) {
     let selfHtml = '<h3>Self-Delivery Cost Breakdown</h3>';
     selfHtml += `<table style="width:100%;"><thead><tr><th></th><th class="num">$/wk</th><th class="num">$/yr</th></tr></thead><tbody>
       <tr>
-        <td>Truck Payment <input type="range" id="truckPayment" min="500" max="3000" value="${getSlider('truckPayment')}" step="100" oninput="update()" style="${sliderCss}"></td>
+        <td>Truck Payment ($/mo) <input type="range" id="truckPayment" min="2000" max="3000" value="${getSlider('truckPayment')}" step="100" oninput="update()" style="${sliderCss}"> <span style="color:#4ecca3;font-weight:600" id="sd-truck-rate">${fmt$(getSlider('truckPayment'))}/mo</span></td>
         <td class="num" id="sd-truck-wk">${fmt$(truckWk)}</td>
         <td class="num" id="sd-truck-yr">${fmt$(truckWk * 52)}</td>
       </tr>
       <tr>
-        <td>Insurance <input type="range" id="insurance" min="100" max="1000" value="${getSlider('insurance')}" step="50" oninput="update()" style="${sliderCss}"></td>
+        <td>Insurance ($/mo) <input type="range" id="insurance" min="100" max="300" value="${getSlider('insurance')}" step="25" oninput="update()" style="${sliderCss}"> <span style="color:#4ecca3;font-weight:600" id="sd-ins-rate">${fmt$(getSlider('insurance'))}/mo</span></td>
         <td class="num" id="sd-ins-wk">${fmt$(insWk)}</td>
         <td class="num" id="sd-ins-yr">${fmt$(insWk * 52)}</td>
       </tr>
       <tr>
-        <td>Maintenance <input type="range" id="maintenance" min="50" max="800" value="${getSlider('maintenance')}" step="50" oninput="update()" style="${sliderCss}"></td>
+        <td>Maintenance ($/mo) <input type="range" id="maintenance" min="500" max="1500" value="${getSlider('maintenance')}" step="100" oninput="update()" style="${sliderCss}"> <span style="color:#4ecca3;font-weight:600" id="sd-maint-rate">${fmt$(getSlider('maintenance'))}/mo</span></td>
         <td class="num" id="sd-maint-wk">${fmt$(maintWk)}</td>
         <td class="num" id="sd-maint-yr">${fmt$(maintWk * 52)}</td>
       </tr>
@@ -654,10 +654,13 @@ function renderBreakdown(model) {
     selfSection.innerHTML = selfHtml;
   } else {
     // Update values in-place without destroying sliders
+    document.getElementById('sd-truck-rate').textContent = fmt$(getSlider('truckPayment')) + '/mo';
     document.getElementById('sd-truck-wk').textContent = fmt$(truckWk);
     document.getElementById('sd-truck-yr').textContent = fmt$(truckWk * 52);
+    document.getElementById('sd-ins-rate').textContent = fmt$(getSlider('insurance')) + '/mo';
     document.getElementById('sd-ins-wk').textContent = fmt$(insWk);
     document.getElementById('sd-ins-yr').textContent = fmt$(insWk * 52);
+    document.getElementById('sd-maint-rate').textContent = fmt$(getSlider('maintenance')) + '/mo';
     document.getElementById('sd-maint-wk').textContent = fmt$(maintWk);
     document.getElementById('sd-maint-yr').textContent = fmt$(maintWk * 52);
     document.getElementById('sd-fuel-label').textContent = `Fuel ($/day, ${delivDays} days/wk)`;
