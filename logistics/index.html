@@ -14,18 +14,15 @@
   #loading { display: flex; align-items: center; justify-content: center; height: 80vh; font-size: 1.2rem; color: #4ecca3; }
   #main { display: none; padding: 16px 24px; }
 
-  /* Customer filter tabs */
   .customer-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
   .customer-tab { padding: 6px 16px; font-size: 0.85rem; background: #16213e; color: #888; border: 1px solid #0f3460; border-radius: 6px; cursor: pointer; transition: all 0.15s; }
   .customer-tab:hover { color: #ccc; border-color: #555; }
   .customer-tab.active { color: #4ecca3; border-color: #4ecca3; background: #0f3460; }
 
-  /* Layout */
   .columns { display: flex; gap: 24px; }
   .col-sliders { width: 380px; flex-shrink: 0; }
   .col-results { flex: 1; min-width: 0; }
 
-  /* Slider sections */
   .section { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
   .section h2 { font-size: 1rem; color: #4ecca3; margin-bottom: 12px; border-bottom: 1px solid #0f3460; padding-bottom: 6px; }
   .slider-group { margin-bottom: 14px; }
@@ -34,7 +31,6 @@
   input[type="range"] { width: 100%; accent-color: #4ecca3; background: transparent; }
   .hint { font-size: 0.7rem; color: #666; margin-top: 2px; }
 
-  /* Results cards */
   .results-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
   .result-card { background: #16213e; border-radius: 8px; padding: 16px; text-align: center; border: 2px solid transparent; }
   .result-card.best { border-color: #4ecca3; }
@@ -46,7 +42,6 @@
   .result-card .detail { font-size: 0.75rem; color: #888; margin-top: 6px; line-height: 1.5; }
   .result-card .savings { font-size: 0.85rem; color: #4ecca3; font-weight: 600; margin-top: 8px; }
 
-  /* Breakdown table */
   .breakdown { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
   .breakdown h3 { font-size: 0.95rem; color: #4ecca3; margin-bottom: 10px; }
   .breakdown table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
@@ -56,14 +51,26 @@
   .breakdown tr.total-row { border-top: 2px solid #4ecca3; font-weight: 700; }
   .breakdown tr.total-row td { color: #4ecca3; }
 
-  /* Chart area */
   .chart-container { background: #16213e; border-radius: 8px; padding: 16px; }
   .chart-container h3 { font-size: 0.95rem; color: #4ecca3; margin-bottom: 10px; }
   .chart-container canvas { max-height: 350px; }
 
-  /* Data summary */
   .data-summary { background: #0f3460; border-radius: 6px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.8rem; color: #aaa; }
   .data-summary strong { color: #4ecca3; }
+
+  /* Clickable source rows */
+  .source-row { cursor: pointer; }
+  .source-row:hover { background: rgba(78,204,163,0.08); }
+  .source-row td:first-child::before { content: '▶ '; font-size: 0.6rem; color: #555; }
+  .source-row.open td:first-child::before { content: '▼ '; }
+  .order-detail { display: none; }
+  .order-detail.open { display: table-row; }
+  .order-detail td { padding: 0; }
+  .detail-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; background: #0d1b30; margin: 0; }
+  .detail-table th { padding: 4px 8px; color: #888; border-bottom: 1px solid #0f3460; font-weight: 500; text-align: left; }
+  .detail-table td { padding: 3px 8px; border-bottom: 1px solid rgba(15,52,96,0.3); color: #999; }
+  .detail-table th.num, .detail-table td.num { text-align: right; }
+  .detail-table tr:hover { background: rgba(78,204,163,0.05); }
 
   @media (max-width: 900px) {
     .columns { flex-direction: column; }
@@ -103,19 +110,19 @@
           <input type="range" id="markup" min="5" max="40" value="20" step="1" oninput="update()">
         </div>
         <div class="slider-group">
-          <div class="slider-label"><span>AP Kona → Foodland (% of AP Kona cukes)</span><span class="val" id="apKonaFlPctVal">50%</span></div>
+          <div class="slider-label"><span>AP Kona → Foodland (% of cukes)</span><span class="val" id="apKonaFlPctVal">50%</span></div>
           <input type="range" id="apKonaFlPct" min="0" max="100" value="50" step="5" oninput="update()">
-          <div class="hint">What share of AP Kona's cucumber orders go to Foodland stores</div>
+          <div class="hint">Share of AP Kona's cucumber orders that go to Foodland</div>
         </div>
         <div class="slider-group">
-          <div class="slider-label"><span>Honaunau → Safeway (% of orders)</span><span class="val" id="honSafPctVal">80%</span></div>
+          <div class="slider-label"><span>Honaunau → Safeway (%)</span><span class="val" id="honSafPctVal">80%</span></div>
           <input type="range" id="honSafPct" min="0" max="100" value="80" step="5" oninput="update()">
-          <div class="hint">What share of Honaunau's orders are for Safeway</div>
+          <div class="hint">Share of Honaunau's orders for Safeway</div>
         </div>
         <div class="slider-group">
-          <div class="slider-label"><span>Hilo Products → KTA (% of orders)</span><span class="val" id="hiloKtaPctVal">60%</span></div>
+          <div class="slider-label"><span>Hilo Products → KTA (%)</span><span class="val" id="hiloKtaPctVal">60%</span></div>
           <input type="range" id="hiloKtaPct" min="0" max="100" value="60" step="5" oninput="update()">
-          <div class="hint">What share of Hilo Products' orders are for KTA</div>
+          <div class="hint">Share of Hilo Products' orders for KTA</div>
         </div>
       </div>
 
@@ -129,10 +136,11 @@
           <div class="slider-label"><span>Store Drop Cost</span><span class="val" id="dropCostVal">$50</span></div>
           <input type="range" id="dropCost" min="20" max="100" value="50" step="5" oninput="update()">
         </div>
-        <div class="slider-group">
-          <div class="slider-label"><span>Cases per Pallet</span><span class="val" id="casesPerPalletVal">48</span></div>
-          <input type="range" id="casesPerPallet" min="20" max="80" value="48" step="2" oninput="update()">
-          <div class="hint">Estimated cases that fit on one pallet</div>
+        <div style="font-size:0.75rem;color:#888;background:#0d1b30;padding:8px 10px;border-radius:4px;margin-bottom:12px;">
+          Pallets calculated from product mix:<br>
+          Cukes (KW,KR,JW,JR): 66 cases/pallet<br>
+          Retail lettuce (LR,WR,AR): 56 cases/pallet<br>
+          Wholesale lettuce (LW): 20 cases/pallet
         </div>
         <div class="slider-group">
           <div class="slider-label"><span>Deliveries per Week</span><span class="val" id="delivPerWeekVal">2</span></div>
@@ -211,7 +219,7 @@ function parseGvizTable(table) {
       }
     });
     return obj;
-  }).filter(r => r.CustomerGroup && r.ProductCode !== 'JF' && r.ProductCode !== 'Sales' && r.CustomerName !== 'Kaukau 4 Keiki');
+  }).filter(r => r.CustomerGroup && r.ProductCode !== 'JF' && r.ProductCode !== 'Sales' && r.ProductCode !== 'EF' && r.CustomerName !== 'Kaukau 4 Keiki');
 }
 
 function fetchTab(gid) {
@@ -237,50 +245,82 @@ let compChart = null;
 let selectedCustomer = 'all';
 
 /* ── Customer mapping ──
-   We need to figure out the effective cases going to each end retailer.
+   Big Island — all sales go through distributors, no direct:
 
    Foodland:
-     - "AP Kona" cukes → slider % goes to FL
+     - "AP Kona" → slider % of cukes go to FL (rest to AP's other customers)
      - "AP Kona - Foodland" → 100% Foodland (lettuce)
-     - "Foodland" direct → 100% Foodland
 
    Safeway:
-     - "Honaunau" → slider % goes to Safeway
-     - "Safeway" direct (if any) → 100%
+     - "Honaunau" → slider % goes to Safeway (majority of their orders)
 
    KTA:
      - "Hilo Products" → slider % goes to KTA
-     - "KTA" direct (if any) → 100%
 */
 
-// Big Island relevant customer names
-const BI_CUSTOMERS = ['AP Kona', 'AP Kona - Foodland', 'Foodland', 'Honaunau', 'Hilo Products', 'Safeway', 'KTA'];
+// Big Island distributor customer names we care about
+const BI_DISTRIBUTORS = ['AP Kona', 'AP Kona - Foodland', 'Honaunau', 'Hilo Products'];
 
 // Store counts
 const STORE_COUNTS = { foodland: 9, safeway: 2, kta: 7 };
 
 function getSlider(id) { return Number(document.getElementById(id).value); }
 
-// Get recent weekly average cases for a customer name (use last 8 weeks of 2026 data, or 2025 if no 2026)
-function weeklyAvgCases(customerName) {
-  // Use most recent year with data
+// Get recent weekly average cases for a customer name
+// Uses last 8 weeks of most recent year with data
+// Returns { avg, weeks, rows } for drill-down
+function weeklyAvgData(customerName) {
   const custRows = allRows.filter(r => r.CustomerName === customerName);
-  const years = [2026, 2025];
+  const years = [2026, 2025, 2024];
   for (const year of years) {
     const yearRows = custRows.filter(r => r.ISOYear === year);
     if (yearRows.length === 0) continue;
     const weeks = [...new Set(yearRows.map(r => r.ISOWeek))].sort((a, b) => b - a);
     const recentWeeks = weeks.slice(0, 8);
     if (recentWeeks.length === 0) continue;
-    const totalCases = yearRows.filter(r => recentWeeks.includes(r.ISOWeek))
-      .reduce((s, r) => s + (Number(r.Cases) || 0), 0);
-    return totalCases / recentWeeks.length;
+    const recentRows = yearRows.filter(r => recentWeeks.includes(r.ISOWeek));
+    const totalCases = recentRows.reduce((s, r) => s + (Number(r.Cases) || 0), 0);
+    // Product-level breakdown for pallet calculation
+    const productCases = {};
+    recentRows.forEach(r => {
+      if (!productCases[r.ProductCode]) productCases[r.ProductCode] = 0;
+      productCases[r.ProductCode] += Number(r.Cases) || 0;
+    });
+    // Average per week by product
+    const productAvgPerWeek = {};
+    Object.entries(productCases).forEach(([p, c]) => { productAvgPerWeek[p] = c / recentWeeks.length; });
+    return {
+      avg: totalCases / recentWeeks.length,
+      numWeeks: recentWeeks.length,
+      year,
+      weekRange: `W${Math.min(...recentWeeks)}-W${Math.max(...recentWeeks)}`,
+      rows: recentRows,
+      productAvgPerWeek
+    };
   }
-  return 0;
+  return { avg: 0, numWeeks: 0, year: null, weekRange: '', rows: [], productAvgPerWeek: {} };
 }
 
-// Get our wholesale price per case (approximate from data or use reasonable default)
-// We'll estimate ~$24/case average wholesale price
+// Pallet specs by product code
+const CASES_PER_PALLET = {
+  KW: 66, KR: 66, JW: 66, JR: 66,            // cukes
+  LR: 56, WR: 56, AR: 56,                     // retail lettuce
+  LW: 20,                                      // wholesale lettuce
+  LF: 56, WF: 56, AF: 56                       // assume food-service lettuce same as retail
+};
+const DEFAULT_CASES_PER_PALLET = 56; // fallback
+
+function casesToPallets(productCases) {
+  // productCases = { ProductCode: totalCases, ... }
+  let totalPallets = 0;
+  Object.entries(productCases).forEach(([prod, cases]) => {
+    const perPallet = CASES_PER_PALLET[prod] || DEFAULT_CASES_PER_PALLET;
+    totalPallets += cases / perPallet;
+  });
+  return totalPallets;
+}
+
+// Wholesale price per case (rough estimate)
 const WHOLESALE_PRICE_PER_CASE = 24;
 
 function computeModel() {
@@ -290,7 +330,6 @@ function computeModel() {
   const hiloKtaPct = getSlider('hiloKtaPct') / 100;
   const palletCost = getSlider('palletCost');
   const dropCost = getSlider('dropCost');
-  const casesPerPallet = getSlider('casesPerPallet');
   const delivPerWeek = getSlider('delivPerWeek');
   const truckPayment = getSlider('truckPayment');
   const insurance = getSlider('insurance');
@@ -300,49 +339,41 @@ function computeModel() {
   const maintenanceMo = getSlider('maintenance');
   const selfDelivDays = getSlider('selfDelivDays');
 
-  // Weekly cases by source customer
-  const apKonaWeekly = weeklyAvgCases('AP Kona');
-  const apKonaFLWeekly = weeklyAvgCases('AP Kona - Foodland');
-  const foodlandDirectWeekly = weeklyAvgCases('Foodland');
-  const honaunauWeekly = weeklyAvgCases('Honaunau');
-  const safewayDirectWeekly = weeklyAvgCases('Safeway');
-  const hiloProductsWeekly = weeklyAvgCases('Hilo Products');
-  const ktaDirectWeekly = weeklyAvgCases('KTA');
+  // Weekly data by source customer
+  const apKonaData = weeklyAvgData('AP Kona');
+  const apKonaFLData = weeklyAvgData('AP Kona - Foodland');
+  const honaunauData = weeklyAvgData('Honaunau');
+  const hiloProductsData = weeklyAvgData('Hilo Products');
 
   // Effective weekly cases by end retailer
   const retailers = {
     foodland: {
       label: 'Foodland',
-      weeklyCases: (apKonaWeekly * apKonaFlPct) + apKonaFLWeekly + foodlandDirectWeekly,
+      weeklyCases: (apKonaData.avg * apKonaFlPct) + apKonaFLData.avg,
       stores: STORE_COUNTS.foodland,
       sources: [
-        { name: 'AP Kona (cukes)', cases: apKonaWeekly, pct: apKonaFlPct, effective: apKonaWeekly * apKonaFlPct },
-        { name: 'AP Kona - Foodland (lettuce)', cases: apKonaFLWeekly, pct: 1, effective: apKonaFLWeekly },
-        { name: 'Foodland (direct)', cases: foodlandDirectWeekly, pct: 1, effective: foodlandDirectWeekly }
+        { name: 'AP Kona', note: 'cukes — % allocated to FL', data: apKonaData, pct: apKonaFlPct, effective: apKonaData.avg * apKonaFlPct },
+        { name: 'AP Kona - Foodland', note: 'lettuce — 100% FL', data: apKonaFLData, pct: 1, effective: apKonaFLData.avg }
       ]
     },
     safeway: {
       label: 'Safeway',
-      weeklyCases: (honaunauWeekly * honSafPct) + safewayDirectWeekly,
+      weeklyCases: honaunauData.avg * honSafPct,
       stores: STORE_COUNTS.safeway,
-      // Note: Safeway Hilo would be same size as Kona
       sources: [
-        { name: 'Honaunau', cases: honaunauWeekly, pct: honSafPct, effective: honaunauWeekly * honSafPct },
-        { name: 'Safeway (direct)', cases: safewayDirectWeekly, pct: 1, effective: safewayDirectWeekly }
+        { name: 'Honaunau', note: '% allocated to Safeway', data: honaunauData, pct: honSafPct, effective: honaunauData.avg * honSafPct }
       ]
     },
     kta: {
       label: 'KTA',
-      weeklyCases: (hiloProductsWeekly * hiloKtaPct) + ktaDirectWeekly,
+      weeklyCases: hiloProductsData.avg * hiloKtaPct,
       stores: STORE_COUNTS.kta,
       sources: [
-        { name: 'Hilo Products', cases: hiloProductsWeekly, pct: hiloKtaPct, effective: hiloProductsWeekly * hiloKtaPct },
-        { name: 'KTA (direct)', cases: ktaDirectWeekly, pct: 1, effective: ktaDirectWeekly }
+        { name: 'Hilo Products', note: '% allocated to KTA', data: hiloProductsData, pct: hiloKtaPct, effective: hiloProductsData.avg * hiloKtaPct }
       ]
     }
   };
 
-  // Build costs per retailer
   const retailerCosts = {};
   const WEEKS_PER_MONTH = 52 / 12;
 
@@ -352,20 +383,22 @@ function computeModel() {
     const weeklyRevenue = weeklyCases * WHOLESALE_PRICE_PER_CASE;
     const monthlyRevenue = weeklyRevenue * WEEKS_PER_MONTH;
 
-    // 1. Distributor cost: the markup is what the end customer pays EXTRA
-    //    Our revenue is the same, but the end customer pays more
-    //    The "cost" to the retailer = our price * (1 + markup)
-    //    The effective cost of distribution = markup * our revenue
+    // Distributor cost = markup on our wholesale revenue
     const distributorCostMonthly = monthlyRevenue * markup;
 
-    // 2. HFA cost
-    const weeklyPallets = Math.ceil(weeklyCases / casesPerPallet);
-    const weeklyPickupCost = weeklyPallets * palletCost * delivPerWeek;
+    // HFA cost — calculate pallets from product mix
+    // Merge product-level weekly averages across sources, applying allocation %
+    const effectiveProductWeekly = {};
+    ret.sources.forEach(s => {
+      Object.entries(s.data.productAvgPerWeek).forEach(([prod, cases]) => {
+        if (!effectiveProductWeekly[prod]) effectiveProductWeekly[prod] = 0;
+        effectiveProductWeekly[prod] += cases * s.pct;
+      });
+    });
+    const weeklyPallets = casesToPallets(effectiveProductWeekly);
+    const weeklyPickupCost = Math.ceil(weeklyPallets) * palletCost * delivPerWeek;
     const weeklyDropCost = ret.stores * dropCost * delivPerWeek;
     const hfaCostMonthly = (weeklyPickupCost + weeklyDropCost) * WEEKS_PER_MONTH;
-
-    // 3. Self-delivery cost (split proportionally by cases across all retailers)
-    // We'll compute total self-delivery cost and split it below
 
     retailerCosts[key] = {
       ...ret,
@@ -373,13 +406,15 @@ function computeModel() {
       monthlyRevenue,
       distributorCostMonthly,
       weeklyPallets,
+      weeklyPalletsCeil: Math.ceil(weeklyPallets),
+      effectiveProductWeekly,
       hfaCostMonthly,
       hfaPickupMonthly: weeklyPickupCost * WEEKS_PER_MONTH,
       hfaDropMonthly: weeklyDropCost * WEEKS_PER_MONTH
     };
   });
 
-  // Self-delivery: total fixed cost shared across all retailers proportionally
+  // Self-delivery: total fixed cost shared proportionally
   const totalWeeklyCases = Object.values(retailers).reduce((s, r) => s + r.weeklyCases, 0);
   const selfFixedMonthly = truckPayment + insurance + maintenanceMo;
   const selfVariableMonthly = (fuelPerDay + driverWage * driverHours) * selfDelivDays * WEEKS_PER_MONTH;
@@ -391,7 +426,7 @@ function computeModel() {
     rc.selfShare = share;
   });
 
-  return { retailers, retailerCosts, selfTotalMonthly, selfFixedMonthly, selfVariableMonthly, totalWeeklyCases, markup, casesPerPallet, delivPerWeek, WEEKS_PER_MONTH };
+  return { retailers, retailerCosts, selfTotalMonthly, selfFixedMonthly, selfVariableMonthly, totalWeeklyCases, markup, delivPerWeek, WEEKS_PER_MONTH };
 }
 
 function fmt$(n) { return '$' + Math.round(n).toLocaleString(); }
@@ -405,7 +440,6 @@ function update() {
   document.getElementById('hiloKtaPctVal').textContent = getSlider('hiloKtaPct') + '%';
   document.getElementById('palletCostVal').textContent = fmt$(getSlider('palletCost'));
   document.getElementById('dropCostVal').textContent = fmt$(getSlider('dropCost'));
-  document.getElementById('casesPerPalletVal').textContent = getSlider('casesPerPallet');
   document.getElementById('delivPerWeekVal').textContent = getSlider('delivPerWeek');
   document.getElementById('truckPaymentVal').textContent = fmt$(getSlider('truckPayment'));
   document.getElementById('insuranceVal').textContent = fmt$(getSlider('insurance'));
@@ -430,9 +464,8 @@ function selectCustomer(customer) {
 }
 
 function renderResults(model) {
-  const { retailerCosts, selfTotalMonthly } = model;
+  const { retailerCosts } = model;
 
-  // Aggregate based on selected customer
   let distTotal = 0, hfaTotal = 0, selfTotal = 0;
   let totalCases = 0, totalRevenue = 0;
   const keys = selectedCustomer === 'all' ? Object.keys(retailerCosts) : [selectedCustomer];
@@ -474,14 +507,22 @@ function renderResults(model) {
     `;
   }).join('');
 
-  // Update data summary
   const sumEl = document.getElementById('dataSummary');
   const label = selectedCustomer === 'all' ? 'All Big Island Retailers' : retailerCosts[selectedCustomer]?.label || '';
   sumEl.innerHTML = `<strong>${label}</strong> — Est. <strong>${fmtDec(totalCases)}</strong> cases/mo (${fmtDec(totalCases / model.WEEKS_PER_MONTH)} cases/wk) — <strong>${fmt$(totalRevenue)}</strong> wholesale revenue/mo`;
 }
 
+function toggleDetail(id) {
+  const row = document.getElementById(id);
+  const srcRow = document.getElementById('src-' + id);
+  if (row) {
+    row.classList.toggle('open');
+    srcRow?.classList.toggle('open');
+  }
+}
+
 function renderBreakdown(model) {
-  const { retailerCosts, selfTotalMonthly, selfFixedMonthly, selfVariableMonthly } = model;
+  const { retailerCosts, selfTotalMonthly } = model;
   const section = document.getElementById('breakdownSection');
 
   let html = '<h3>Breakdown by Retailer</h3>';
@@ -501,20 +542,19 @@ function renderBreakdown(model) {
 
   Object.entries(retailerCosts).forEach(([key, rc]) => {
     const highlight = selectedCustomer === key ? ' style="background:rgba(78,204,163,0.1)"' : '';
-    const weeklyCases = rc.weeklyCases;
     html += `<tr${highlight}>
       <td>${rc.label}</td>
-      <td class="num">${fmtDec(weeklyCases)}</td>
+      <td class="num">${fmtDec(rc.weeklyCases)}</td>
       <td class="num">${fmtDec(rc.monthlyCases)}</td>
-      <td class="num">${rc.weeklyPallets}</td>
+      <td class="num">${fmtDec(rc.weeklyPallets)} (${rc.weeklyPalletsCeil})</td>
       <td class="num">${rc.stores}</td>
       <td class="num">${fmt$(rc.distributorCostMonthly)}</td>
       <td class="num">${fmt$(rc.hfaCostMonthly)}</td>
       <td class="num">${fmt$(rc.selfCostMonthly)}</td>
     </tr>`;
-    totWk += weeklyCases;
+    totWk += rc.weeklyCases;
     totMo += rc.monthlyCases;
-    totPal += rc.weeklyPallets;
+    totPal += rc.weeklyPalletsCeil;
     totStores += rc.stores;
     totDist += rc.distributorCostMonthly;
     totHfa += rc.hfaCostMonthly;
@@ -530,24 +570,71 @@ function renderBreakdown(model) {
     <td class="num">${fmt$(totDist)}</td>
     <td class="num">${fmt$(totHfa)}</td>
     <td class="num">${fmt$(totSelf)}</td>
-  </tr>`;
+  </tr></tbody></table>`;
 
-  html += '</tbody></table>';
+  // Source data — clickable to expand order details
+  html += '<h3 style="margin-top:16px">Source Orders — click to see invoices</h3>';
+  html += '<table><thead><tr><th>Distributor</th><th>Feeds</th><th class="num">Total Cases/wk</th><th class="num">Alloc %</th><th class="num">Effective Cases/wk</th><th class="num">Data</th></tr></thead><tbody>';
 
-  // Source data breakdown
-  html += '<h3 style="margin-top:16px">Data Sources (weekly avg cases)</h3>';
-  html += '<table><thead><tr><th>Source Customer</th><th class="num">Total Cases/wk</th><th>Allocated To</th><th class="num">%</th><th class="num">Effective Cases/wk</th></tr></thead><tbody>';
-
+  let srcIdx = 0;
   Object.values(retailerCosts).forEach(rc => {
     rc.sources.forEach(s => {
-      if (s.cases === 0 && s.effective === 0) return;
-      html += `<tr>
+      const id = 'detail-' + srcIdx;
+      const hasData = s.data.rows.length > 0;
+      const dataLabel = hasData ? `${s.data.year} ${s.data.weekRange} (${s.data.numWeeks}wk)` : 'No data';
+
+      html += `<tr class="source-row ${hasData ? '' : ''}" id="src-${id}" onclick="toggleDetail('${id}')">
         <td>${s.name}</td>
-        <td class="num">${fmtDec(s.cases)}</td>
-        <td>${rc.label}</td>
+        <td style="font-size:0.75rem;color:#888">${s.note}</td>
+        <td class="num">${fmtDec(s.data.avg)}</td>
         <td class="num">${Math.round(s.pct * 100)}%</td>
         <td class="num">${fmtDec(s.effective)}</td>
+        <td class="num" style="font-size:0.7rem;color:#666">${dataLabel}</td>
       </tr>`;
+
+      // Expandable detail row with actual order data
+      if (hasData) {
+        // Aggregate by week and product
+        const weekProducts = {};
+        s.data.rows.forEach(r => {
+          const wk = r.ISOWeek;
+          if (!weekProducts[wk]) weekProducts[wk] = {};
+          if (!weekProducts[wk][r.ProductCode]) weekProducts[wk][r.ProductCode] = 0;
+          weekProducts[wk][r.ProductCode] += Number(r.Cases) || 0;
+        });
+        const allProds = [...new Set(s.data.rows.map(r => r.ProductCode))].sort();
+        const weekNums = Object.keys(weekProducts).map(Number).sort((a, b) => b - a);
+
+        html += `<tr class="order-detail" id="${id}"><td colspan="6"><table class="detail-table">`;
+        html += `<thead><tr><th>Week</th>`;
+        allProds.forEach(p => { html += `<th class="num">${p}</th>`; });
+        html += `<th class="num" style="font-weight:700">Total</th></tr></thead><tbody>`;
+
+        weekNums.forEach(wk => {
+          html += `<tr><td>W${wk}</td>`;
+          let weekTotal = 0;
+          allProds.forEach(p => {
+            const cases = weekProducts[wk][p] || 0;
+            weekTotal += cases;
+            html += `<td class="num">${cases || '—'}</td>`;
+          });
+          html += `<td class="num" style="font-weight:600">${weekTotal}</td></tr>`;
+        });
+
+        // Average row
+        html += `<tr style="border-top:1px solid #4ecca3;"><td style="color:#4ecca3;font-weight:600">Avg/wk</td>`;
+        let avgTotal = 0;
+        allProds.forEach(p => {
+          const prodTotal = weekNums.reduce((s, wk) => s + (weekProducts[wk][p] || 0), 0);
+          const avg = prodTotal / weekNums.length;
+          avgTotal += avg;
+          html += `<td class="num" style="color:#4ecca3">${fmtDec(avg)}</td>`;
+        });
+        html += `<td class="num" style="color:#4ecca3;font-weight:700">${fmtDec(avgTotal)}</td></tr>`;
+
+        html += '</tbody></table></td></tr>';
+      }
+      srcIdx++;
     });
   });
 
@@ -560,7 +647,7 @@ function renderBreakdown(model) {
     <tr><td>Insurance</td><td class="num">${fmt$(getSlider('insurance'))}/mo</td></tr>
     <tr><td>Maintenance</td><td class="num">${fmt$(getSlider('maintenance'))}/mo</td></tr>
     <tr><td>Fuel (${getSlider('selfDelivDays')} days/wk)</td><td class="num">${fmt$(getSlider('fuel') * getSlider('selfDelivDays') * model.WEEKS_PER_MONTH)}/mo</td></tr>
-    <tr><td>Driver (${getSlider('driverHours')}hr × $${getSlider('driverWage')} × ${getSlider('selfDelivDays')} days/wk)</td><td class="num">${fmt$(getSlider('driverWage') * getSlider('driverHours') * getSlider('selfDelivDays') * model.WEEKS_PER_MONTH)}/mo</td></tr>
+    <tr><td>Driver (${getSlider('driverHours')}hr x $${getSlider('driverWage')} x ${getSlider('selfDelivDays')} days/wk)</td><td class="num">${fmt$(getSlider('driverWage') * getSlider('driverHours') * getSlider('selfDelivDays') * model.WEEKS_PER_MONTH)}/mo</td></tr>
     <tr class="total-row"><td>Total Self-Delivery</td><td class="num">${fmt$(selfTotalMonthly)}/mo</td></tr>
   </tbody></table>`;
 
@@ -615,6 +702,16 @@ function renderChart(model) {
 async function loadData() {
   const results = await Promise.all(TABS.map(t => fetchTab(t.gid)));
   allRows = results.flat();
+
+  // Log all unique customer names so we can verify data matching
+  const custNames = [...new Set(allRows.map(r => r.CustomerName))].sort();
+  console.log('All customer names in data:', custNames);
+
+  // Log Big Island distributor matches
+  BI_DISTRIBUTORS.forEach(name => {
+    const count = allRows.filter(r => r.CustomerName === name).length;
+    console.log(`  "${name}": ${count} invoice rows`);
+  });
 
   document.getElementById('status').textContent = `${allRows.length.toLocaleString()} invoices loaded`;
   document.getElementById('loading').style.display = 'none';
