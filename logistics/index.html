@@ -414,7 +414,7 @@ function computeModel() {
   // Self-delivery: total fixed cost shared proportionally
   const totalWeeklyCases = Object.values(retailers).reduce((s, r) => s + r.weeklyCases, 0);
   const selfFixedMonthly = truckPayment + insurance + maintenanceMo;
-  const selfVariableMonthly = (fuelPerDay + driverWage * driverHours) * delivPerWeek * WEEKS_PER_MONTH;
+  const selfVariableMonthly = (fuelPerDay + driverWage * 1.25 * driverHours) * delivPerWeek * WEEKS_PER_MONTH;
   const selfTotalMonthly = selfFixedMonthly + selfVariableMonthly;
 
   Object.entries(retailerCosts).forEach(([key, rc]) => {
@@ -612,7 +612,7 @@ function renderBreakdown(model) {
   const selfSection = document.getElementById('selfDelivSection');
   const driverHrs = getSlider('driverHours');
   const driverWage = getSlider('driverWage');
-  const driverWeekly = driverWage * driverHrs * delivDays;
+  const driverWeekly = driverWage * 1.25 * driverHrs * delivDays;
   const fuelWeekly = getSlider('fuel') * delivDays;
   const selfWeekly = selfTotalMonthly / WEEKS_PER_MONTH;
   const truckWk = getSlider('truckPayment') / WEEKS_PER_MONTH;
@@ -645,7 +645,7 @@ function renderBreakdown(model) {
         <td class="num" id="sd-fuel-yr">${fmt$(fuelWeekly * 52)}</td>
       </tr>
       <tr>
-        <td><span id="sd-driver-label">Driver ($/hr, ${driverHrs}hr/day, ${delivDays} days/wk)</span> <input type="range" id="driverWage" min="15" max="40" value="${driverWage}" step="1" oninput="update()" style="${sliderCss}"> <span style="color:#4ecca3;font-weight:600" id="sd-driver-rate">$${driverWage}/hr</span></td>
+        <td><span id="sd-driver-label">Driver ($/hr x1.25, ${driverHrs}hr/day, ${delivDays} days/wk)</span> <input type="range" id="driverWage" min="15" max="40" value="${driverWage}" step="1" oninput="update()" style="${sliderCss}"> <span style="color:#4ecca3;font-weight:600" id="sd-driver-rate">$${driverWage}/hr</span></td>
         <td class="num" id="sd-driver-wk">${fmt$(driverWeekly)}</td>
         <td class="num" id="sd-driver-yr">${fmt$(driverWeekly * 52)}</td>
       </tr>
@@ -668,7 +668,7 @@ function renderBreakdown(model) {
     document.getElementById('sd-fuel-rate').textContent = `$${getSlider('fuel')}/day`;
     document.getElementById('sd-fuel-wk').textContent = fmt$(fuelWeekly);
     document.getElementById('sd-fuel-yr').textContent = fmt$(fuelWeekly * 52);
-    document.getElementById('sd-driver-label').textContent = `Driver ($/hr, ${driverHrs}hr/day, ${delivDays} days/wk)`;
+    document.getElementById('sd-driver-label').textContent = `Driver ($/hr x1.25, ${driverHrs}hr/day, ${delivDays} days/wk)`;
     document.getElementById('sd-driver-rate').textContent = `$${driverWage}/hr`;
     document.getElementById('sd-driver-wk').textContent = fmt$(driverWeekly);
     document.getElementById('sd-driver-yr').textContent = fmt$(driverWeekly * 52);
