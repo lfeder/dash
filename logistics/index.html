@@ -100,9 +100,8 @@
       <div class="customer-tab" data-customer="kta" onclick="selectCustomer('kta')">KTA</div>
     </div>
     <div class="customer-tabs" style="margin-bottom:0;">
-      <div class="customer-tab" data-year="recent" onclick="selectYear('recent')" style="border-color:#4ecca3;color:#4ecca3;background:#0f3460;">Last 8 wks</div>
-      <div class="customer-tab" data-year="2026" onclick="selectYear('2026')">All 2026</div>
-      <div class="customer-tab" data-year="2025" onclick="selectYear('2025')">All 2025</div>
+      <div class="customer-tab" data-year="2026" onclick="selectYear('2026')" style="border-color:#4ecca3;color:#4ecca3;background:#0f3460;">2026</div>
+      <div class="customer-tab" data-year="2025" onclick="selectYear('2025')">2025</div>
     </div>
   </div>
 
@@ -235,7 +234,7 @@ function fetchTab(gid) {
 let allRows = [];
 let compChart = null;
 let selectedCustomer = 'all';
-let selectedYear = 'recent'; // 'recent', '2026', '2025'
+let selectedYear = '2026';
 
 /* ── Customer mapping ──
    Big Island — all sales go through distributors, no direct:
@@ -540,7 +539,6 @@ function renderBreakdown(model) {
     <thead><tr>
       <th>Retailer</th>
       <th class="num">Cases/wk</th>
-      <th class="num">Cases/mo</th>
       <th class="num">Pallets/wk</th>
       <th class="num">Stores</th>
       <th class="num">Distributor</th>
@@ -555,7 +553,6 @@ function renderBreakdown(model) {
     html += `<tr${highlight}>
       <td>${rc.label}</td>
       <td class="num">${fmtDec(rc.weeklyCases)}</td>
-      <td class="num">${fmtDec(rc.monthlyCases)}</td>
       <td class="num">${fmtDec(rc.weeklyPallets)} (${rc.weeklyPalletsCeil})</td>
       <td class="num">${rc.stores}</td>
       <td class="num">${fmt$(rc.distributorCostMonthly)}</td>
@@ -574,7 +571,6 @@ function renderBreakdown(model) {
   html += `<tr class="total-row">
     <td>TOTAL</td>
     <td class="num">${fmtDec(totWk)}</td>
-    <td class="num">${fmtDec(totMo)}</td>
     <td class="num">${totPal}</td>
     <td class="num">${totStores}</td>
     <td class="num">${fmt$(totDist)}</td>
@@ -596,9 +592,9 @@ function renderBreakdown(model) {
       html += `<tr class="source-row ${hasData ? '' : ''}" id="src-${id}" onclick="toggleDetail('${id}')">
         <td>${s.name}</td>
         <td style="font-size:0.75rem;color:#888">${s.note}</td>
-        <td class="num">${fmtDec(s.data.avg)}</td>
+        <td class="num">${Math.round(s.data.avg)}</td>
         <td class="num">${Math.round(s.pct * 100)}%</td>
-        <td class="num">${fmtDec(s.effective)}</td>
+        <td class="num">${Math.round(s.effective)}</td>
         <td class="num" style="font-size:0.7rem;color:#666">${dataLabel}</td>
       </tr>`;
 
@@ -638,9 +634,9 @@ function renderBreakdown(model) {
           const prodTotal = weekNums.reduce((s, wk) => s + (weekProducts[wk][p] || 0), 0);
           const avg = prodTotal / weekNums.length;
           avgTotal += avg;
-          html += `<td class="num" style="color:#4ecca3">${fmtDec(avg)}</td>`;
+          html += `<td class="num" style="color:#4ecca3">${Math.round(avg)}</td>`;
         });
-        html += `<td class="num" style="color:#4ecca3;font-weight:700">${fmtDec(avgTotal)}</td></tr>`;
+        html += `<td class="num" style="color:#4ecca3;font-weight:700">${Math.round(avgTotal)}</td></tr>`;
 
         html += '</tbody></table></td></tr>';
       }
