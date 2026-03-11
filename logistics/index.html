@@ -84,6 +84,8 @@
 <div id="header">
   <h1>Logistics Cost Model</h1>
   <div style="display:flex;align-items:center;gap:12px;">
+    <button id="saveBtn" onclick="saveSliders()" style="padding:4px 12px;font-size:0.75rem;background:#0f3460;color:#4ecca3;border:1px solid #4ecca3;border-radius:4px;cursor:pointer;">Save Settings</button>
+    <span id="saveMsg" style="font-size:0.7rem;color:#4ecca3;display:none;">Saved!</span>
     <span id="version" style="font-size:0.65rem;color:#555;"></span>
     <div class="info" id="status">Loading data...</div>
   </div>
@@ -607,49 +609,100 @@ function renderBreakdown(model) {
   // Self-delivery cost breakdown — separate card with inline sliders
   const delivDays = getSlider('delivPerWeek');
   const selfSection = document.getElementById('selfDelivSection');
-  let selfHtml = '<h3>Self-Delivery Cost Breakdown</h3>';
   const driverHrs = getSlider('driverHours');
   const driverWage = getSlider('driverWage');
   const driverWeekly = driverWage * driverHrs * delivDays;
   const fuelWeekly = getSlider('fuel') * delivDays;
   const selfWeekly = selfTotalMonthly / WEEKS_PER_MONTH;
-  const sliderCss = 'width:120px;accent-color:#4ecca3;vertical-align:middle;';
   const truckWk = getSlider('truckPayment') / WEEKS_PER_MONTH;
   const insWk = getSlider('insurance') / WEEKS_PER_MONTH;
   const maintWk = getSlider('maintenance') / WEEKS_PER_MONTH;
-  selfHtml += `<table style="width:100%;"><thead><tr><th></th><th class="num">$/wk</th><th class="num">$/yr</th></tr></thead><tbody>
-    <tr>
-      <td>Truck Payment <input type="range" id="truckPayment" min="500" max="3000" value="${getSlider('truckPayment')}" step="100" oninput="update()" style="${sliderCss}"></td>
-      <td class="num">${fmt$(truckWk)}</td>
-      <td class="num">${fmt$(truckWk * 52)}</td>
-    </tr>
-    <tr>
-      <td>Insurance <input type="range" id="insurance" min="100" max="1000" value="${getSlider('insurance')}" step="50" oninput="update()" style="${sliderCss}"></td>
-      <td class="num">${fmt$(insWk)}</td>
-      <td class="num">${fmt$(insWk * 52)}</td>
-    </tr>
-    <tr>
-      <td>Maintenance <input type="range" id="maintenance" min="50" max="800" value="${getSlider('maintenance')}" step="50" oninput="update()" style="${sliderCss}"></td>
-      <td class="num">${fmt$(maintWk)}</td>
-      <td class="num">${fmt$(maintWk * 52)}</td>
-    </tr>
-    <tr>
-      <td>Fuel ($/day, ${delivDays} days/wk) <input type="range" id="fuel" min="20" max="200" value="${getSlider('fuel')}" step="10" oninput="update()" style="${sliderCss}"></td>
-      <td class="num">${fmt$(fuelWeekly)}</td>
-      <td class="num">${fmt$(fuelWeekly * 52)}</td>
-    </tr>
-    <tr>
-      <td>Driver ($/hr, ${driverHrs}hr/day, ${delivDays} days/wk) <input type="range" id="driverWage" min="15" max="40" value="${driverWage}" step="1" oninput="update()" style="${sliderCss}"> <span style="color:#4ecca3;font-weight:600">$${driverWage}/hr</span></td>
-      <td class="num">${fmt$(driverWeekly)}</td>
-      <td class="num">${fmt$(driverWeekly * 52)}</td>
-    </tr>
-    <input type="hidden" id="driverHours" value="8">
-    <tr class="total-row"><td>Total Self-Delivery</td><td class="num">${fmt$(selfWeekly)}</td><td class="num">${fmt$(selfWeekly * 52)}</td></tr>
-  </tbody></table>`;
-  selfSection.innerHTML = selfHtml;
+
+  // Only do full innerHTML render if sliders don't exist yet; otherwise update values in-place
+  if (!document.getElementById('truckPayment')) {
+    const sliderCss = 'width:120px;accent-color:#4ecca3;vertical-align:middle;';
+    let selfHtml = '<h3>Self-Delivery Cost Breakdown</h3>';
+    selfHtml += `<table style="width:100%;"><thead><tr><th></th><th class="num">$/wk</th><th class="num">$/yr</th></tr></thead><tbody>
+      <tr>
+        <td>Truck Payment <input type="range" id="truckPayment" min="500" max="3000" value="${getSlider('truckPayment')}" step="100" oninput="update()" style="${sliderCss}"></td>
+        <td class="num" id="sd-truck-wk">${fmt$(truckWk)}</td>
+        <td class="num" id="sd-truck-yr">${fmt$(truckWk * 52)}</td>
+      </tr>
+      <tr>
+        <td>Insurance <input type="range" id="insurance" min="100" max="1000" value="${getSlider('insurance')}" step="50" oninput="update()" style="${sliderCss}"></td>
+        <td class="num" id="sd-ins-wk">${fmt$(insWk)}</td>
+        <td class="num" id="sd-ins-yr">${fmt$(insWk * 52)}</td>
+      </tr>
+      <tr>
+        <td>Maintenance <input type="range" id="maintenance" min="50" max="800" value="${getSlider('maintenance')}" step="50" oninput="update()" style="${sliderCss}"></td>
+        <td class="num" id="sd-maint-wk">${fmt$(maintWk)}</td>
+        <td class="num" id="sd-maint-yr">${fmt$(maintWk * 52)}</td>
+      </tr>
+      <tr>
+        <td><span id="sd-fuel-label">Fuel ($/day, ${delivDays} days/wk)</span> <input type="range" id="fuel" min="20" max="200" value="${getSlider('fuel')}" step="10" oninput="update()" style="${sliderCss}"> <span style="color:#4ecca3;font-weight:600" id="sd-fuel-rate">$${getSlider('fuel')}/day</span></td>
+        <td class="num" id="sd-fuel-wk">${fmt$(fuelWeekly)}</td>
+        <td class="num" id="sd-fuel-yr">${fmt$(fuelWeekly * 52)}</td>
+      </tr>
+      <tr>
+        <td><span id="sd-driver-label">Driver ($/hr, ${driverHrs}hr/day, ${delivDays} days/wk)</span> <input type="range" id="driverWage" min="15" max="40" value="${driverWage}" step="1" oninput="update()" style="${sliderCss}"> <span style="color:#4ecca3;font-weight:600" id="sd-driver-rate">$${driverWage}/hr</span></td>
+        <td class="num" id="sd-driver-wk">${fmt$(driverWeekly)}</td>
+        <td class="num" id="sd-driver-yr">${fmt$(driverWeekly * 52)}</td>
+      </tr>
+      <input type="hidden" id="driverHours" value="8">
+      <tr class="total-row"><td>Total Self-Delivery</td><td class="num" id="sd-total-wk">${fmt$(selfWeekly)}</td><td class="num" id="sd-total-yr">${fmt$(selfWeekly * 52)}</td></tr>
+    </tbody></table>`;
+    selfSection.innerHTML = selfHtml;
+  } else {
+    // Update values in-place without destroying sliders
+    document.getElementById('sd-truck-wk').textContent = fmt$(truckWk);
+    document.getElementById('sd-truck-yr').textContent = fmt$(truckWk * 52);
+    document.getElementById('sd-ins-wk').textContent = fmt$(insWk);
+    document.getElementById('sd-ins-yr').textContent = fmt$(insWk * 52);
+    document.getElementById('sd-maint-wk').textContent = fmt$(maintWk);
+    document.getElementById('sd-maint-yr').textContent = fmt$(maintWk * 52);
+    document.getElementById('sd-fuel-label').textContent = `Fuel ($/day, ${delivDays} days/wk)`;
+    document.getElementById('sd-fuel-rate').textContent = `$${getSlider('fuel')}/day`;
+    document.getElementById('sd-fuel-wk').textContent = fmt$(fuelWeekly);
+    document.getElementById('sd-fuel-yr').textContent = fmt$(fuelWeekly * 52);
+    document.getElementById('sd-driver-label').textContent = `Driver ($/hr, ${driverHrs}hr/day, ${delivDays} days/wk)`;
+    document.getElementById('sd-driver-rate').textContent = `$${driverWage}/hr`;
+    document.getElementById('sd-driver-wk').textContent = fmt$(driverWeekly);
+    document.getElementById('sd-driver-yr').textContent = fmt$(driverWeekly * 52);
+    document.getElementById('sd-total-wk').textContent = fmt$(selfWeekly);
+    document.getElementById('sd-total-yr').textContent = fmt$(selfWeekly * 52);
+  }
 }
 
 
+
+/* ── Save/Load slider settings ── */
+const SLIDER_IDS = ['markup', 'apKonaFlPct', 'honSafPct', 'hiloKtaPct', 'palletCost', 'dropCost', 'delivPerWeek', 'truckPayment', 'insurance', 'fuel', 'driverWage', 'maintenance'];
+const STORAGE_KEY = 'logistics-sliders';
+
+function saveSliders() {
+  const settings = {};
+  SLIDER_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) settings[id] = Number(el.value);
+  });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  const msg = document.getElementById('saveMsg');
+  msg.style.display = 'inline';
+  setTimeout(() => { msg.style.display = 'none'; }, 1500);
+}
+
+function loadSliders() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (!saved) return;
+  try {
+    const settings = JSON.parse(saved);
+    Object.entries(settings).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val;
+      else SLIDER_DEFAULTS[id] = val; // for self-delivery sliders not yet rendered
+    });
+  } catch(e) { console.warn('Failed to load slider settings', e); }
+}
 
 /* ── Init ── */
 async function loadData() {
@@ -669,6 +722,7 @@ async function loadData() {
   document.getElementById('status').textContent = `${allRows.length.toLocaleString()} invoices loaded`;
   document.getElementById('loading').style.display = 'none';
   document.getElementById('main').style.display = 'block';
+  loadSliders();
   update();
 }
 
