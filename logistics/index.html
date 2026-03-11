@@ -165,7 +165,7 @@ const TABS = [
 
 function parseGvizTable(table) {
   const cols = table.cols.map(c => c.label);
-  const intCols = new Set(['Cases','Year','Month','ISOYear','ISOWeek','DOW','Grade']);
+  const intCols = new Set(['Cases','Dollars','Year','Month','ISOYear','ISOWeek','DOW','Grade']);
   return table.rows.map(r => {
     const obj = {};
     r.c.forEach((cell, i) => {
@@ -263,20 +263,28 @@ function weeklyAvgData(customerName, farmFilter) {
 
 function buildAvgResult(rows, weeks, year) {
   const totalCases = rows.reduce((s, r) => s + (Number(r.Cases) || 0), 0);
+  const totalDollars = rows.reduce((s, r) => s + (Number(r.Dollars) || 0), 0);
   const productCases = {};
+  const productDollars = {};
   rows.forEach(r => {
     if (!productCases[r.ProductCode]) productCases[r.ProductCode] = 0;
     productCases[r.ProductCode] += Number(r.Cases) || 0;
+    if (!productDollars[r.ProductCode]) productDollars[r.ProductCode] = 0;
+    productDollars[r.ProductCode] += Number(r.Dollars) || 0;
   });
   const productAvgPerWeek = {};
+  const productDollarsAvgPerWeek = {};
   Object.entries(productCases).forEach(([p, c]) => { productAvgPerWeek[p] = c / weeks.length; });
+  Object.entries(productDollars).forEach(([p, d]) => { productDollarsAvgPerWeek[p] = d / weeks.length; });
   return {
     avg: totalCases / weeks.length,
+    avgDollars: totalDollars / weeks.length,
     numWeeks: weeks.length,
     year,
     weekRange: `W${Math.min(...weeks)}-W${Math.max(...weeks)}`,
     rows,
-    productAvgPerWeek
+    productAvgPerWeek,
+    productDollarsAvgPerWeek
   };
 }
 
@@ -308,8 +316,6 @@ function mergeSourceData(a, b) {
   return buildAvgResult(allRowsMerged, weeks, year);
 }
 
-// Wholesale price per case (rough estimate)
-const WHOLESALE_PRICE_PER_CASE = 24;
 
 function computeModel() {
   const markup = getSlider('markup') / 100;
@@ -336,6 +342,7 @@ function computeModel() {
 
   // For AP Kona combined: cukes use apKonaFlPct, lettuce (AP Kona - Foodland) is 100%
   const apKonaEffective = (apKonaCukeData.avg * apKonaFlPct) + apKonaFLData.avg;
+  const apKonaEffectiveDollars = (apKonaCukeData.avgDollars * apKonaFlPct) + apKonaFLData.avgDollars;
   const apKonaPct = apKonaCombined.avg > 0 ? apKonaEffective / apKonaCombined.avg : 0;
 
   // Effective weekly cases by end retailer
@@ -344,8 +351,10 @@ function computeModel() {
       label: 'Foodland',
       distributor: 'AP Kona',
       weeklyCases: apKonaEffective,
+      weeklyDollars: apKonaEffectiveDollars,
       stores: STORE_COUNTS.foodland,
       grossCases: apKonaCombined.avg,
+      grossDollars: apKonaCombined.avgDollars,
       pct: apKonaPct,
       data: apKonaCombined
     },
@@ -353,8 +362,10 @@ function computeModel() {
       label: 'Safeway',
       distributor: 'Honaunau Market',
       weeklyCases: honaunauData.avg * honSafPct,
+      weeklyDollars: honaunauData.avgDollars * honSafPct,
       stores: STORE_COUNTS.safeway,
       grossCases: honaunauData.avg,
+      grossDollars: honaunauData.avgDollars,
       pct: honSafPct,
       data: honaunauData
     },
@@ -362,8 +373,10 @@ function computeModel() {
       label: 'KTA',
       distributor: 'Hilo Products',
       weeklyCases: hiloProductsData.avg * hiloKtaPct,
+      weeklyDollars: hiloProductsData.avgDollars * hiloKtaPct,
       stores: STORE_COUNTS.kta,
       grossCases: hiloProductsData.avg,
+      grossDollars: hiloProductsData.avgDollars,
       pct: hiloKtaPct,
       data: hiloProductsData
     }
@@ -375,7 +388,7 @@ function computeModel() {
   Object.entries(retailers).forEach(([key, ret]) => {
     const weeklyCases = ret.weeklyCases;
     const monthlyCases = weeklyCases * WEEKS_PER_MONTH;
-    const weeklyRevenue = weeklyCases * WHOLESALE_PRICE_PER_CASE;
+    const weeklyRevenue = ret.weeklyDollars;
     const monthlyRevenue = weeklyRevenue * WEEKS_PER_MONTH;
 
     // Distributor cost = markup on our wholesale revenue
@@ -556,7 +569,7 @@ function renderBreakdown(model) {
     const detailId = 'detail-' + key;
     const hasData = rc.data.rows.length > 0;
 
-    const netRevWk = rc.weeklyCases * WHOLESALE_PRICE_PER_CASE;
+    const netRevWk = rc.weeklyDollars;
     const tooltip = palletTooltip(rc.perPickupProduct);
     html += `<tr class="source-row" id="src-${detailId}" onclick="toggleDetail('${detailId}')"${highlight}>
       <td style="font-weight:600">${rc.label}</td>
@@ -575,11 +588,15 @@ function renderBreakdown(model) {
     // Expandable invoice detail row
     if (hasData) {
       const weekProducts = {};
+      const weekProductDollars = {};
       rc.data.rows.forEach(r => {
         const wk = r.ISOWeek;
         if (!weekProducts[wk]) weekProducts[wk] = {};
         if (!weekProducts[wk][r.ProductCode]) weekProducts[wk][r.ProductCode] = 0;
         weekProducts[wk][r.ProductCode] += Number(r.Cases) || 0;
+        if (!weekProductDollars[wk]) weekProductDollars[wk] = {};
+        if (!weekProductDollars[wk][r.ProductCode]) weekProductDollars[wk][r.ProductCode] = 0;
+        weekProductDollars[wk][r.ProductCode] += Number(r.Dollars) || 0;
       });
       const allProds = ['KR', 'JR', 'LR', 'LW', 'WR', 'AR'];
       const weekNums = Object.keys(weekProducts).map(Number).sort((a, b) => a - b);
@@ -594,10 +611,11 @@ function renderBreakdown(model) {
         let weekTotal = 0, weekRev = 0;
         allProds.forEach(p => {
           const cases = weekProducts[wk][p] || 0;
+          const dollars = (weekProductDollars[wk] && weekProductDollars[wk][p]) || 0;
           weekTotal += cases;
-          weekRev += cases * WHOLESALE_PRICE_PER_CASE;
+          weekRev += dollars;
           html += `<td class="num">${cases || '—'}</td>`;
-          html += `<td class="num" style="color:#888">${cases ? fmt$(cases * WHOLESALE_PRICE_PER_CASE) : '—'}</td>`;
+          html += `<td class="num" style="color:#888">${dollars ? fmt$(dollars) : '—'}</td>`;
         });
         html += `<td class="num" style="font-weight:600">${weekTotal}</td>`;
         html += `<td class="num" style="font-weight:600">${fmt$(weekRev)}</td></tr>`;
@@ -607,11 +625,13 @@ function renderBreakdown(model) {
       let avgTotal = 0, avgRevTotal = 0;
       allProds.forEach(p => {
         const prodTotal = weekNums.reduce((s, wk) => s + (weekProducts[wk][p] || 0), 0);
+        const prodDollars = weekNums.reduce((s, wk) => s + ((weekProductDollars[wk] && weekProductDollars[wk][p]) || 0), 0);
         const avg = prodTotal / weekNums.length;
+        const avgDollars = prodDollars / weekNums.length;
         avgTotal += avg;
-        avgRevTotal += avg * WHOLESALE_PRICE_PER_CASE;
+        avgRevTotal += avgDollars;
         html += `<td class="num" style="color:#4ecca3">${Math.round(avg)}</td>`;
-        html += `<td class="num" style="color:#4ecca3">${fmt$(avg * WHOLESALE_PRICE_PER_CASE)}</td>`;
+        html += `<td class="num" style="color:#4ecca3">${fmt$(avgDollars)}</td>`;
       });
       html += `<td class="num" style="color:#4ecca3;font-weight:700">${Math.round(avgTotal)}</td>`;
       html += `<td class="num" style="color:#4ecca3;font-weight:700">${fmt$(avgRevTotal)}</td></tr>`;
@@ -628,7 +648,8 @@ function renderBreakdown(model) {
     totSelf += rc.selfCostMonthly;
   });
 
-  const totNetRev = totNet * WHOLESALE_PRICE_PER_CASE;
+  let totNetRev = 0;
+  Object.values(retailerCosts).forEach(rc => { totNetRev += rc.weeklyDollars; });
   html += `<tr class="total-row">
     <td>TOTAL</td>
     <td></td>
