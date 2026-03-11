@@ -144,38 +144,6 @@
         </div>
       </div>
 
-      <div class="section">
-        <h2>Self-Delivery (Box Truck)</h2>
-        <div class="slider-group">
-          <div class="slider-label"><span>Truck Payment ($/mo)</span><span class="val" id="truckPaymentVal">$1,500</span></div>
-          <input type="range" id="truckPayment" min="500" max="3000" value="1500" step="100" oninput="update()">
-        </div>
-        <div class="slider-group">
-          <div class="slider-label"><span>Insurance ($/mo)</span><span class="val" id="insuranceVal">$400</span></div>
-          <input type="range" id="insurance" min="100" max="1000" value="400" step="50" oninput="update()">
-        </div>
-        <div class="slider-group">
-          <div class="slider-label"><span>Fuel Cost ($/delivery day)</span><span class="val" id="fuelVal">$80</span></div>
-          <input type="range" id="fuel" min="20" max="200" value="80" step="10" oninput="update()">
-          <div class="hint">Fuel for one delivery route on the Big Island</div>
-        </div>
-        <div class="slider-group">
-          <div class="slider-label"><span>Driver Wage ($/hr)</span><span class="val" id="driverWageVal">$22</span></div>
-          <input type="range" id="driverWage" min="15" max="40" value="22" step="1" oninput="update()">
-        </div>
-        <div class="slider-group">
-          <div class="slider-label"><span>Hours per Delivery Day</span><span class="val" id="driverHoursVal">8</span></div>
-          <input type="range" id="driverHours" min="4" max="12" value="8" step="1" oninput="update()">
-        </div>
-        <div class="slider-group">
-          <div class="slider-label"><span>Maintenance ($/mo)</span><span class="val" id="maintenanceVal">$300</span></div>
-          <input type="range" id="maintenance" min="50" max="800" value="300" step="50" oninput="update()">
-        </div>
-        <div class="slider-group">
-          <div class="slider-label"><span>Delivery Days per Week</span><span class="val" id="selfDelivDaysVal">2</span></div>
-          <input type="range" id="selfDelivDays" min="1" max="4" value="2" step="1" oninput="update()">
-        </div>
-      </div>
     </div>
 
     <div class="col-results">
@@ -355,7 +323,6 @@ function computeModel() {
   const driverWage = getSlider('driverWage');
   const driverHours = getSlider('driverHours');
   const maintenanceMo = getSlider('maintenance');
-  const selfDelivDays = getSlider('selfDelivDays');
 
   // Weekly data by source customer
   // Merge AP Kona (cukes) + AP Kona - Foodland (lettuce) into one combined source
@@ -439,7 +406,7 @@ function computeModel() {
   // Self-delivery: total fixed cost shared proportionally
   const totalWeeklyCases = Object.values(retailers).reduce((s, r) => s + r.weeklyCases, 0);
   const selfFixedMonthly = truckPayment + insurance + maintenanceMo;
-  const selfVariableMonthly = (fuelPerDay + driverWage * driverHours) * selfDelivDays * WEEKS_PER_MONTH;
+  const selfVariableMonthly = (fuelPerDay + driverWage * driverHours) * delivPerWeek * WEEKS_PER_MONTH;
   const selfTotalMonthly = selfFixedMonthly + selfVariableMonthly;
 
   Object.entries(retailerCosts).forEach(([key, rc]) => {
@@ -463,13 +430,6 @@ function update() {
   document.getElementById('palletCostVal').textContent = fmt$(getSlider('palletCost'));
   document.getElementById('dropCostVal').textContent = fmt$(getSlider('dropCost'));
   document.getElementById('delivPerWeekVal').textContent = getSlider('delivPerWeek');
-  document.getElementById('truckPaymentVal').textContent = fmt$(getSlider('truckPayment'));
-  document.getElementById('insuranceVal').textContent = fmt$(getSlider('insurance'));
-  document.getElementById('fuelVal').textContent = fmt$(getSlider('fuel'));
-  document.getElementById('driverWageVal').textContent = fmt$(getSlider('driverWage'));
-  document.getElementById('driverHoursVal').textContent = getSlider('driverHours');
-  document.getElementById('maintenanceVal').textContent = fmt$(getSlider('maintenance'));
-  document.getElementById('selfDelivDaysVal').textContent = getSlider('selfDelivDays');
 
   const model = computeModel();
   renderResults(model);
@@ -649,16 +609,42 @@ function renderBreakdown(model) {
 
   section.innerHTML = html;
 
-  // Self-delivery cost breakdown — separate card
+  // Self-delivery cost breakdown — separate card with inline sliders
+  const delivDays = getSlider('delivPerWeek');
   const selfSection = document.getElementById('selfDelivSection');
   let selfHtml = '<h3>Self-Delivery Cost Breakdown</h3>';
-  selfHtml += `<table><tbody>
-    <tr><td>Truck Payment</td><td class="num">${fmt$(getSlider('truckPayment'))}/mo</td></tr>
-    <tr><td>Insurance</td><td class="num">${fmt$(getSlider('insurance'))}/mo</td></tr>
-    <tr><td>Maintenance</td><td class="num">${fmt$(getSlider('maintenance'))}/mo</td></tr>
-    <tr><td>Fuel (${getSlider('selfDelivDays')} days/wk)</td><td class="num">${fmt$(getSlider('fuel') * getSlider('selfDelivDays') * model.WEEKS_PER_MONTH)}/mo</td></tr>
-    <tr><td>Driver (${getSlider('driverHours')}hr x $${getSlider('driverWage')} x ${getSlider('selfDelivDays')} days/wk)</td><td class="num">${fmt$(getSlider('driverWage') * getSlider('driverHours') * getSlider('selfDelivDays') * model.WEEKS_PER_MONTH)}/mo</td></tr>
-    <tr class="total-row"><td>Total Self-Delivery</td><td class="num">${fmt$(selfTotalMonthly)}/mo</td></tr>
+  selfHtml += `<table style="width:100%;"><tbody>
+    <tr>
+      <td>Truck Payment</td>
+      <td style="width:180px"><input type="range" id="truckPayment" min="500" max="3000" value="${getSlider('truckPayment')}" step="100" oninput="update()" style="width:100%;accent-color:#4ecca3;"></td>
+      <td class="num" style="width:90px">${fmt$(getSlider('truckPayment'))}/mo</td>
+    </tr>
+    <tr>
+      <td>Insurance</td>
+      <td><input type="range" id="insurance" min="100" max="1000" value="${getSlider('insurance')}" step="50" oninput="update()" style="width:100%;accent-color:#4ecca3;"></td>
+      <td class="num">${fmt$(getSlider('insurance'))}/mo</td>
+    </tr>
+    <tr>
+      <td>Maintenance</td>
+      <td><input type="range" id="maintenance" min="50" max="800" value="${getSlider('maintenance')}" step="50" oninput="update()" style="width:100%;accent-color:#4ecca3;"></td>
+      <td class="num">${fmt$(getSlider('maintenance'))}/mo</td>
+    </tr>
+    <tr>
+      <td>Fuel (${delivDays} days/wk)</td>
+      <td><input type="range" id="fuel" min="20" max="200" value="${getSlider('fuel')}" step="10" oninput="update()" style="width:100%;accent-color:#4ecca3;"></td>
+      <td class="num">${fmt$(getSlider('fuel') * delivDays * model.WEEKS_PER_MONTH)}/mo</td>
+    </tr>
+    <tr>
+      <td>Driver Wage</td>
+      <td><input type="range" id="driverWage" min="15" max="40" value="${getSlider('driverWage')}" step="1" oninput="update()" style="width:100%;accent-color:#4ecca3;"></td>
+      <td class="num">$${getSlider('driverWage')}/hr</td>
+    </tr>
+    <tr>
+      <td>Hours per Day</td>
+      <td><input type="range" id="driverHours" min="4" max="12" value="${getSlider('driverHours')}" step="1" oninput="update()" style="width:100%;accent-color:#4ecca3;"></td>
+      <td class="num">${getSlider('driverHours')}hr x ${delivDays} days = ${fmt$(getSlider('driverWage') * getSlider('driverHours') * delivDays * model.WEEKS_PER_MONTH)}/mo</td>
+    </tr>
+    <tr class="total-row"><td>Total Self-Delivery</td><td></td><td class="num">${fmt$(selfTotalMonthly)}/mo</td></tr>
   </tbody></table>`;
   selfSection.innerHTML = selfHtml;
 }
