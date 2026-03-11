@@ -227,6 +227,7 @@ const BI_DISTRIBUTORS = ['AP Kona', 'AP Kona - Foodland', 'Honaunau Market', 'Hi
 const STORE_COUNTS = { foodland: 9, safeway: 2, kta: 7 };
 
 const SLIDER_DEFAULTS = { truckPayment: 2000, insurance: 200, fuel: 80, driverWage: 22, driverHours: 8, maintenance: 500 };
+
 function getSlider(id) { const el = document.getElementById(id); return el ? Number(el.value) : (SLIDER_DEFAULTS[id] || 0); }
 
 // Get recent weekly average cases for a customer name
@@ -634,7 +635,7 @@ function renderBreakdown(model) {
         <td class="num" id="sd-ins-yr">${fmt$(insWk * 52)}</td>
       </tr>
       <tr>
-        <td>Maintenance ($/mo) <input type="range" id="maintenance" min="500" max="1500" value="${getSlider('maintenance')}" step="100" oninput="update()" style="${sliderCss}"> <span style="color:#4ecca3;font-weight:600" id="sd-maint-rate">${fmt$(getSlider('maintenance'))}/mo</span></td>
+        <td>Maintenance ($/mo) <input type="range" id="maintenance" min="250" max="750" value="${getSlider('maintenance')}" step="50" oninput="update()" style="${sliderCss}"> <span style="color:#4ecca3;font-weight:600" id="sd-maint-rate">${fmt$(getSlider('maintenance'))}/mo</span></td>
         <td class="num" id="sd-maint-wk">${fmt$(maintWk)}</td>
         <td class="num" id="sd-maint-yr">${fmt$(maintWk * 52)}</td>
       </tr>
