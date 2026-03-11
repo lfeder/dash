@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Logistics Cost Model</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; }
+  #header { background: #16213e; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #0f3460; }
+  #header h1 { font-size: 1.3rem; color: #4ecca3; }
+  #header .info { font-size: 0.8rem; color: #888; }
+  #loading { display: flex; align-items: center; justify-content: center; height: 80vh; font-size: 1.2rem; color: #4ecca3; }
+  #main { display: none; padding: 16px 24px; }
+
+  /* Customer filter tabs */
+  .customer-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .customer-tab { padding: 6px 16px; font-size: 0.85rem; background: #16213e; color: #888; border: 1px solid #0f3460; border-radius: 6px; cursor: pointer; transition: all 0.15s; }
+  .customer-tab:hover { color: #ccc; border-color: #555; }
+  .customer-tab.active { color: #4ecca3; border-color: #4ecca3; background: #0f3460; }
+
+  /* Layout */
+  .columns { display: flex; gap: 24px; }
+  .col-sliders { width: 380px; flex-shrink: 0; }
+  .col-results { flex: 1; min-width: 0; }
+
+  /* Slider sections */
+  .section { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .section h2 { font-size: 1rem; color: #4ecca3; margin-bottom: 12px; border-bottom: 1px solid #0f3460; padding-bottom: 6px; }
+  .slider-group { margin-bottom: 14px; }
+  .slider-label { display: flex; justify-content: space-between; font-size: 0.8rem; color: #aaa; margin-bottom: 4px; }
+  .slider-label .val { color: #4ecca3; font-weight: 600; }
+  input[type="range"] { width: 100%; accent-color: #4ecca3; background: transparent; }
+  .hint { font-size: 0.7rem; color: #666; margin-top: 2px; }
+
+  /* Results cards */
+  .results-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+  .result-card { background: #16213e; border-radius: 8px; padding: 16px; text-align: center; border: 2px solid transparent; }
+  .result-card.best { border-color: #4ecca3; }
+  .result-card h3 { font-size: 0.85rem; color: #aaa; margin-bottom: 8px; }
+  .result-card .cost { font-size: 1.8rem; font-weight: 700; }
+  .result-card .cost.distributor { color: #e74c3c; }
+  .result-card .cost.hfa { color: #f39c12; }
+  .result-card .cost.self { color: #4ecca3; }
+  .result-card .detail { font-size: 0.75rem; color: #888; margin-top: 6px; line-height: 1.5; }
+  .result-card .savings { font-size: 0.85rem; color: #4ecca3; font-weight: 600; margin-top: 8px; }
+
+  /* Breakdown table */
+  .breakdown { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+  .breakdown h3 { font-size: 0.95rem; color: #4ecca3; margin-bottom: 10px; }
+  .breakdown table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .breakdown th { text-align: left; padding: 6px 8px; border-bottom: 2px solid #0f3460; color: #4ecca3; }
+  .breakdown td { padding: 5px 8px; border-bottom: 1px solid rgba(15,52,96,0.5); }
+  .breakdown th.num, .breakdown td.num { text-align: right; }
+  .breakdown tr.total-row { border-top: 2px solid #4ecca3; font-weight: 700; }
+  .breakdown tr.total-row td { color: #4ecca3; }
+
+  /* Chart area */
+  .chart-container { background: #16213e; border-radius: 8px; padding: 16px; }
+  .chart-container h3 { font-size: 0.95rem; color: #4ecca3; margin-bottom: 10px; }
+  .chart-container canvas { max-height: 350px; }
+
+  /* Data summary */
+  .data-summary { background: #0f3460; border-radius: 6px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.8rem; color: #aaa; }
+  .data-summary strong { color: #4ecca3; }
+
+  @media (max-width: 900px) {
+    .columns { flex-direction: column; }
+    .col-sliders { width: 100%; }
+    .results-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>Logistics Cost Model</h1>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <span id="version" style="font-size:0.65rem;color:#555;"></span>
+    <div class="info" id="status">Loading data...</div>
+  </div>
+</div>
+
+<div id="loading">Loading invoice data from Google Sheets...</div>
+
+<div id="main">
+  <div class="customer-tabs" id="customerTabs">
+    <div class="customer-tab active" data-customer="all" onclick="selectCustomer('all')">All Big Island</div>
+    <div class="customer-tab" data-customer="foodland" onclick="selectCustomer('foodland')">Foodland</div>
+    <div class="customer-tab" data-customer="safeway" onclick="selectCustomer('safeway')">Safeway</div>
+    <div class="customer-tab" data-customer="kta" onclick="selectCustomer('kta')">KTA</div>
+  </div>
+
+  <div class="data-summary" id="dataSummary"></div>
+
+  <div class="columns">
+    <div class="col-sliders">
+      <div class="section">
+        <h2>Distributor Assumptions</h2>
+        <div class="slider-group">
+          <div class="slider-label"><span>Distributor Markup</span><span class="val" id="markupVal">20%</span></div>
+          <input type="range" id="markup" min="5" max="40" value="20" step="1" oninput="update()">
+        </div>
+        <div class="slider-group">
+          <div class="slider-label"><span>AP Kona → Foodland (% of AP Kona cukes)</span><span class="val" id="apKonaFlPctVal">50%</span></div>
+          <input type="range" id="apKonaFlPct" min="0" max="100" value="50" step="5" oninput="update()">
+          <div class="hint">What share of AP Kona's cucumber orders go to Foodland stores</div>
+        </div>
+        <div class="slider-group">
+          <div class="slider-label"><span>Honaunau → Safeway (% of orders)</span><span class="val" id="honSafPctVal">80%</span></div>
+          <input type="range" id="honSafPct" min="0" max="100" value="80" step="5" oninput="update()">
+          <div class="hint">What share of Honaunau's orders are for Safeway</div>
+        </div>
+        <div class="slider-group">
+          <div class="slider-label"><span>Hilo Products → KTA (% of orders)</span><span class="val" id="hiloKtaPctVal">60%</span></div>
+          <input type="range" id="hiloKtaPct" min="0" max="100" value="60" step="5" oninput="update()">
+          <div class="hint">What share of Hilo Products' orders are for KTA</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>HFA Logistics</h2>
+        <div class="slider-group">
+          <div class="slider-label"><span>Pallet Pickup Cost</span><span class="val" id="palletCostVal">$100</span></div>
+          <input type="range" id="palletCost" min="50" max="200" value="100" step="10" oninput="update()">
+        </div>
+        <div class="slider-group">
+          <div class="slider-label"><span>Store Drop Cost</span><span class="val" id="dropCostVal">$50</span></div>
+          <input type="range" id="dropCost" min="20" max="100" value="50" step="5" oninput="update()">
+        </div>
+        <div class="slider-group">
+          <div class="slider-label"><span>Cases per Pallet</span><span class="val" id="casesPerPalletVal">48</span></div>
+          <input type="range" id="casesPerPallet" min="20" max="80" value="48" step="2" oninput="update()">
+          <div class="hint">Estimated cases that fit on one pallet</div>
+        </div>
+        <div class="slider-group">
+          <div class="slider-label"><span>Deliveries per Week</span><span class="val" id="delivPerWeekVal">2</span></div>
+          <input type="range" id="delivPerWeek" min="1" max="3" value="2" step="1" oninput="update()">
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Self-Delivery (Box Truck)</h2>
+        <div class="slider-group">
+          <div class="slider-label"><span>Truck Payment ($/mo)</span><span class="val" id="truckPaymentVal">$1,500</span></div>
+          <input type="range" id="truckPayment" min="500" max="3000" value="1500" step="100" oninput="update()">
+        </div>
+        <div class="slider-group">
+          <div class="slider-label"><span>Insurance ($/mo)</span><span class="val" id="insuranceVal">$400</span></div>
+          <input type="range" id="insurance" min="100" max="1000" value="400" step="50" oninput="update()">
+        </div>
+        <div class="slider-group">
+          <div class="slider-label"><span>Fuel Cost ($/delivery day)</span><span class="val" id="fuelVal">$80</span></div>
+          <input type="range" id="fuel" min="20" max="200" value="80" step="10" oninput="update()">
+          <div class="hint">Fuel for one delivery route on the Big Island</div>
+        </div>
+        <div class="slider-group">
+          <div class="slider-label"><span>Driver Wage ($/hr)</span><span class="val" id="driverWageVal">$22</span></div>
+          <input type="range" id="driverWage" min="15" max="40" value="22" step="1" oninput="update()">
+        </div>
+        <div class="slider-group">
+          <div class="slider-label"><span>Hours per Delivery Day</span><span class="val" id="driverHoursVal">8</span></div>
+          <input type="range" id="driverHours" min="4" max="12" value="8" step="1" oninput="update()">
+        </div>
+        <div class="slider-group">
+          <div class="slider-label"><span>Maintenance ($/mo)</span><span class="val" id="maintenanceVal">$300</span></div>
+          <input type="range" id="maintenance" min="50" max="800" value="300" step="50" oninput="update()">
+        </div>
+        <div class="slider-group">
+          <div class="slider-label"><span>Delivery Days per Week</span><span class="val" id="selfDelivDaysVal">2</span></div>
+          <input type="range" id="selfDelivDays" min="1" max="4" value="2" step="1" oninput="update()">
+        </div>
+      </div>
+    </div>
+
+    <div class="col-results">
+      <div class="results-grid" id="resultsGrid"></div>
+      <div class="breakdown" id="breakdownSection"></div>
+      <div class="chart-container">
+        <h3>Monthly Cost Comparison</h3>
+        <canvas id="compChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── Data loading (same pattern as sales dashboard) ── */
+const SHEET_ID = '124y8JdWXmbf_hb1vfimHmGaKLVXrRHybw02w_ozCExE';
+const TABS = [
+  { name: 'invoices_23-25', gid: '1254110782' },
+  { name: 'invoices_2025',  gid: '544460225'  }
+];
+
+function parseGvizTable(table) {
+  const cols = table.cols.map(c => c.label);
+  const intCols = new Set(['Cases','Year','Month','ISOYear','ISOWeek','DOW','Grade']);
+  return table.rows.map(r => {
+    const obj = {};
+    r.c.forEach((cell, i) => {
+      const col = cols[i];
+      if (!col) return;
+      if (!cell || cell.v === null || cell.v === undefined) { obj[col] = ''; return; }
+      if (typeof cell.v === 'string' && cell.v.startsWith('Date(')) {
+        obj[col] = cell.f || cell.v;
+      } else if (intCols.has(col) && typeof cell.v === 'number') {
+        obj[col] = Math.round(cell.v);
+      } else {
+        obj[col] = cell.v;
+      }
+    });
+    return obj;
+  }).filter(r => r.CustomerGroup && r.ProductCode !== 'JF' && r.ProductCode !== 'Sales' && r.CustomerName !== 'Kaukau 4 Keiki');
+}
+
+function fetchTab(gid) {
+  return new Promise((resolve, reject) => {
+    const cbName = '_cb' + gid;
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:${cbName}&gid=${gid}`;
+    window[cbName] = function(resp) {
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+      if (resp.status === 'error') { reject(resp.errors); return; }
+      resolve(parseGvizTable(resp.table));
+    };
+    const script = document.createElement('script');
+    script.src = url;
+    script.onerror = () => { delete window[cbName]; reject('Network error loading gid=' + gid); };
+    document.head.appendChild(script);
+  });
+}
+
+/* ── State ── */
+let allRows = [];
+let compChart = null;
+let selectedCustomer = 'all';
+
+/* ── Customer mapping ──
+   We need to figure out the effective cases going to each end retailer.
+
+   Foodland:
+     - "AP Kona" cukes → slider % goes to FL
+     - "AP Kona - Foodland" → 100% Foodland (lettuce)
+     - "Foodland" direct → 100% Foodland
+
+   Safeway:
+     - "Honaunau" → slider % goes to Safeway
+     - "Safeway" direct (if any) → 100%
+
+   KTA:
+     - "Hilo Products" → slider % goes to KTA
+     - "KTA" direct (if any) → 100%
+*/
+
+// Big Island relevant customer names
+const BI_CUSTOMERS = ['AP Kona', 'AP Kona - Foodland', 'Foodland', 'Honaunau', 'Hilo Products', 'Safeway', 'KTA'];
+
+// Store counts
+const STORE_COUNTS = { foodland: 9, safeway: 2, kta: 7 };
+
+function getSlider(id) { return Number(document.getElementById(id).value); }
+
+// Get recent weekly average cases for a customer name (use last 8 weeks of 2026 data, or 2025 if no 2026)
+function weeklyAvgCases(customerName) {
+  // Use most recent year with data
+  const custRows = allRows.filter(r => r.CustomerName === customerName);
+  const years = [2026, 2025];
+  for (const year of years) {
+    const yearRows = custRows.filter(r => r.ISOYear === year);
+    if (yearRows.length === 0) continue;
+    const weeks = [...new Set(yearRows.map(r => r.ISOWeek))].sort((a, b) => b - a);
+    const recentWeeks = weeks.slice(0, 8);
+    if (recentWeeks.length === 0) continue;
+    const totalCases = yearRows.filter(r => recentWeeks.includes(r.ISOWeek))
+      .reduce((s, r) => s + (Number(r.Cases) || 0), 0);
+    return totalCases / recentWeeks.length;
+  }
+  return 0;
+}
+
+// Get our wholesale price per case (approximate from data or use reasonable default)
+// We'll estimate ~$24/case average wholesale price
+const WHOLESALE_PRICE_PER_CASE = 24;
+
+function computeModel() {
+  const markup = getSlider('markup') / 100;
+  const apKonaFlPct = getSlider('apKonaFlPct') / 100;
+  const honSafPct = getSlider('honSafPct') / 100;
+  const hiloKtaPct = getSlider('hiloKtaPct') / 100;
+  const palletCost = getSlider('palletCost');
+  const dropCost = getSlider('dropCost');
+  const casesPerPallet = getSlider('casesPerPallet');
+  const delivPerWeek = getSlider('delivPerWeek');
+  const truckPayment = getSlider('truckPayment');
+  const insurance = getSlider('insurance');
+  const fuelPerDay = getSlider('fuel');
+  const driverWage = getSlider('driverWage');
+  const driverHours = getSlider('driverHours');
+  const maintenanceMo = getSlider('maintenance');
+  const selfDelivDays = getSlider('selfDelivDays');
+
+  // Weekly cases by source customer
+  const apKonaWeekly = weeklyAvgCases('AP Kona');
+  const apKonaFLWeekly = weeklyAvgCases('AP Kona - Foodland');
+  const foodlandDirectWeekly = weeklyAvgCases('Foodland');
+  const honaunauWeekly = weeklyAvgCases('Honaunau');
+  const safewayDirectWeekly = weeklyAvgCases('Safeway');
+  const hiloProductsWeekly = weeklyAvgCases('Hilo Products');
+  const ktaDirectWeekly = weeklyAvgCases('KTA');
+
+  // Effective weekly cases by end retailer
+  const retailers = {
+    foodland: {
+      label: 'Foodland',
+      weeklyCases: (apKonaWeekly * apKonaFlPct) + apKonaFLWeekly + foodlandDirectWeekly,
+      stores: STORE_COUNTS.foodland,
+      sources: [
+        { name: 'AP Kona (cukes)', cases: apKonaWeekly, pct: apKonaFlPct, effective: apKonaWeekly * apKonaFlPct },
+        { name: 'AP Kona - Foodland (lettuce)', cases: apKonaFLWeekly, pct: 1, effective: apKonaFLWeekly },
+        { name: 'Foodland (direct)', cases: foodlandDirectWeekly, pct: 1, effective: foodlandDirectWeekly }
+      ]
+    },
+    safeway: {
+      label: 'Safeway',
+      weeklyCases: (honaunauWeekly * honSafPct) + safewayDirectWeekly,
+      stores: STORE_COUNTS.safeway,
+      // Note: Safeway Hilo would be same size as Kona
+      sources: [
+        { name: 'Honaunau', cases: honaunauWeekly, pct: honSafPct, effective: honaunauWeekly * honSafPct },
+        { name: 'Safeway (direct)', cases: safewayDirectWeekly, pct: 1, effective: safewayDirectWeekly }
+      ]
+    },
+    kta: {
+      label: 'KTA',
+      weeklyCases: (hiloProductsWeekly * hiloKtaPct) + ktaDirectWeekly,
+      stores: STORE_COUNTS.kta,
+      sources: [
+        { name: 'Hilo Products', cases: hiloProductsWeekly, pct: hiloKtaPct, effective: hiloProductsWeekly * hiloKtaPct },
+        { name: 'KTA (direct)', cases: ktaDirectWeekly, pct: 1, effective: ktaDirectWeekly }
+      ]
+    }
+  };
+
+  // Build costs per retailer
+  const retailerCosts = {};
+  const WEEKS_PER_MONTH = 52 / 12;
+
+  Object.entries(retailers).forEach(([key, ret]) => {
+    const weeklyCases = ret.weeklyCases;
+    const monthlyCases = weeklyCases * WEEKS_PER_MONTH;
+    const weeklyRevenue = weeklyCases * WHOLESALE_PRICE_PER_CASE;
+    const monthlyRevenue = weeklyRevenue * WEEKS_PER_MONTH;
+
+    // 1. Distributor cost: the markup is what the end customer pays EXTRA
+    //    Our revenue is the same, but the end customer pays more
+    //    The "cost" to the retailer = our price * (1 + markup)
+    //    The effective cost of distribution = markup * our revenue
+    const distributorCostMonthly = monthlyRevenue * markup;
+
+    // 2. HFA cost
+    const weeklyPallets = Math.ceil(weeklyCases / casesPerPallet);
+    const weeklyPickupCost = weeklyPallets * palletCost * delivPerWeek;
+    const weeklyDropCost = ret.stores * dropCost * delivPerWeek;
+    const hfaCostMonthly = (weeklyPickupCost + weeklyDropCost) * WEEKS_PER_MONTH;
+
+    // 3. Self-delivery cost (split proportionally by cases across all retailers)
+    // We'll compute total self-delivery cost and split it below
+
+    retailerCosts[key] = {
+      ...ret,
+      monthlyCases,
+      monthlyRevenue,
+      distributorCostMonthly,
+      weeklyPallets,
+      hfaCostMonthly,
+      hfaPickupMonthly: weeklyPickupCost * WEEKS_PER_MONTH,
+      hfaDropMonthly: weeklyDropCost * WEEKS_PER_MONTH
+    };
+  });
+
+  // Self-delivery: total fixed cost shared across all retailers proportionally
+  const totalWeeklyCases = Object.values(retailers).reduce((s, r) => s + r.weeklyCases, 0);
+  const selfFixedMonthly = truckPayment + insurance + maintenanceMo;
+  const selfVariableMonthly = (fuelPerDay + driverWage * driverHours) * selfDelivDays * WEEKS_PER_MONTH;
+  const selfTotalMonthly = selfFixedMonthly + selfVariableMonthly;
+
+  Object.entries(retailerCosts).forEach(([key, rc]) => {
+    const share = totalWeeklyCases > 0 ? retailers[key].weeklyCases / totalWeeklyCases : 0;
+    rc.selfCostMonthly = selfTotalMonthly * share;
+    rc.selfShare = share;
+  });
+
+  return { retailers, retailerCosts, selfTotalMonthly, selfFixedMonthly, selfVariableMonthly, totalWeeklyCases, markup, casesPerPallet, delivPerWeek, WEEKS_PER_MONTH };
+}
+
+function fmt$(n) { return '$' + Math.round(n).toLocaleString(); }
+function fmtDec(n) { return n.toFixed(1); }
+
+function update() {
+  // Update slider display values
+  document.getElementById('markupVal').textContent = getSlider('markup') + '%';
+  document.getElementById('apKonaFlPctVal').textContent = getSlider('apKonaFlPct') + '%';
+  document.getElementById('honSafPctVal').textContent = getSlider('honSafPct') + '%';
+  document.getElementById('hiloKtaPctVal').textContent = getSlider('hiloKtaPct') + '%';
+  document.getElementById('palletCostVal').textContent = fmt$(getSlider('palletCost'));
+  document.getElementById('dropCostVal').textContent = fmt$(getSlider('dropCost'));
+  document.getElementById('casesPerPalletVal').textContent = getSlider('casesPerPallet');
+  document.getElementById('delivPerWeekVal').textContent = getSlider('delivPerWeek');
+  document.getElementById('truckPaymentVal').textContent = fmt$(getSlider('truckPayment'));
+  document.getElementById('insuranceVal').textContent = fmt$(getSlider('insurance'));
+  document.getElementById('fuelVal').textContent = fmt$(getSlider('fuel'));
+  document.getElementById('driverWageVal').textContent = fmt$(getSlider('driverWage'));
+  document.getElementById('driverHoursVal').textContent = getSlider('driverHours');
+  document.getElementById('maintenanceVal').textContent = fmt$(getSlider('maintenance'));
+  document.getElementById('selfDelivDaysVal').textContent = getSlider('selfDelivDays');
+
+  const model = computeModel();
+  renderResults(model);
+  renderBreakdown(model);
+  renderChart(model);
+}
+
+function selectCustomer(customer) {
+  selectedCustomer = customer;
+  document.querySelectorAll('.customer-tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.customer === customer)
+  );
+  update();
+}
+
+function renderResults(model) {
+  const { retailerCosts, selfTotalMonthly } = model;
+
+  // Aggregate based on selected customer
+  let distTotal = 0, hfaTotal = 0, selfTotal = 0;
+  let totalCases = 0, totalRevenue = 0;
+  const keys = selectedCustomer === 'all' ? Object.keys(retailerCosts) : [selectedCustomer];
+
+  keys.forEach(k => {
+    if (!retailerCosts[k]) return;
+    distTotal += retailerCosts[k].distributorCostMonthly;
+    hfaTotal += retailerCosts[k].hfaCostMonthly;
+    selfTotal += retailerCosts[k].selfCostMonthly;
+    totalCases += retailerCosts[k].monthlyCases;
+    totalRevenue += retailerCosts[k].monthlyRevenue;
+  });
+
+  const costs = [
+    { key: 'dist', label: 'Current (Distributor)', cost: distTotal, cls: 'distributor' },
+    { key: 'hfa', label: 'HFA Logistics', cost: hfaTotal, cls: 'hfa' },
+    { key: 'self', label: 'Self-Delivery', cost: selfTotal, cls: 'self' }
+  ];
+
+  const minCost = Math.min(...costs.map(c => c.cost));
+
+  const grid = document.getElementById('resultsGrid');
+  grid.innerHTML = costs.map(c => {
+    const isBest = c.cost === minCost && c.cost > 0;
+    const perCase = totalCases > 0 ? c.cost / totalCases : 0;
+    const pctOfRev = totalRevenue > 0 ? (c.cost / totalRevenue * 100) : 0;
+    const savingsVsDist = distTotal - c.cost;
+    return `
+      <div class="result-card ${isBest ? 'best' : ''}">
+        <h3>${c.label}${isBest ? ' ★' : ''}</h3>
+        <div class="cost ${c.cls}">${fmt$(c.cost)}<span style="font-size:0.6rem;color:#888">/mo</span></div>
+        <div class="detail">
+          ${fmt$(perCase)} per case<br>
+          ${pctOfRev.toFixed(1)}% of wholesale revenue
+        </div>
+        ${c.key !== 'dist' && savingsVsDist > 0 ? `<div class="savings">Save ${fmt$(savingsVsDist)}/mo vs distributor</div>` : ''}
+        ${c.key !== 'dist' && savingsVsDist < 0 ? `<div class="savings" style="color:#e74c3c">Costs ${fmt$(Math.abs(savingsVsDist))}/mo more</div>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  // Update data summary
+  const sumEl = document.getElementById('dataSummary');
+  const label = selectedCustomer === 'all' ? 'All Big Island Retailers' : retailerCosts[selectedCustomer]?.label || '';
+  sumEl.innerHTML = `<strong>${label}</strong> — Est. <strong>${fmtDec(totalCases)}</strong> cases/mo (${fmtDec(totalCases / model.WEEKS_PER_MONTH)} cases/wk) — <strong>${fmt$(totalRevenue)}</strong> wholesale revenue/mo`;
+}
+
+function renderBreakdown(model) {
+  const { retailerCosts, selfTotalMonthly, selfFixedMonthly, selfVariableMonthly } = model;
+  const section = document.getElementById('breakdownSection');
+
+  let html = '<h3>Breakdown by Retailer</h3>';
+  html += `<table>
+    <thead><tr>
+      <th>Retailer</th>
+      <th class="num">Cases/wk</th>
+      <th class="num">Cases/mo</th>
+      <th class="num">Pallets/wk</th>
+      <th class="num">Stores</th>
+      <th class="num">Distributor</th>
+      <th class="num">HFA</th>
+      <th class="num">Self-Delivery</th>
+    </tr></thead><tbody>`;
+
+  let totWk = 0, totMo = 0, totPal = 0, totStores = 0, totDist = 0, totHfa = 0, totSelf = 0;
+
+  Object.entries(retailerCosts).forEach(([key, rc]) => {
+    const highlight = selectedCustomer === key ? ' style="background:rgba(78,204,163,0.1)"' : '';
+    const weeklyCases = rc.weeklyCases;
+    html += `<tr${highlight}>
+      <td>${rc.label}</td>
+      <td class="num">${fmtDec(weeklyCases)}</td>
+      <td class="num">${fmtDec(rc.monthlyCases)}</td>
+      <td class="num">${rc.weeklyPallets}</td>
+      <td class="num">${rc.stores}</td>
+      <td class="num">${fmt$(rc.distributorCostMonthly)}</td>
+      <td class="num">${fmt$(rc.hfaCostMonthly)}</td>
+      <td class="num">${fmt$(rc.selfCostMonthly)}</td>
+    </tr>`;
+    totWk += weeklyCases;
+    totMo += rc.monthlyCases;
+    totPal += rc.weeklyPallets;
+    totStores += rc.stores;
+    totDist += rc.distributorCostMonthly;
+    totHfa += rc.hfaCostMonthly;
+    totSelf += rc.selfCostMonthly;
+  });
+
+  html += `<tr class="total-row">
+    <td>TOTAL</td>
+    <td class="num">${fmtDec(totWk)}</td>
+    <td class="num">${fmtDec(totMo)}</td>
+    <td class="num">${totPal}</td>
+    <td class="num">${totStores}</td>
+    <td class="num">${fmt$(totDist)}</td>
+    <td class="num">${fmt$(totHfa)}</td>
+    <td class="num">${fmt$(totSelf)}</td>
+  </tr>`;
+
+  html += '</tbody></table>';
+
+  // Source data breakdown
+  html += '<h3 style="margin-top:16px">Data Sources (weekly avg cases)</h3>';
+  html += '<table><thead><tr><th>Source Customer</th><th class="num">Total Cases/wk</th><th>Allocated To</th><th class="num">%</th><th class="num">Effective Cases/wk</th></tr></thead><tbody>';
+
+  Object.values(retailerCosts).forEach(rc => {
+    rc.sources.forEach(s => {
+      if (s.cases === 0 && s.effective === 0) return;
+      html += `<tr>
+        <td>${s.name}</td>
+        <td class="num">${fmtDec(s.cases)}</td>
+        <td>${rc.label}</td>
+        <td class="num">${Math.round(s.pct * 100)}%</td>
+        <td class="num">${fmtDec(s.effective)}</td>
+      </tr>`;
+    });
+  });
+
+  html += '</tbody></table>';
+
+  // Self-delivery cost breakdown
+  html += '<h3 style="margin-top:16px">Self-Delivery Cost Breakdown</h3>';
+  html += `<table><tbody>
+    <tr><td>Truck Payment</td><td class="num">${fmt$(getSlider('truckPayment'))}/mo</td></tr>
+    <tr><td>Insurance</td><td class="num">${fmt$(getSlider('insurance'))}/mo</td></tr>
+    <tr><td>Maintenance</td><td class="num">${fmt$(getSlider('maintenance'))}/mo</td></tr>
+    <tr><td>Fuel (${getSlider('selfDelivDays')} days/wk)</td><td class="num">${fmt$(getSlider('fuel') * getSlider('selfDelivDays') * model.WEEKS_PER_MONTH)}/mo</td></tr>
+    <tr><td>Driver (${getSlider('driverHours')}hr × $${getSlider('driverWage')} × ${getSlider('selfDelivDays')} days/wk)</td><td class="num">${fmt$(getSlider('driverWage') * getSlider('driverHours') * getSlider('selfDelivDays') * model.WEEKS_PER_MONTH)}/mo</td></tr>
+    <tr class="total-row"><td>Total Self-Delivery</td><td class="num">${fmt$(selfTotalMonthly)}/mo</td></tr>
+  </tbody></table>`;
+
+  section.innerHTML = html;
+}
+
+function renderChart(model) {
+  const { retailerCosts } = model;
+  const retailers = Object.keys(retailerCosts);
+  const labels = retailers.map(k => retailerCosts[k].label);
+
+  const distData = retailers.map(k => Math.round(retailerCosts[k].distributorCostMonthly));
+  const hfaData = retailers.map(k => Math.round(retailerCosts[k].hfaCostMonthly));
+  const selfData = retailers.map(k => Math.round(retailerCosts[k].selfCostMonthly));
+
+  if (compChart) compChart.destroy();
+
+  compChart = new Chart(document.getElementById('compChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Distributor', data: distData, backgroundColor: '#e74c3c' },
+        { label: 'HFA Logistics', data: hfaData, backgroundColor: '#f39c12' },
+        { label: 'Self-Delivery', data: selfData, backgroundColor: '#4ecca3' }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#ccc', font: { size: 12 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${fmt$(ctx.parsed.y)}/mo`
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#aaa' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+        y: {
+          title: { display: true, text: '$/month', color: '#888' },
+          ticks: { color: '#888', callback: v => fmt$(v) },
+          grid: { color: 'rgba(255,255,255,0.05)' }
+        }
+      }
+    }
+  });
+}
+
+/* ── Init ── */
+async function loadData() {
+  const results = await Promise.all(TABS.map(t => fetchTab(t.gid)));
+  allRows = results.flat();
+
+  document.getElementById('status').textContent = `${allRows.length.toLocaleString()} invoices loaded`;
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('main').style.display = 'block';
+  update();
+}
+
+// Version label
+(function() {
+  const now = new Date();
+  const hst = new Date(now.getTime() - 10 * 60 * 60 * 1000);
+  const mm = String(hst.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(hst.getUTCDate()).padStart(2, '0');
+  const hh = String(hst.getUTCHours()).padStart(2, '0');
+  const min = String(hst.getUTCMinutes()).padStart(2, '0');
+  document.getElementById('version').textContent = `v${mm}${dd}-${hh}:${min}`;
+})();
+
+loadData().catch(err => {
+  document.getElementById('loading').textContent = 'Error loading data. Make sure the sheet is shared.';
+  console.error(err);
+});
+</script>
+</body>
+</html>
