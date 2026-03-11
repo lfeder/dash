@@ -580,7 +580,7 @@ function renderBreakdown(model) {
 
   // Source data — clickable to expand order details
   html += '<h3 style="margin-top:16px">Source Orders — click to see invoices</h3>';
-  html += '<table><thead><tr><th>Distributor</th><th>Feeds</th><th class="num">Total Cases/wk</th><th class="num">Alloc %</th><th class="num">Effective Cases/wk</th><th class="num">Data</th></tr></thead><tbody>';
+  html += '<table><thead><tr><th>Distributor</th><th class="num">Total Cases/wk</th><th class="num">Alloc %</th><th class="num">Effective Cases/wk</th></tr></thead><tbody>';
 
   let srcIdx = 0;
   Object.values(retailerCosts).forEach(rc => {
@@ -589,13 +589,11 @@ function renderBreakdown(model) {
       const hasData = s.data.rows.length > 0;
       const dataLabel = hasData ? `${s.data.year} ${s.data.weekRange} (${s.data.numWeeks}wk)` : 'No data';
 
-      html += `<tr class="source-row ${hasData ? '' : ''}" id="src-${id}" onclick="toggleDetail('${id}')">
+      html += `<tr class="source-row" id="src-${id}" onclick="toggleDetail('${id}')">
         <td>${s.name}</td>
-        <td style="font-size:0.75rem;color:#888">${s.note}</td>
         <td class="num">${Math.round(s.data.avg)}</td>
         <td class="num">${Math.round(s.pct * 100)}%</td>
         <td class="num">${Math.round(s.effective)}</td>
-        <td class="num" style="font-size:0.7rem;color:#666">${dataLabel}</td>
       </tr>`;
 
       // Expandable detail row with actual order data
@@ -611,7 +609,7 @@ function renderBreakdown(model) {
         const allProds = ['KR', 'JR', 'LR', 'LW', 'WR', 'AR'];
         const weekNums = Object.keys(weekProducts).map(Number).sort((a, b) => b - a);
 
-        html += `<tr class="order-detail" id="${id}"><td colspan="6"><table class="detail-table">`;
+        html += `<tr class="order-detail" id="${id}"><td colspan="4"><table class="detail-table">`;
         html += `<thead><tr><th>Week</th>`;
         allProds.forEach(p => { html += `<th class="num">${p}</th>`; });
         html += `<th class="num" style="font-weight:700">Total</th></tr></thead><tbody>`;
