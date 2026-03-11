@@ -262,8 +262,8 @@ function getSlider(id) { return Number(document.getElementById(id).value); }
 // Get recent weekly average cases for a customer name
 // Uses last 8 weeks of most recent year with data
 // Returns { avg, weeks, rows } for drill-down
-function weeklyAvgData(customerName) {
-  const custRows = allRows.filter(r => r.CustomerName === customerName);
+function weeklyAvgData(customerName, farmFilter) {
+  const custRows = allRows.filter(r => r.CustomerName === customerName && (!farmFilter || r.Farm === farmFilter));
 
   if (selectedYear === 'recent') {
     // Last 8 weeks of most recent year with data
@@ -348,7 +348,7 @@ function computeModel() {
   const selfDelivDays = getSlider('selfDelivDays');
 
   // Weekly data by source customer
-  const apKonaData = weeklyAvgData('AP Kona');
+  const apKonaData = weeklyAvgData('AP Kona', 'Cuke');
   const apKonaFLData = weeklyAvgData('AP Kona - Foodland');
   const honaunauData = weeklyAvgData('Honaunau Market');
   const hiloProductsData = weeklyAvgData('Hilo Products');
