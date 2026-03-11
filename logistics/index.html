@@ -634,10 +634,7 @@ function renderBreakdown(model) {
       <td>Driver Wage ($/hr for ${driverHrs}hr/day, ${delivDays} days/wk) <input type="range" id="driverWage" min="15" max="40" value="${driverWage}" step="1" oninput="update()" style="${sliderCss}"> <span style="color:#4ecca3;font-weight:600">$${driverWage}/hr</span></td>
       <td class="num">${fmt$(driverWeekly)}</td>
     </tr>
-    <tr>
-      <td>Hours per Day <input type="range" id="driverHours" min="4" max="12" value="${driverHrs}" step="1" oninput="update()" style="${sliderCss}"> <span style="color:#4ecca3;font-weight:600">${driverHrs}hr</span></td>
-      <td class="num"></td>
-    </tr>
+    <input type="hidden" id="driverHours" value="8">
     <tr class="total-row"><td>Total Self-Delivery</td><td class="num">${fmt$(selfWeekly)}/wk</td></tr>
   </tbody></table>`;
   selfSection.innerHTML = selfHtml;
