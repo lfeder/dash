@@ -405,6 +405,7 @@ function computeModel() {
       palletsPerPickup,
       weeklyPalletsCeil,
       effectiveProductWeekly,
+      perPickupProduct,
       hfaCostMonthly,
       hfaPickupMonthly: weeklyPickupCost * WEEKS_PER_MONTH,
       hfaDropMonthly: weeklyDropCost * WEEKS_PER_MONTH
@@ -428,6 +429,26 @@ function computeModel() {
 
 function fmt$(n) { return '$' + Math.round(n).toLocaleString(); }
 function fmtDec(n) { return n.toFixed(1); }
+
+function palletTooltip(perPickupProduct) {
+  // Group products by pallet size
+  const groups = { 66: [], 56: [], 20: [] };
+  let parts = [];
+  Object.entries(perPickupProduct).forEach(([prod, cases]) => {
+    const perPallet = CASES_PER_PALLET[prod] || DEFAULT_CASES_PER_PALLET;
+    if (!groups[perPallet]) groups[perPallet] = [];
+    groups[perPallet].push({ prod, cases });
+  });
+  Object.entries(groups).forEach(([perPallet, prods]) => {
+    if (prods.length === 0) return;
+    const totalCases = prods.reduce((s, p) => s + p.cases, 0);
+    if (totalCases === 0) return;
+    const labels = prods.map(p => p.prod).join('+');
+    parts.push(`${fmtDec(totalCases)} ${labels} / ${perPallet}`);
+  });
+  const raw = casesToPallets(perPickupProduct);
+  return parts.join(' + ') + ` = ${fmtDec(raw)} → ${Math.ceil(raw)} pallets/pickup`;
+}
 
 function update() {
   // Update slider display values
@@ -517,9 +538,10 @@ function renderBreakdown(model) {
     <thead><tr>
       <th>Retailer</th>
       <th>Distributor</th>
-      <th class="num">Gross</th>
+      <th class="num">Gross (cases)</th>
       <th class="num">%</th>
-      <th class="num">Net</th>
+      <th class="num">Net (cases)</th>
+      <th class="num">Net ($/wk)</th>
       <th class="num">Pallets/wk</th>
       <th class="num">Stores</th>
       <th class="num">Distributor</th>
@@ -534,13 +556,16 @@ function renderBreakdown(model) {
     const detailId = 'detail-' + key;
     const hasData = rc.data.rows.length > 0;
 
+    const netRevWk = rc.weeklyCases * WHOLESALE_PRICE_PER_CASE;
+    const tooltip = palletTooltip(rc.perPickupProduct);
     html += `<tr class="source-row" id="src-${detailId}" onclick="toggleDetail('${detailId}')"${highlight}>
       <td style="font-weight:600">${rc.label}</td>
       <td>${rc.distributor}</td>
       <td class="num">${Math.round(rc.grossCases)}</td>
       <td class="num">${Math.round(rc.pct * 100)}%</td>
       <td class="num">${Math.round(rc.weeklyCases)}</td>
-      <td class="num">${rc.palletsPerPickup} x ${model.delivPerWeek}</td>
+      <td class="num">${fmt$(netRevWk)}</td>
+      <td class="num" title="${tooltip}" style="cursor:help;text-decoration:underline dotted #555">${rc.palletsPerPickup} x ${model.delivPerWeek}</td>
       <td class="num">${rc.stores}</td>
       <td class="num">${fmt$(rc.distributorCostMonthly / WEEKS_PER_MONTH)}</td>
       <td class="num">${fmt$(rc.hfaCostMonthly / WEEKS_PER_MONTH)}</td>
@@ -559,31 +584,37 @@ function renderBreakdown(model) {
       const allProds = ['KR', 'JR', 'LR', 'LW', 'WR', 'AR'];
       const weekNums = Object.keys(weekProducts).map(Number).sort((a, b) => a - b);
 
-      html += `<tr class="order-detail" id="${detailId}"><td colspan="10"><table class="detail-table">`;
+      html += `<tr class="order-detail" id="${detailId}"><td colspan="11"><table class="detail-table">`;
       html += `<thead><tr><th>Week</th>`;
-      allProds.forEach(p => { html += `<th class="num">${p}</th>`; });
-      html += `<th class="num" style="font-weight:700">Total</th></tr></thead><tbody>`;
+      allProds.forEach(p => { html += `<th class="num">${p}</th><th class="num">${p} $</th>`; });
+      html += `<th class="num" style="font-weight:700">Total</th><th class="num" style="font-weight:700">Total $</th></tr></thead><tbody>`;
 
       weekNums.forEach(wk => {
         html += `<tr><td>W${wk}</td>`;
-        let weekTotal = 0;
+        let weekTotal = 0, weekRev = 0;
         allProds.forEach(p => {
           const cases = weekProducts[wk][p] || 0;
           weekTotal += cases;
+          weekRev += cases * WHOLESALE_PRICE_PER_CASE;
           html += `<td class="num">${cases || '—'}</td>`;
+          html += `<td class="num" style="color:#888">${cases ? fmt$(cases * WHOLESALE_PRICE_PER_CASE) : '—'}</td>`;
         });
-        html += `<td class="num" style="font-weight:600">${weekTotal}</td></tr>`;
+        html += `<td class="num" style="font-weight:600">${weekTotal}</td>`;
+        html += `<td class="num" style="font-weight:600">${fmt$(weekRev)}</td></tr>`;
       });
 
       html += `<tr style="border-top:1px solid #4ecca3;"><td style="color:#4ecca3;font-weight:600">Avg/wk</td>`;
-      let avgTotal = 0;
+      let avgTotal = 0, avgRevTotal = 0;
       allProds.forEach(p => {
         const prodTotal = weekNums.reduce((s, wk) => s + (weekProducts[wk][p] || 0), 0);
         const avg = prodTotal / weekNums.length;
         avgTotal += avg;
+        avgRevTotal += avg * WHOLESALE_PRICE_PER_CASE;
         html += `<td class="num" style="color:#4ecca3">${Math.round(avg)}</td>`;
+        html += `<td class="num" style="color:#4ecca3">${fmt$(avg * WHOLESALE_PRICE_PER_CASE)}</td>`;
       });
-      html += `<td class="num" style="color:#4ecca3;font-weight:700">${Math.round(avgTotal)}</td></tr>`;
+      html += `<td class="num" style="color:#4ecca3;font-weight:700">${Math.round(avgTotal)}</td>`;
+      html += `<td class="num" style="color:#4ecca3;font-weight:700">${fmt$(avgRevTotal)}</td></tr>`;
 
       html += '</tbody></table></td></tr>';
     }
@@ -597,12 +628,14 @@ function renderBreakdown(model) {
     totSelf += rc.selfCostMonthly;
   });
 
+  const totNetRev = totNet * WHOLESALE_PRICE_PER_CASE;
   html += `<tr class="total-row">
     <td>TOTAL</td>
     <td></td>
     <td class="num">${Math.round(totGross)}</td>
     <td class="num"></td>
     <td class="num">${Math.round(totNet)}</td>
+    <td class="num">${fmt$(totNetRev)}</td>
     <td class="num">${totPal}</td>
     <td class="num">${totStores}</td>
     <td class="num">${fmt$(totDist / WEEKS_PER_MONTH)}</td>
