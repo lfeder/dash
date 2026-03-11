@@ -92,11 +92,18 @@
 <div id="loading">Loading invoice data from Google Sheets...</div>
 
 <div id="main">
-  <div class="customer-tabs" id="customerTabs">
-    <div class="customer-tab active" data-customer="all" onclick="selectCustomer('all')">All Big Island</div>
-    <div class="customer-tab" data-customer="foodland" onclick="selectCustomer('foodland')">Foodland</div>
-    <div class="customer-tab" data-customer="safeway" onclick="selectCustomer('safeway')">Safeway</div>
-    <div class="customer-tab" data-customer="kta" onclick="selectCustomer('kta')">KTA</div>
+  <div style="display:flex;align-items:center;gap:24px;margin-bottom:16px;flex-wrap:wrap;">
+    <div class="customer-tabs" style="margin-bottom:0;">
+      <div class="customer-tab active" data-customer="all" onclick="selectCustomer('all')">All Big Island</div>
+      <div class="customer-tab" data-customer="foodland" onclick="selectCustomer('foodland')">Foodland</div>
+      <div class="customer-tab" data-customer="safeway" onclick="selectCustomer('safeway')">Safeway</div>
+      <div class="customer-tab" data-customer="kta" onclick="selectCustomer('kta')">KTA</div>
+    </div>
+    <div class="customer-tabs" style="margin-bottom:0;">
+      <div class="customer-tab" data-year="recent" onclick="selectYear('recent')" style="border-color:#4ecca3;color:#4ecca3;background:#0f3460;">Last 8 wks</div>
+      <div class="customer-tab" data-year="2026" onclick="selectYear('2026')">All 2026</div>
+      <div class="customer-tab" data-year="2025" onclick="selectYear('2025')">All 2025</div>
+    </div>
   </div>
 
   <div class="data-summary" id="dataSummary"></div>
@@ -237,6 +244,7 @@ function fetchTab(gid) {
 let allRows = [];
 let compChart = null;
 let selectedCustomer = 'all';
+let selectedYear = 'recent'; // 'recent', '2026', '2025'
 
 /* ── Customer mapping ──
    Big Island — all sales go through distributors, no direct:
@@ -265,34 +273,49 @@ function getSlider(id) { return Number(document.getElementById(id).value); }
 // Returns { avg, weeks, rows } for drill-down
 function weeklyAvgData(customerName) {
   const custRows = allRows.filter(r => r.CustomerName === customerName);
-  const years = [2026, 2025, 2024];
-  for (const year of years) {
+
+  if (selectedYear === 'recent') {
+    // Last 8 weeks of most recent year with data
+    const years = [2026, 2025, 2024];
+    for (const year of years) {
+      const yearRows = custRows.filter(r => r.ISOYear === year);
+      if (yearRows.length === 0) continue;
+      const weeks = [...new Set(yearRows.map(r => r.ISOWeek))].sort((a, b) => b - a);
+      const recentWeeks = weeks.slice(0, 8);
+      if (recentWeeks.length === 0) continue;
+      const recentRows = yearRows.filter(r => recentWeeks.includes(r.ISOWeek));
+      return buildAvgResult(recentRows, recentWeeks, year);
+    }
+  } else {
+    // Full year
+    const year = Number(selectedYear);
     const yearRows = custRows.filter(r => r.ISOYear === year);
-    if (yearRows.length === 0) continue;
-    const weeks = [...new Set(yearRows.map(r => r.ISOWeek))].sort((a, b) => b - a);
-    const recentWeeks = weeks.slice(0, 8);
-    if (recentWeeks.length === 0) continue;
-    const recentRows = yearRows.filter(r => recentWeeks.includes(r.ISOWeek));
-    const totalCases = recentRows.reduce((s, r) => s + (Number(r.Cases) || 0), 0);
-    // Product-level breakdown for pallet calculation
-    const productCases = {};
-    recentRows.forEach(r => {
-      if (!productCases[r.ProductCode]) productCases[r.ProductCode] = 0;
-      productCases[r.ProductCode] += Number(r.Cases) || 0;
-    });
-    // Average per week by product
-    const productAvgPerWeek = {};
-    Object.entries(productCases).forEach(([p, c]) => { productAvgPerWeek[p] = c / recentWeeks.length; });
-    return {
-      avg: totalCases / recentWeeks.length,
-      numWeeks: recentWeeks.length,
-      year,
-      weekRange: `W${Math.min(...recentWeeks)}-W${Math.max(...recentWeeks)}`,
-      rows: recentRows,
-      productAvgPerWeek
-    };
+    if (yearRows.length > 0) {
+      const weeks = [...new Set(yearRows.map(r => r.ISOWeek))].sort((a, b) => b - a);
+      return buildAvgResult(yearRows, weeks, year);
+    }
   }
+
   return { avg: 0, numWeeks: 0, year: null, weekRange: '', rows: [], productAvgPerWeek: {} };
+}
+
+function buildAvgResult(rows, weeks, year) {
+  const totalCases = rows.reduce((s, r) => s + (Number(r.Cases) || 0), 0);
+  const productCases = {};
+  rows.forEach(r => {
+    if (!productCases[r.ProductCode]) productCases[r.ProductCode] = 0;
+    productCases[r.ProductCode] += Number(r.Cases) || 0;
+  });
+  const productAvgPerWeek = {};
+  Object.entries(productCases).forEach(([p, c]) => { productAvgPerWeek[p] = c / weeks.length; });
+  return {
+    avg: totalCases / weeks.length,
+    numWeeks: weeks.length,
+    year,
+    weekRange: `W${Math.min(...weeks)}-W${Math.max(...weeks)}`,
+    rows,
+    productAvgPerWeek
+  };
 }
 
 // Pallet specs by product code
@@ -451,9 +474,21 @@ function update() {
 
 function selectCustomer(customer) {
   selectedCustomer = customer;
-  document.querySelectorAll('.customer-tab').forEach(t =>
+  document.querySelectorAll('.customer-tab[data-customer]').forEach(t =>
     t.classList.toggle('active', t.dataset.customer === customer)
   );
+  update();
+}
+
+function selectYear(year) {
+  selectedYear = year;
+  document.querySelectorAll('.customer-tab[data-year]').forEach(t => {
+    const active = t.dataset.year === year;
+    t.classList.toggle('active', active);
+    t.style.borderColor = active ? '#4ecca3' : '';
+    t.style.color = active ? '#4ecca3' : '';
+    t.style.background = active ? '#0f3460' : '';
+  });
   update();
 }
 
