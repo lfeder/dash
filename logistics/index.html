@@ -106,8 +106,6 @@
     </div>
   </div>
 
-  <div class="data-summary" id="dataSummary"></div>
-
   <div class="columns">
     <div class="col-sliders">
       <div class="section">
@@ -520,25 +518,19 @@ function renderResults(model) {
   grid.innerHTML = costs.map(c => {
     const isBest = c.cost === minCost && c.cost > 0;
     const perCase = totalCases > 0 ? c.cost / totalCases : 0;
-    const pctOfRev = totalRevenue > 0 ? (c.cost / totalRevenue * 100) : 0;
     const savingsVsDist = distTotal - c.cost;
     return `
       <div class="result-card ${isBest ? 'best' : ''}">
         <h3>${c.label}${isBest ? ' ★' : ''}</h3>
         <div class="cost ${c.cls}">${fmt$(c.cost)}<span style="font-size:0.6rem;color:#888">/mo</span></div>
         <div class="detail">
-          ${fmt$(perCase)} per case<br>
-          ${pctOfRev.toFixed(1)}% of wholesale revenue
+          ${fmt$(perCase)} per case
         </div>
         ${c.key !== 'dist' && savingsVsDist > 0 ? `<div class="savings">Save ${fmt$(savingsVsDist)}/mo vs distributor</div>` : ''}
-        ${c.key !== 'dist' && savingsVsDist < 0 ? `<div class="savings" style="color:#e74c3c">Costs ${fmt$(Math.abs(savingsVsDist))}/mo more</div>` : ''}
       </div>
     `;
   }).join('');
 
-  const sumEl = document.getElementById('dataSummary');
-  const label = selectedCustomer === 'all' ? 'All Big Island Retailers' : retailerCosts[selectedCustomer]?.label || '';
-  sumEl.innerHTML = `<strong>${label}</strong> — Est. <strong>${fmtDec(totalCases)}</strong> cases/mo (${fmtDec(totalCases / model.WEEKS_PER_MONTH)} cases/wk) — <strong>${fmt$(totalRevenue)}</strong> wholesale revenue/mo`;
 }
 
 function toggleDetail(id) {
