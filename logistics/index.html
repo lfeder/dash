@@ -478,16 +478,21 @@ function renderResults(model) {
   });
 
   const costs = [
-    { key: 'dist', label: 'Current (Distributor)', cost: distTotal / WEEKS_PER_MONTH, cls: 'distributor' },
-    { key: 'hfa', label: 'HFA Logistics', cost: hfaTotal / WEEKS_PER_MONTH, cls: 'hfa' },
-    { key: 'self', label: 'Self-Delivery', cost: selfTotal / WEEKS_PER_MONTH, cls: 'self' }
+    { key: 'dist', label: 'Current (Distributor)', cost: distTotal / WEEKS_PER_MONTH },
+    { key: 'hfa', label: 'HFA Logistics', cost: hfaTotal / WEEKS_PER_MONTH },
+    { key: 'self', label: 'Self-Delivery', cost: selfTotal / WEEKS_PER_MONTH }
   ];
+
+  // Color code: red=most expensive, yellow=middle, green=cheapest
+  const sorted = [...costs].sort((a, b) => b.cost - a.cost);
+  const rankColors = ['#e74c3c', '#f39c12', '#4ecca3'];
+  sorted.forEach((c, i) => { c.color = rankColors[i]; });
 
   const grid = document.getElementById('resultsGrid');
   grid.innerHTML = costs.map(c => `
       <div class="result-card">
         <h3>${c.label}</h3>
-        <div class="cost ${c.cls}">${fmt$(c.cost)}<span style="font-size:0.6rem;color:#888">/wk</span></div>
+        <div style="font-size:1.8rem;font-weight:700;color:${c.color}">${fmt$(c.cost)}<span style="font-size:0.6rem;color:#888">/wk</span></div>
         <div style="font-size:0.85rem;color:#888;margin-top:4px">${fmt$(c.cost * 52)}<span style="font-size:0.6rem">/yr</span></div>
       </div>
     `).join('');
