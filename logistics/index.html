@@ -554,7 +554,7 @@ function renderBreakdown(model) {
         weekProducts[wk][r.ProductCode] += Number(r.Cases) || 0;
       });
       const allProds = ['KR', 'JR', 'LR', 'LW', 'WR', 'AR'];
-      const weekNums = Object.keys(weekProducts).map(Number).sort((a, b) => b - a);
+      const weekNums = Object.keys(weekProducts).map(Number).sort((a, b) => a - b);
 
       html += `<tr class="order-detail" id="${detailId}"><td colspan="10"><table class="detail-table">`;
       html += `<thead><tr><th>Week</th>`;
