@@ -378,13 +378,19 @@ function computeModel() {
     // Distributor cost = markup on our wholesale revenue
     const distributorCostMonthly = monthlyRevenue * markup;
 
-    // HFA cost — calculate pallets from product mix
+    // HFA cost — calculate pallets per pickup (split evenly, round up each pickup)
     const effectiveProductWeekly = {};
     Object.entries(ret.data.productAvgPerWeek).forEach(([prod, cases]) => {
       effectiveProductWeekly[prod] = cases * ret.pct;
     });
-    const weeklyPallets = casesToPallets(effectiveProductWeekly);
-    const weeklyPickupCost = Math.ceil(weeklyPallets) * palletCost * delivPerWeek;
+    // Split cases evenly across pickups, round up pallets per pickup
+    const perPickupProduct = {};
+    Object.entries(effectiveProductWeekly).forEach(([prod, cases]) => {
+      perPickupProduct[prod] = cases / delivPerWeek;
+    });
+    const palletsPerPickup = Math.ceil(casesToPallets(perPickupProduct));
+    const weeklyPalletsCeil = palletsPerPickup * delivPerWeek;
+    const weeklyPickupCost = weeklyPalletsCeil * palletCost;
     const weeklyDropCost = ret.stores * dropCost * delivPerWeek;
     const hfaCostMonthly = (weeklyPickupCost + weeklyDropCost) * WEEKS_PER_MONTH;
 
@@ -393,8 +399,8 @@ function computeModel() {
       monthlyCases,
       monthlyRevenue,
       distributorCostMonthly,
-      weeklyPallets,
-      weeklyPalletsCeil: Math.ceil(weeklyPallets),
+      palletsPerPickup,
+      weeklyPalletsCeil,
       effectiveProductWeekly,
       hfaCostMonthly,
       hfaPickupMonthly: weeklyPickupCost * WEEKS_PER_MONTH,
@@ -525,7 +531,7 @@ function renderBreakdown(model) {
       <td class="num">${Math.round(rc.grossCases)}</td>
       <td class="num">${Math.round(rc.pct * 100)}%</td>
       <td class="num">${Math.round(rc.weeklyCases)}</td>
-      <td class="num">${rc.weeklyPalletsCeil}</td>
+      <td class="num">${rc.palletsPerPickup} x ${model.delivPerWeek}</td>
       <td class="num">${rc.stores}</td>
       <td class="num">${fmt$(rc.distributorCostMonthly / WEEKS_PER_MONTH)}</td>
       <td class="num">${fmt$(rc.hfaCostMonthly / WEEKS_PER_MONTH)}</td>
