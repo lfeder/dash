@@ -516,10 +516,6 @@ function renderResults(model) {
       <div class="result-card ${isBest ? 'best' : ''}">
         <h3>${c.label}${isBest ? ' ★' : ''}</h3>
         <div class="cost ${c.cls}">${fmt$(c.cost)}<span style="font-size:0.6rem;color:#888">/mo</span></div>
-        <div class="detail">
-          ${fmt$(perCase)} per case
-        </div>
-        ${c.key !== 'dist' && savingsVsDist > 0 ? `<div class="savings">Save ${fmt$(savingsVsDist)}/mo vs distributor</div>` : ''}
       </div>
     `;
   }).join('');
