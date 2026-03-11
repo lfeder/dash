@@ -259,7 +259,7 @@ let selectedCustomer = 'all';
 */
 
 // Big Island distributor customer names we care about
-const BI_DISTRIBUTORS = ['AP Kona', 'AP Kona - Foodland', 'Honaunau', 'Hilo Products'];
+const BI_DISTRIBUTORS = ['AP Kona', 'AP Kona - Foodland', 'Honaunau Market', 'Hilo Products'];
 
 // Store counts
 const STORE_COUNTS = { foodland: 9, safeway: 2, kta: 7 };
@@ -342,7 +342,7 @@ function computeModel() {
   // Weekly data by source customer
   const apKonaData = weeklyAvgData('AP Kona');
   const apKonaFLData = weeklyAvgData('AP Kona - Foodland');
-  const honaunauData = weeklyAvgData('Honaunau');
+  const honaunauData = weeklyAvgData('Honaunau Market');
   const hiloProductsData = weeklyAvgData('Hilo Products');
 
   // Effective weekly cases by end retailer
@@ -361,7 +361,7 @@ function computeModel() {
       weeklyCases: honaunauData.avg * honSafPct,
       stores: STORE_COUNTS.safeway,
       sources: [
-        { name: 'Honaunau', note: '% allocated to Safeway', data: honaunauData, pct: honSafPct, effective: honaunauData.avg * honSafPct }
+        { name: 'Honaunau Market', note: '% allocated to Safeway', data: honaunauData, pct: honSafPct, effective: honaunauData.avg * honSafPct }
       ]
     },
     kta: {
