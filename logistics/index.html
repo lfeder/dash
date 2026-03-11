@@ -328,6 +328,15 @@ function casesToPallets(productCases) {
   return totalPallets;
 }
 
+// Merge two source data objects (combine rows, recalculate averages)
+function mergeSourceData(a, b) {
+  if (!a.rows.length && !b.rows.length) return { avg: 0, numWeeks: 0, year: null, weekRange: '', rows: [], productAvgPerWeek: {} };
+  const allRowsMerged = [...a.rows, ...b.rows];
+  const weeks = [...new Set(allRowsMerged.map(r => r.ISOWeek))].sort((a, b) => b - a);
+  const year = a.year || b.year;
+  return buildAvgResult(allRowsMerged, weeks, year);
+}
+
 // Wholesale price per case (rough estimate)
 const WHOLESALE_PRICE_PER_CASE = 24;
 
@@ -348,37 +357,45 @@ function computeModel() {
   const selfDelivDays = getSlider('selfDelivDays');
 
   // Weekly data by source customer
-  const apKonaData = weeklyAvgData('AP Kona', 'Cuke');
+  // Merge AP Kona (cukes) + AP Kona - Foodland (lettuce) into one combined source
+  const apKonaCukeData = weeklyAvgData('AP Kona', 'Cuke');
   const apKonaFLData = weeklyAvgData('AP Kona - Foodland');
+  const apKonaCombined = mergeSourceData(apKonaCukeData, apKonaFLData);
   const honaunauData = weeklyAvgData('Honaunau Market');
   const hiloProductsData = weeklyAvgData('Hilo Products');
+
+  // For AP Kona combined: cukes use apKonaFlPct, lettuce (AP Kona - Foodland) is 100%
+  const apKonaEffective = (apKonaCukeData.avg * apKonaFlPct) + apKonaFLData.avg;
+  const apKonaPct = apKonaCombined.avg > 0 ? apKonaEffective / apKonaCombined.avg : 0;
 
   // Effective weekly cases by end retailer
   const retailers = {
     foodland: {
       label: 'Foodland',
-      weeklyCases: (apKonaData.avg * apKonaFlPct) + apKonaFLData.avg,
+      distributor: 'AP Kona',
+      weeklyCases: apKonaEffective,
       stores: STORE_COUNTS.foodland,
-      sources: [
-        { name: 'AP Kona', note: 'cukes — % allocated to FL', data: apKonaData, pct: apKonaFlPct, effective: apKonaData.avg * apKonaFlPct },
-        { name: 'AP Kona - Foodland', note: 'lettuce — 100% FL', data: apKonaFLData, pct: 1, effective: apKonaFLData.avg }
-      ]
+      grossCases: apKonaCombined.avg,
+      pct: apKonaPct,
+      data: apKonaCombined
     },
     safeway: {
       label: 'Safeway',
+      distributor: 'Honaunau Market',
       weeklyCases: honaunauData.avg * honSafPct,
       stores: STORE_COUNTS.safeway,
-      sources: [
-        { name: 'Honaunau Market', note: '% allocated to Safeway', data: honaunauData, pct: honSafPct, effective: honaunauData.avg * honSafPct }
-      ]
+      grossCases: honaunauData.avg,
+      pct: honSafPct,
+      data: honaunauData
     },
     kta: {
       label: 'KTA',
+      distributor: 'Hilo Products',
       weeklyCases: hiloProductsData.avg * hiloKtaPct,
       stores: STORE_COUNTS.kta,
-      sources: [
-        { name: 'Hilo Products', note: '% allocated to KTA', data: hiloProductsData, pct: hiloKtaPct, effective: hiloProductsData.avg * hiloKtaPct }
-      ]
+      grossCases: hiloProductsData.avg,
+      pct: hiloKtaPct,
+      data: hiloProductsData
     }
   };
 
@@ -395,13 +412,9 @@ function computeModel() {
     const distributorCostMonthly = monthlyRevenue * markup;
 
     // HFA cost — calculate pallets from product mix
-    // Merge product-level weekly averages across sources, applying allocation %
     const effectiveProductWeekly = {};
-    ret.sources.forEach(s => {
-      Object.entries(s.data.productAvgPerWeek).forEach(([prod, cases]) => {
-        if (!effectiveProductWeekly[prod]) effectiveProductWeekly[prod] = 0;
-        effectiveProductWeekly[prod] += cases * s.pct;
-      });
+    Object.entries(ret.data.productAvgPerWeek).forEach(([prod, cases]) => {
+      effectiveProductWeekly[prod] = cases * ret.pct;
     });
     const weeklyPallets = casesToPallets(effectiveProductWeekly);
     const weeklyPickupCost = Math.ceil(weeklyPallets) * palletCost * delivPerWeek;
@@ -538,10 +551,11 @@ function renderBreakdown(model) {
   let html = '<h3>Breakdown by Retailer</h3>';
   html += `<table>
     <thead><tr>
-      <th>Retailer / Distributor</th>
-      <th class="num">Cases/wk</th>
-      <th class="num">Alloc %</th>
-      <th class="num">Eff. Cases/wk</th>
+      <th>Retailer</th>
+      <th>Distributor</th>
+      <th class="num">Gross</th>
+      <th class="num">%</th>
+      <th class="num">Net</th>
       <th class="num">Pallets/wk</th>
       <th class="num">Stores</th>
       <th class="num">Distributor</th>
@@ -549,83 +563,69 @@ function renderBreakdown(model) {
       <th class="num">Self-Delivery</th>
     </tr></thead><tbody>`;
 
-  let totWk = 0, totPal = 0, totStores = 0, totDist = 0, totHfa = 0, totSelf = 0;
-  let srcIdx = 0;
+  let totGross = 0, totNet = 0, totPal = 0, totStores = 0, totDist = 0, totHfa = 0, totSelf = 0;
 
   Object.entries(retailerCosts).forEach(([key, rc]) => {
     const highlight = selectedCustomer === key ? ' style="background:rgba(78,204,163,0.1)"' : '';
-    const retailerId = 'retailer-' + key;
+    const detailId = 'detail-' + key;
+    const hasData = rc.data.rows.length > 0;
 
-    // Retailer parent row — clickable to expand distributors
-    html += `<tr class="source-row" id="src-${retailerId}" onclick="toggleRetailer('${key}')"${highlight}>
+    html += `<tr class="source-row" id="src-${detailId}" onclick="toggleDetail('${detailId}')"${highlight}>
       <td style="font-weight:600">${rc.label}</td>
+      <td>${rc.distributor}</td>
+      <td class="num">${Math.round(rc.grossCases)}</td>
+      <td class="num">${Math.round(rc.pct * 100)}%</td>
       <td class="num">${Math.round(rc.weeklyCases)}</td>
-      <td class="num"></td>
-      <td class="num">${Math.round(rc.weeklyCases)}</td>
-      <td class="num">${fmtDec(rc.weeklyPallets)} (${rc.weeklyPalletsCeil})</td>
+      <td class="num">${rc.weeklyPalletsCeil}</td>
       <td class="num">${rc.stores}</td>
       <td class="num">${fmt$(rc.distributorCostMonthly)}</td>
       <td class="num">${fmt$(rc.hfaCostMonthly)}</td>
       <td class="num">${fmt$(rc.selfCostMonthly)}</td>
     </tr>`;
 
-    // Distributor child rows (hidden by default)
-    rc.sources.forEach(s => {
-      const detailId = 'detail-' + srcIdx;
-      const hasData = s.data.rows.length > 0;
+    // Expandable invoice detail row
+    if (hasData) {
+      const weekProducts = {};
+      rc.data.rows.forEach(r => {
+        const wk = r.ISOWeek;
+        if (!weekProducts[wk]) weekProducts[wk] = {};
+        if (!weekProducts[wk][r.ProductCode]) weekProducts[wk][r.ProductCode] = 0;
+        weekProducts[wk][r.ProductCode] += Number(r.Cases) || 0;
+      });
+      const allProds = ['KR', 'JR', 'LR', 'LW', 'WR', 'AR'];
+      const weekNums = Object.keys(weekProducts).map(Number).sort((a, b) => b - a);
 
-      html += `<tr class="cust-row hidden" data-retailer="${key}">
-        <td class="source-row" style="padding-left:28px;cursor:pointer;" onclick="event.stopPropagation();toggleDetail('${detailId}')" id="src-${detailId}"><span style="font-size:0.6rem;color:#555;margin-right:4px;">▶</span>${s.name}</td>
-        <td class="num">${Math.round(s.data.avg)}</td>
-        <td class="num">${Math.round(s.pct * 100)}%</td>
-        <td class="num">${Math.round(s.effective)}</td>
-        <td class="num" colspan="5"></td>
-      </tr>`;
+      html += `<tr class="order-detail" id="${detailId}"><td colspan="10"><table class="detail-table">`;
+      html += `<thead><tr><th>Week</th>`;
+      allProds.forEach(p => { html += `<th class="num">${p}</th>`; });
+      html += `<th class="num" style="font-weight:700">Total</th></tr></thead><tbody>`;
 
-      // Expandable invoice detail row
-      if (hasData) {
-        const weekProducts = {};
-        s.data.rows.forEach(r => {
-          const wk = r.ISOWeek;
-          if (!weekProducts[wk]) weekProducts[wk] = {};
-          if (!weekProducts[wk][r.ProductCode]) weekProducts[wk][r.ProductCode] = 0;
-          weekProducts[wk][r.ProductCode] += Number(r.Cases) || 0;
-        });
-        const allProds = ['KR', 'JR', 'LR', 'LW', 'WR', 'AR'];
-        const weekNums = Object.keys(weekProducts).map(Number).sort((a, b) => b - a);
-
-        html += `<tr class="order-detail" id="${detailId}" data-retailer="${key}"><td colspan="9"><table class="detail-table">`;
-        html += `<thead><tr><th>Week</th>`;
-        allProds.forEach(p => { html += `<th class="num">${p}</th>`; });
-        html += `<th class="num" style="font-weight:700">Total</th></tr></thead><tbody>`;
-
-        weekNums.forEach(wk => {
-          html += `<tr><td>W${wk}</td>`;
-          let weekTotal = 0;
-          allProds.forEach(p => {
-            const cases = weekProducts[wk][p] || 0;
-            weekTotal += cases;
-            html += `<td class="num">${cases || '—'}</td>`;
-          });
-          html += `<td class="num" style="font-weight:600">${weekTotal}</td></tr>`;
-        });
-
-        html += `<tr style="border-top:1px solid #4ecca3;"><td style="color:#4ecca3;font-weight:600">Avg/wk</td>`;
-        let avgTotal = 0;
+      weekNums.forEach(wk => {
+        html += `<tr><td>W${wk}</td>`;
+        let weekTotal = 0;
         allProds.forEach(p => {
-          const prodTotal = weekNums.reduce((s, wk) => s + (weekProducts[wk][p] || 0), 0);
-          const avg = prodTotal / weekNums.length;
-          avgTotal += avg;
-          html += `<td class="num" style="color:#4ecca3">${Math.round(avg)}</td>`;
+          const cases = weekProducts[wk][p] || 0;
+          weekTotal += cases;
+          html += `<td class="num">${cases || '—'}</td>`;
         });
-        html += `<td class="num" style="color:#4ecca3;font-weight:700">${Math.round(avgTotal)}</td></tr>`;
+        html += `<td class="num" style="font-weight:600">${weekTotal}</td></tr>`;
+      });
 
-        html += '</tbody></table></td></tr>';
-      }
-      srcIdx++;
-    });
+      html += `<tr style="border-top:1px solid #4ecca3;"><td style="color:#4ecca3;font-weight:600">Avg/wk</td>`;
+      let avgTotal = 0;
+      allProds.forEach(p => {
+        const prodTotal = weekNums.reduce((s, wk) => s + (weekProducts[wk][p] || 0), 0);
+        const avg = prodTotal / weekNums.length;
+        avgTotal += avg;
+        html += `<td class="num" style="color:#4ecca3">${Math.round(avg)}</td>`;
+      });
+      html += `<td class="num" style="color:#4ecca3;font-weight:700">${Math.round(avgTotal)}</td></tr>`;
 
-    totWk += rc.weeklyCases;
+      html += '</tbody></table></td></tr>';
+    }
+
+    totGross += rc.grossCases;
+    totNet += rc.weeklyCases;
     totPal += rc.weeklyPalletsCeil;
     totStores += rc.stores;
     totDist += rc.distributorCostMonthly;
@@ -635,9 +635,10 @@ function renderBreakdown(model) {
 
   html += `<tr class="total-row">
     <td>TOTAL</td>
-    <td class="num">${Math.round(totWk)}</td>
+    <td></td>
+    <td class="num">${Math.round(totGross)}</td>
     <td class="num"></td>
-    <td class="num">${Math.round(totWk)}</td>
+    <td class="num">${Math.round(totNet)}</td>
     <td class="num">${totPal}</td>
     <td class="num">${totStores}</td>
     <td class="num">${fmt$(totDist)}</td>
@@ -661,21 +662,6 @@ function renderBreakdown(model) {
   selfSection.innerHTML = selfHtml;
 }
 
-function toggleRetailer(key) {
-  const rows = document.querySelectorAll(`[data-retailer="${key}"]`);
-  const srcRow = document.getElementById('src-retailer-' + key);
-  const isOpen = srcRow?.classList.contains('open');
-  // Close detail rows too when collapsing
-  rows.forEach(r => {
-    if (r.classList.contains('cust-row')) {
-      r.classList.toggle('hidden', isOpen);
-    }
-    if (r.classList.contains('order-detail') && isOpen) {
-      r.classList.remove('open');
-    }
-  });
-  srcRow?.classList.toggle('open', !isOpen);
-}
 
 function renderChart(model) {
   const { retailerCosts } = model;
