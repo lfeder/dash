@@ -537,8 +537,10 @@ function renderBreakdown(model) {
   let html = '<h3>Breakdown by Retailer</h3>';
   html += `<table>
     <thead><tr>
-      <th>Retailer</th>
+      <th>Retailer / Distributor</th>
       <th class="num">Cases/wk</th>
+      <th class="num">Alloc %</th>
+      <th class="num">Eff. Cases/wk</th>
       <th class="num">Pallets/wk</th>
       <th class="num">Stores</th>
       <th class="num">Distributor</th>
@@ -546,59 +548,41 @@ function renderBreakdown(model) {
       <th class="num">Self-Delivery</th>
     </tr></thead><tbody>`;
 
-  let totWk = 0, totMo = 0, totPal = 0, totStores = 0, totDist = 0, totHfa = 0, totSelf = 0;
+  let totWk = 0, totPal = 0, totStores = 0, totDist = 0, totHfa = 0, totSelf = 0;
+  let srcIdx = 0;
 
   Object.entries(retailerCosts).forEach(([key, rc]) => {
     const highlight = selectedCustomer === key ? ' style="background:rgba(78,204,163,0.1)"' : '';
-    html += `<tr${highlight}>
-      <td>${rc.label}</td>
-      <td class="num">${fmtDec(rc.weeklyCases)}</td>
+    const retailerId = 'retailer-' + key;
+
+    // Retailer parent row — clickable to expand distributors
+    html += `<tr class="source-row" id="src-${retailerId}" onclick="toggleRetailer('${key}')"${highlight}>
+      <td style="font-weight:600">${rc.label}</td>
+      <td class="num">${Math.round(rc.weeklyCases)}</td>
+      <td class="num"></td>
+      <td class="num">${Math.round(rc.weeklyCases)}</td>
       <td class="num">${fmtDec(rc.weeklyPallets)} (${rc.weeklyPalletsCeil})</td>
       <td class="num">${rc.stores}</td>
       <td class="num">${fmt$(rc.distributorCostMonthly)}</td>
       <td class="num">${fmt$(rc.hfaCostMonthly)}</td>
       <td class="num">${fmt$(rc.selfCostMonthly)}</td>
     </tr>`;
-    totWk += rc.weeklyCases;
-    totMo += rc.monthlyCases;
-    totPal += rc.weeklyPalletsCeil;
-    totStores += rc.stores;
-    totDist += rc.distributorCostMonthly;
-    totHfa += rc.hfaCostMonthly;
-    totSelf += rc.selfCostMonthly;
-  });
 
-  html += `<tr class="total-row">
-    <td>TOTAL</td>
-    <td class="num">${fmtDec(totWk)}</td>
-    <td class="num">${totPal}</td>
-    <td class="num">${totStores}</td>
-    <td class="num">${fmt$(totDist)}</td>
-    <td class="num">${fmt$(totHfa)}</td>
-    <td class="num">${fmt$(totSelf)}</td>
-  </tr></tbody></table>`;
-
-  // Source data — clickable to expand order details
-  html += '<h3 style="margin-top:16px">Source Orders — click to see invoices</h3>';
-  html += '<table><thead><tr><th>Distributor</th><th class="num">Total Cases/wk</th><th class="num">Alloc %</th><th class="num">Effective Cases/wk</th></tr></thead><tbody>';
-
-  let srcIdx = 0;
-  Object.values(retailerCosts).forEach(rc => {
+    // Distributor child rows (hidden by default)
     rc.sources.forEach(s => {
-      const id = 'detail-' + srcIdx;
+      const detailId = 'detail-' + srcIdx;
       const hasData = s.data.rows.length > 0;
-      const dataLabel = hasData ? `${s.data.year} ${s.data.weekRange} (${s.data.numWeeks}wk)` : 'No data';
 
-      html += `<tr class="source-row" id="src-${id}" onclick="toggleDetail('${id}')">
-        <td>${s.name}</td>
+      html += `<tr class="cust-row hidden" data-retailer="${key}">
+        <td class="source-row" style="padding-left:28px;cursor:pointer;" onclick="event.stopPropagation();toggleDetail('${detailId}')" id="src-${detailId}"><span style="font-size:0.6rem;color:#555;margin-right:4px;">▶</span>${s.name}</td>
         <td class="num">${Math.round(s.data.avg)}</td>
         <td class="num">${Math.round(s.pct * 100)}%</td>
         <td class="num">${Math.round(s.effective)}</td>
+        <td class="num" colspan="5"></td>
       </tr>`;
 
-      // Expandable detail row with actual order data
+      // Expandable invoice detail row
       if (hasData) {
-        // Aggregate by week and product
         const weekProducts = {};
         s.data.rows.forEach(r => {
           const wk = r.ISOWeek;
@@ -609,7 +593,7 @@ function renderBreakdown(model) {
         const allProds = ['KR', 'JR', 'LR', 'LW', 'WR', 'AR'];
         const weekNums = Object.keys(weekProducts).map(Number).sort((a, b) => b - a);
 
-        html += `<tr class="order-detail" id="${id}"><td colspan="4"><table class="detail-table">`;
+        html += `<tr class="order-detail" id="${detailId}" data-retailer="${key}"><td colspan="9"><table class="detail-table">`;
         html += `<thead><tr><th>Week</th>`;
         allProds.forEach(p => { html += `<th class="num">${p}</th>`; });
         html += `<th class="num" style="font-weight:700">Total</th></tr></thead><tbody>`;
@@ -625,7 +609,6 @@ function renderBreakdown(model) {
           html += `<td class="num" style="font-weight:600">${weekTotal}</td></tr>`;
         });
 
-        // Average row
         html += `<tr style="border-top:1px solid #4ecca3;"><td style="color:#4ecca3;font-weight:600">Avg/wk</td>`;
         let avgTotal = 0;
         allProds.forEach(p => {
@@ -640,9 +623,26 @@ function renderBreakdown(model) {
       }
       srcIdx++;
     });
+
+    totWk += rc.weeklyCases;
+    totPal += rc.weeklyPalletsCeil;
+    totStores += rc.stores;
+    totDist += rc.distributorCostMonthly;
+    totHfa += rc.hfaCostMonthly;
+    totSelf += rc.selfCostMonthly;
   });
 
-  html += '</tbody></table>';
+  html += `<tr class="total-row">
+    <td>TOTAL</td>
+    <td class="num">${Math.round(totWk)}</td>
+    <td class="num"></td>
+    <td class="num">${Math.round(totWk)}</td>
+    <td class="num">${totPal}</td>
+    <td class="num">${totStores}</td>
+    <td class="num">${fmt$(totDist)}</td>
+    <td class="num">${fmt$(totHfa)}</td>
+    <td class="num">${fmt$(totSelf)}</td>
+  </tr></tbody></table>`;
 
   // Self-delivery cost breakdown
   html += '<h3 style="margin-top:16px">Self-Delivery Cost Breakdown</h3>';
@@ -656,6 +656,22 @@ function renderBreakdown(model) {
   </tbody></table>`;
 
   section.innerHTML = html;
+}
+
+function toggleRetailer(key) {
+  const rows = document.querySelectorAll(`[data-retailer="${key}"]`);
+  const srcRow = document.getElementById('src-retailer-' + key);
+  const isOpen = srcRow?.classList.contains('open');
+  // Close detail rows too when collapsing
+  rows.forEach(r => {
+    if (r.classList.contains('cust-row')) {
+      r.classList.toggle('hidden', isOpen);
+    }
+    if (r.classList.contains('order-detail') && isOpen) {
+      r.classList.remove('open');
+    }
+  });
+  srcRow?.classList.toggle('open', !isOpen);
 }
 
 function renderChart(model) {
