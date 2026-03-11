@@ -456,10 +456,9 @@ function selectYear(year) {
 }
 
 function renderResults(model) {
-  const { retailerCosts } = model;
+  const { retailerCosts, WEEKS_PER_MONTH } = model;
 
   let distTotal = 0, hfaTotal = 0, selfTotal = 0;
-  let totalCases = 0, totalRevenue = 0;
   const keys = selectedCustomer === 'all' ? Object.keys(retailerCosts) : [selectedCustomer];
 
   keys.forEach(k => {
@@ -467,30 +466,21 @@ function renderResults(model) {
     distTotal += retailerCosts[k].distributorCostMonthly;
     hfaTotal += retailerCosts[k].hfaCostMonthly;
     selfTotal += retailerCosts[k].selfCostMonthly;
-    totalCases += retailerCosts[k].monthlyCases;
-    totalRevenue += retailerCosts[k].monthlyRevenue;
   });
 
   const costs = [
-    { key: 'dist', label: 'Current (Distributor)', cost: distTotal, cls: 'distributor' },
-    { key: 'hfa', label: 'HFA Logistics', cost: hfaTotal, cls: 'hfa' },
-    { key: 'self', label: 'Self-Delivery', cost: selfTotal, cls: 'self' }
+    { key: 'dist', label: 'Current (Distributor)', cost: distTotal / WEEKS_PER_MONTH, cls: 'distributor' },
+    { key: 'hfa', label: 'HFA Logistics', cost: hfaTotal / WEEKS_PER_MONTH, cls: 'hfa' },
+    { key: 'self', label: 'Self-Delivery', cost: selfTotal / WEEKS_PER_MONTH, cls: 'self' }
   ];
 
-  const minCost = Math.min(...costs.map(c => c.cost));
-
   const grid = document.getElementById('resultsGrid');
-  grid.innerHTML = costs.map(c => {
-    const isBest = false;
-    const perCase = totalCases > 0 ? c.cost / totalCases : 0;
-    const savingsVsDist = distTotal - c.cost;
-    return `
-      <div class="result-card ${isBest ? 'best' : ''}">
-        <h3>${c.label}${isBest ? ' ★' : ''}</h3>
-        <div class="cost ${c.cls}">${fmt$(c.cost)}<span style="font-size:0.6rem;color:#888">/mo</span></div>
+  grid.innerHTML = costs.map(c => `
+      <div class="result-card">
+        <h3>${c.label}</h3>
+        <div class="cost ${c.cls}">${fmt$(c.cost)}<span style="font-size:0.6rem;color:#888">/wk</span></div>
       </div>
-    `;
-  }).join('');
+    `).join('');
 
 }
 
@@ -504,7 +494,7 @@ function toggleDetail(id) {
 }
 
 function renderBreakdown(model) {
-  const { retailerCosts, selfTotalMonthly } = model;
+  const { retailerCosts, selfTotalMonthly, WEEKS_PER_MONTH } = model;
   const section = document.getElementById('breakdownSection');
 
   let html = '';
@@ -537,9 +527,9 @@ function renderBreakdown(model) {
       <td class="num">${Math.round(rc.weeklyCases)}</td>
       <td class="num">${rc.weeklyPalletsCeil}</td>
       <td class="num">${rc.stores}</td>
-      <td class="num">${fmt$(rc.distributorCostMonthly)}</td>
-      <td class="num">${fmt$(rc.hfaCostMonthly)}</td>
-      <td class="num">${fmt$(rc.selfCostMonthly)}</td>
+      <td class="num">${fmt$(rc.distributorCostMonthly / WEEKS_PER_MONTH)}</td>
+      <td class="num">${fmt$(rc.hfaCostMonthly / WEEKS_PER_MONTH)}</td>
+      <td class="num">${fmt$(rc.selfCostMonthly / WEEKS_PER_MONTH)}</td>
     </tr>`;
 
     // Expandable invoice detail row
@@ -600,9 +590,9 @@ function renderBreakdown(model) {
     <td class="num">${Math.round(totNet)}</td>
     <td class="num">${totPal}</td>
     <td class="num">${totStores}</td>
-    <td class="num">${fmt$(totDist)}</td>
-    <td class="num">${fmt$(totHfa)}</td>
-    <td class="num">${fmt$(totSelf)}</td>
+    <td class="num">${fmt$(totDist / WEEKS_PER_MONTH)}</td>
+    <td class="num">${fmt$(totHfa / WEEKS_PER_MONTH)}</td>
+    <td class="num">${fmt$(totSelf / WEEKS_PER_MONTH)}</td>
   </tr></tbody></table>`;
 
   section.innerHTML = html;
@@ -613,35 +603,36 @@ function renderBreakdown(model) {
   let selfHtml = '<h3>Self-Delivery Cost Breakdown</h3>';
   const driverHrs = getSlider('driverHours');
   const driverWage = getSlider('driverWage');
-  const driverMonthly = driverWage * driverHrs * delivDays * model.WEEKS_PER_MONTH;
-  const fuelMonthly = getSlider('fuel') * delivDays * model.WEEKS_PER_MONTH;
+  const driverWeekly = driverWage * driverHrs * delivDays;
+  const fuelWeekly = getSlider('fuel') * delivDays;
+  const selfWeekly = selfTotalMonthly / WEEKS_PER_MONTH;
   const sliderCss = 'width:120px;accent-color:#4ecca3;vertical-align:middle;';
   selfHtml += `<table style="width:100%;"><tbody>
     <tr>
-      <td>Truck Payment ($/mo) <input type="range" id="truckPayment" min="500" max="3000" value="${getSlider('truckPayment')}" step="100" oninput="update()" style="${sliderCss}"></td>
-      <td class="num">${fmt$(getSlider('truckPayment'))}</td>
+      <td>Truck Payment ($/wk) <input type="range" id="truckPayment" min="500" max="3000" value="${getSlider('truckPayment')}" step="100" oninput="update()" style="${sliderCss}"></td>
+      <td class="num">${fmt$(getSlider('truckPayment') / WEEKS_PER_MONTH)}</td>
     </tr>
     <tr>
-      <td>Insurance ($/mo) <input type="range" id="insurance" min="100" max="1000" value="${getSlider('insurance')}" step="50" oninput="update()" style="${sliderCss}"></td>
-      <td class="num">${fmt$(getSlider('insurance'))}</td>
+      <td>Insurance ($/wk) <input type="range" id="insurance" min="100" max="1000" value="${getSlider('insurance')}" step="50" oninput="update()" style="${sliderCss}"></td>
+      <td class="num">${fmt$(getSlider('insurance') / WEEKS_PER_MONTH)}</td>
     </tr>
     <tr>
-      <td>Maintenance ($/mo) <input type="range" id="maintenance" min="50" max="800" value="${getSlider('maintenance')}" step="50" oninput="update()" style="${sliderCss}"></td>
-      <td class="num">${fmt$(getSlider('maintenance'))}</td>
+      <td>Maintenance ($/wk) <input type="range" id="maintenance" min="50" max="800" value="${getSlider('maintenance')}" step="50" oninput="update()" style="${sliderCss}"></td>
+      <td class="num">${fmt$(getSlider('maintenance') / WEEKS_PER_MONTH)}</td>
     </tr>
     <tr>
       <td>Fuel ($/day, ${delivDays} days/wk) <input type="range" id="fuel" min="20" max="200" value="${getSlider('fuel')}" step="10" oninput="update()" style="${sliderCss}"></td>
-      <td class="num">${fmt$(fuelMonthly)}</td>
+      <td class="num">${fmt$(fuelWeekly)}</td>
     </tr>
     <tr>
       <td>Driver Wage ($/hr for ${driverHrs}hr/day, ${delivDays} days/wk) <input type="range" id="driverWage" min="15" max="40" value="${driverWage}" step="1" oninput="update()" style="${sliderCss}"> <span style="color:#4ecca3;font-weight:600">$${driverWage}/hr</span></td>
-      <td class="num">${fmt$(driverMonthly)}</td>
+      <td class="num">${fmt$(driverWeekly)}</td>
     </tr>
     <tr>
       <td>Hours per Day <input type="range" id="driverHours" min="4" max="12" value="${driverHrs}" step="1" oninput="update()" style="${sliderCss}"> <span style="color:#4ecca3;font-weight:600">${driverHrs}hr</span></td>
       <td class="num"></td>
     </tr>
-    <tr class="total-row"><td>Total Self-Delivery</td><td class="num">${fmt$(selfTotalMonthly)}/mo</td></tr>
+    <tr class="total-row"><td>Total Self-Delivery</td><td class="num">${fmt$(selfWeekly)}/wk</td></tr>
   </tbody></table>`;
   selfSection.innerHTML = selfHtml;
 }
