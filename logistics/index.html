@@ -180,6 +180,7 @@
     <div class="col-results">
       <div class="results-grid" id="resultsGrid"></div>
       <div class="breakdown" id="breakdownSection"></div>
+      <div class="breakdown" id="selfDelivSection"></div>
     </div>
   </div>
 </div>
@@ -644,9 +645,12 @@ function renderBreakdown(model) {
     <td class="num">${fmt$(totSelf)}</td>
   </tr></tbody></table>`;
 
-  // Self-delivery cost breakdown
-  html += '<h3 style="margin-top:16px">Self-Delivery Cost Breakdown</h3>';
-  html += `<table><tbody>
+  section.innerHTML = html;
+
+  // Self-delivery cost breakdown — separate card
+  const selfSection = document.getElementById('selfDelivSection');
+  let selfHtml = '<h3>Self-Delivery Cost Breakdown</h3>';
+  selfHtml += `<table><tbody>
     <tr><td>Truck Payment</td><td class="num">${fmt$(getSlider('truckPayment'))}/mo</td></tr>
     <tr><td>Insurance</td><td class="num">${fmt$(getSlider('insurance'))}/mo</td></tr>
     <tr><td>Maintenance</td><td class="num">${fmt$(getSlider('maintenance'))}/mo</td></tr>
@@ -654,8 +658,7 @@ function renderBreakdown(model) {
     <tr><td>Driver (${getSlider('driverHours')}hr x $${getSlider('driverWage')} x ${getSlider('selfDelivDays')} days/wk)</td><td class="num">${fmt$(getSlider('driverWage') * getSlider('driverHours') * getSlider('selfDelivDays') * model.WEEKS_PER_MONTH)}/mo</td></tr>
     <tr class="total-row"><td>Total Self-Delivery</td><td class="num">${fmt$(selfTotalMonthly)}/mo</td></tr>
   </tbody></table>`;
-
-  section.innerHTML = html;
+  selfSection.innerHTML = selfHtml;
 }
 
 function toggleRetailer(key) {
