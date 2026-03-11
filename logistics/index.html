@@ -516,7 +516,7 @@ function renderResults(model) {
 
   const grid = document.getElementById('resultsGrid');
   grid.innerHTML = costs.map(c => {
-    const isBest = c.cost === minCost && c.cost > 0;
+    const isBest = false;
     const perCase = totalCases > 0 ? c.cost / totalCases : 0;
     const savingsVsDist = distTotal - c.cost;
     return `
