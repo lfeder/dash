@@ -152,8 +152,8 @@
       <div class="breakdown" id="selfDelivSection"></div>
       <div class="breakdown" id="mapSection">
         <div style="display:flex;gap:16px;align-items:flex-start;">
-          <div id="routeTableContainer" style="flex:1;min-width:300px;"></div>
-          <div id="map" style="flex:1.2;height:500px;border-radius:6px;min-width:400px;"></div>
+          <div id="routeTableContainer" style="flex:0 0 auto;max-width:520px;"></div>
+          <div id="map" style="flex:1;height:500px;border-radius:6px;min-width:350px;"></div>
         </div>
         <div id="routeInfo" style="display:none;"></div>
         <div id="routeSummary" style="display:none;"></div>
@@ -619,36 +619,43 @@ function buildRouteTable(model) {
 
   rows.sort((a, b) => a.miles - b.miles);
 
-  let html = '<div id="routeCompare" style="margin-top:16px;">';
-  html += '<h3 style="color:#4ecca3;font-size:0.95rem;margin-bottom:4px;">Delivery Routes (shortest to longest)</h3>';
-  html += '<div style="color:#777;font-size:0.75rem;margin-bottom:8px;">';
+  const cs = 'padding:3px 6px;border-bottom:1px solid rgba(15,52,96,0.5);white-space:nowrap;';
+  const hs = 'padding:3px 6px;border-bottom:2px solid #0f3460;color:#4ecca3;white-space:nowrap;';
+
+  let html = '<div id="routeCompare">';
+  html += '<div style="color:#777;font-size:0.72rem;margin-bottom:6px;line-height:1.4;">';
   html += 'Each store = ~15 min stop. ';
-  html += 'Foodland stores span both Hilo &amp; Kona sides, requiring 4 driver days/wk (Mon/Thu Hilo, Tue/Fri Kona). ';
-  html += 'KTA and Safeway only need 2 days/wk.';
+  html += 'Foodland spans Hilo &amp; Kona = 4 days/wk. ';
+  html += 'KTA/Safeway = 2 days/wk.';
   html += '</div>';
-  html += '<table style="width:100%;border-collapse:collapse;font-size:0.8rem;">';
+  html += `<div style="margin-bottom:6px;">
+    <label style="cursor:pointer;color:#e0e0e0;font-size:0.75rem;">
+      <input type="checkbox" id="excludeOV" ${excludeOceanView ? 'checked' : ''} onchange="toggleOceanView()" style="accent-color:#4ecca3;vertical-align:middle;"> Exclude Ocean View
+    </label>
+  </div>`;
+  html += '<table style="width:100%;border-collapse:collapse;font-size:0.75rem;">';
   html += '<thead><tr>';
-  html += '<th style="text-align:left;padding:5px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">Route</th>';
-  html += '<th class="num" style="padding:5px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">Stores</th>';
-  html += '<th class="num" style="padding:5px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">Miles</th>';
-  html += '<th class="num" style="padding:5px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">Drive</th>';
-  html += '<th class="num" style="padding:5px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">w/ Stops</th>';
-  html += '<th class="num" style="padding:5px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">Days/wk</th>';
-  html += '<th class="num" style="padding:5px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">Total $/wk</th>';
+  html += `<th style="text-align:left;${hs}">Route</th>`;
+  html += `<th class="num" style="${hs}">Stores</th>`;
+  html += `<th class="num" style="${hs}">Miles</th>`;
+  html += `<th class="num" style="${hs}">Drive</th>`;
+  html += `<th class="num" style="${hs}">w/ Stops</th>`;
+  html += `<th class="num" style="${hs}">Days</th>`;
+  html += `<th class="num" style="${hs}">$/wk</th>`;
   html += '</tr></thead><tbody>';
 
   rows.forEach(r => {
-    const driveH = Math.floor(r.driveMin / 60), driveM = r.driveMin % 60;
-    const totalH = Math.floor(r.totalMin / 60), totalM = r.totalMin % 60;
+    const driveHrs = (r.driveMin / 60).toFixed(1);
+    const totalHrs = (r.totalMin / 60).toFixed(1);
     const rowStyle = r.isActive ? ' style="background:rgba(78,204,163,0.1)"' : '';
     html += `<tr${rowStyle}>
-      <td style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${r.labels}</td>
-      <td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${r.storeCount}</td>
-      <td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${r.miles}</td>
-      <td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${driveH}h ${driveM}m</td>
-      <td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${totalH}h ${totalM}m</td>
-      <td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${r.driverDays}</td>
-      <td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);color:#4ecca3;font-weight:600;">${fmt$(r.totalWk)}</td>
+      <td style="${cs}">${r.labels}</td>
+      <td class="num" style="${cs}">${r.storeCount}</td>
+      <td class="num" style="${cs}">${r.miles}</td>
+      <td class="num" style="${cs}">${driveHrs}h</td>
+      <td class="num" style="${cs}">${totalHrs}h</td>
+      <td class="num" style="${cs}">${r.driverDays}</td>
+      <td class="num" style="${cs}color:#4ecca3;font-weight:600;">${fmt$(r.totalWk)}</td>
     </tr>`;
   });
 
