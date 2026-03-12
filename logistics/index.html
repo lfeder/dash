@@ -152,9 +152,13 @@
       <div class="breakdown" id="selfDelivSection"></div>
       <div class="breakdown" id="mapSection">
         <h3>Delivery Route Map</h3>
-        <div id="map" style="height:500px;border-radius:6px;margin-bottom:10px;"></div>
-        <div id="routeInfo" style="font-size:0.85rem;color:#aaa;"></div>
-        <div id="routeSummary" style="font-size:0.85rem;color:#aaa;margin-top:12px;"></div>
+        <div style="display:flex;gap:16px;align-items:flex-start;">
+          <div style="flex:1;min-width:300px;">
+            <div id="routeInfo" style="font-size:0.85rem;color:#aaa;margin-bottom:12px;"></div>
+            <div id="routeSummary" style="font-size:0.85rem;color:#aaa;"></div>
+          </div>
+          <div id="map" style="flex:1.2;height:500px;border-radius:6px;min-width:400px;"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -439,7 +443,8 @@ function computeModel() {
   const hasHilo = activeStores.some(s => s.side === 'hilo');
   const hasKona = activeStores.some(s => s.side === 'kona');
   const numSides = (hasHilo ? 1 : 0) + (hasKona ? 1 : 0);
-  const driverDaysPerWeek = delivPerWeek * numSides;
+  // Foodland requires both island sides → delivPerWeek * numSides; otherwise 2 days/wk
+  const driverDaysPerWeek = selectedChains.foodland ? delivPerWeek * numSides : 2;
 
   // Fuel from route miles: 8mpg, $5/gal
   const routeKey = cacheKey(selectedChains);
