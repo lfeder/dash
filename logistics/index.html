@@ -120,7 +120,7 @@
         </div>
         <div class="slider-group">
           <div class="slider-label"><span>Honaunau → Safeway (%)</span><span class="val" id="honSafPctVal">80%</span></div>
-          <input type="range" id="honSafPct" min="0" max="100" value="80" step="5" oninput="update()">
+          <input type="range" id="honSafPct" min="0" max="200" value="80" step="5" oninput="update()">
         </div>
         <div class="slider-group">
           <div class="slider-label"><span>Hilo Products → KTA (%)</span><span class="val" id="hiloKtaPctVal">60%</span></div>
@@ -367,13 +367,13 @@ function computeModel() {
       data: apKonaCombined
     },
     safeway: {
-      label: 'Safeway (x2)',
+      label: 'Safeway',
       distributor: 'Honaunau Market',
-      weeklyCases: honaunauData.avg * honSafPct * 2,
-      weeklyDollars: honaunauData.avgDollars * honSafPct * 2,
+      weeklyCases: honaunauData.avg * honSafPct,
+      weeklyDollars: honaunauData.avgDollars * honSafPct,
       stores: STORE_COUNTS.safeway,
-      grossCases: honaunauData.avg * 2,
-      grossDollars: honaunauData.avgDollars * 2,
+      grossCases: honaunauData.avg,
+      grossDollars: honaunauData.avgDollars,
       pct: honSafPct,
       data: honaunauData
     },
