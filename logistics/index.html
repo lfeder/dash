@@ -369,13 +369,13 @@ function computeModel() {
       data: apKonaCombined
     },
     safeway: {
-      label: 'Safeway',
+      label: 'Safeway (x2)',
       distributor: 'Honaunau Market',
-      weeklyCases: honaunauData.avg * honSafPct,
-      weeklyDollars: honaunauData.avgDollars * honSafPct,
+      weeklyCases: honaunauData.avg * honSafPct * 2,
+      weeklyDollars: honaunauData.avgDollars * honSafPct * 2,
       stores: STORE_COUNTS.safeway,
-      grossCases: honaunauData.avg,
-      grossDollars: honaunauData.avgDollars,
+      grossCases: honaunauData.avg * 2,
+      grossDollars: honaunauData.avgDollars * 2,
       pct: honSafPct,
       data: honaunauData
     },
@@ -443,8 +443,8 @@ function computeModel() {
   const hasHilo = activeStores.some(s => s.side === 'hilo');
   const hasKona = activeStores.some(s => s.side === 'kona');
   const numSides = (hasHilo ? 1 : 0) + (hasKona ? 1 : 0);
-  // Foodland requires both island sides → delivPerWeek * numSides; otherwise 2 days/wk
-  const driverDaysPerWeek = selectedChains.foodland ? delivPerWeek * numSides : 2;
+  // Foodland included → 4 days/wk (Hilo Mon/Thu, Kona Tue/Fri); otherwise 2 days/wk
+  const driverDaysPerWeek = selectedChains.foodland ? 4 : 2;
 
   // Fuel from route miles: 8mpg, $5/gal
   const routeKey = cacheKey(selectedChains);
