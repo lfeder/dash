@@ -1025,14 +1025,7 @@ function renderRouteSummary() {
   html += '<th class="num" style="padding:6px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">Drive Time</th>';
   html += '<th class="num" style="padding:6px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">Stop Time</th>';
   html += '<th class="num" style="padding:6px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">Total Time</th>';
-  if (excludeOceanView) {
-    html += '<th class="num" style="padding:6px 8px;border-bottom:2px solid #0f3460;color:#e8a87c;">OV +Miles</th>';
-    html += '<th class="num" style="padding:6px 8px;border-bottom:2px solid #0f3460;color:#e8a87c;">OV +Time</th>';
-    html += '<th class="num" style="padding:6px 8px;border-bottom:2px solid #0f3460;color:#e8a87c;">OV +Fuel/wk</th>';
-  }
   html += '</tr></thead><tbody>';
-
-  const delivPerWeek = getSlider('delivPerWeek');
 
   for (let i = 1; i < 8; i++) {
     const combo = {};
@@ -1062,26 +1055,10 @@ function renderRouteSummary() {
         <td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${miles}</td>
         <td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${driveH}h ${driveM}m</td>
         <td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${stopH}h ${stopM}m</td>
-        <td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);color:#4ecca3;font-weight:600;">${totalH}h ${totalM}m</td>`;
-      if (excludeOceanView && key.includes('foodland')) {
-        const withOV = ROUTE_DATA[key];
-        if (withOV) {
-          const ovMiles = Math.round(withOV.distance / 1609.34) - miles;
-          const ovMin = Math.round(withOV.duration / 60) - driveMin + 15; // +15 min stop
-          const ovFuelWk = (ovMiles / 8) * 5 * delivPerWeek;
-          html += `<td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);color:#e8a87c;">+${ovMiles}</td>`;
-          html += `<td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);color:#e8a87c;">+${ovMin}m</td>`;
-          html += `<td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);color:#e8a87c;">+${fmt$(ovFuelWk)}</td>`;
-        } else {
-          html += '<td colspan="3" style="padding:5px 8px;color:#888;">—</td>';
-        }
-      } else if (excludeOceanView) {
-        html += '<td colspan="3" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);color:#555;">n/a</td>';
-      }
-      html += '</tr>';
+        <td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);color:#4ecca3;font-weight:600;">${totalH}h ${totalM}m</td>
+      </tr>`;
     } else {
-      const colSpan = excludeOceanView ? 8 : 5;
-      html += `<tr${rowStyle}><td style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${labels}</td><td colspan="${colSpan}" style="padding:5px 8px;color:#888;">—</td></tr>`;
+      html += `<tr${rowStyle}><td style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${labels}</td><td colspan="5" style="padding:5px 8px;color:#888;">—</td></tr>`;
     }
   }
 
