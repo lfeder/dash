@@ -155,6 +155,7 @@
         <h3>Delivery Route Map</h3>
         <div id="map" style="height:500px;border-radius:6px;margin-bottom:10px;"></div>
         <div id="routeInfo" style="font-size:0.85rem;color:#aaa;"></div>
+        <div id="routeSummary" style="font-size:0.85rem;color:#aaa;margin-top:12px;"></div>
       </div>
     </div>
   </div>
@@ -807,6 +808,8 @@ const MARKER_LABELS = { farm: 'Hawaii Farming', foodland: 'Foodland', safeway: '
 let deliveryMap;
 let markerLayers = {}; // layer groups by type for toggle
 let routeLayer;
+const enabledChains = { foodland: true, safeway: true, kta: true };
+const routeCache = {}; // keyed by sorted chain combo string
 
 function initMap() {
   deliveryMap = L.map('map', { scrollWheelZoom: true }).setView([19.75, -155.5], 9);
@@ -849,11 +852,14 @@ function initMap() {
           deliveryMap.removeLayer(markerLayers[type]);
           row.style.opacity = '0.35';
           row.style.textDecoration = 'line-through';
+          enabledChains[type] = false;
         } else {
           deliveryMap.addLayer(markerLayers[type]);
           row.style.opacity = '1';
           row.style.textDecoration = 'none';
+          enabledChains[type] = true;
         }
+        showRoute();
       };
       div.appendChild(row);
     });
@@ -861,72 +867,170 @@ function initMap() {
   };
   legend.addTo(deliveryMap);
 
-  // Calculate optimized delivery route via OSRM
-  calcRoute();
+  // Pre-calculate all chain combos for instant toggling
+  preloadAllRoutes();
 }
 
-async function calcRoute() {
-  const info = document.getElementById('routeInfo');
-  info.textContent = 'Calculating delivery route...';
+function cacheKey(chains) {
+  return Object.keys(chains).filter(k => chains[k]).sort().join(',');
+}
 
-  // Build waypoints: farm → all stores → farm (round trip)
-  // Use OSRM trip endpoint for optimized ordering
-  const allPoints = [FARM, ...STORES];
+async function fetchRoute(activeStores) {
+  const allPoints = [FARM, ...activeStores];
   const coords = allPoints.map(p => `${p.lng},${p.lat}`).join(';');
   const url = `https://router.project-osrm.org/trip/v1/driving/${coords}?source=first&roundtrip=true&overview=full&geometries=geojson`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  const data = await resp.json();
+  if (data.code !== 'Ok') throw new Error(data.message || data.code);
+  return data.trips[0];
+}
 
-  try {
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const data = await resp.json();
-    console.log('OSRM response:', data);
-    if (data.code !== 'Ok') {
-      info.textContent = 'Route calculation failed: ' + (data.message || data.code);
-      return;
-    }
-
-    const trip = data.trips[0];
-    const totalMinutes = Math.round(trip.duration / 60);
-    const totalMiles = Math.round(trip.distance / 1609.34);
-    const hours = Math.floor(totalMinutes / 60);
-    const mins = totalMinutes % 60;
-
-    // Draw route on map
-    if (routeLayer) deliveryMap.removeLayer(routeLayer);
-    routeLayer = L.geoJSON(trip.geometry, {
-      style: { color: '#2d8a6e', weight: 5, opacity: 0.9 }
-    }).addTo(deliveryMap);
-
-    // Get the store counts by type
-    const foodlandCount = STORES.filter(s => s.type === 'foodland').length;
-    const safewayCount = STORES.filter(s => s.type === 'safeway').length;
-    const ktaCount = STORES.filter(s => s.type === 'kta').length;
-    const totalStores = STORES.length;
-
-    // Estimate time per stop (loading/unloading)
-    const stopMinutes = 15;
-    const totalStopTime = totalStores * stopMinutes;
-    const totalStopHrs = Math.floor(totalStopTime / 60);
-    const totalStopMins = totalStopTime % 60;
-    const grandTotal = totalMinutes + totalStopTime;
-    const grandHrs = Math.floor(grandTotal / 60);
-    const grandMins = grandTotal % 60;
-
-    info.innerHTML = `
-      <div style="display:grid;grid-template-columns:auto auto;gap:4px 16px;max-width:500px;">
-        <span style="color:#4ecca3;font-weight:600">Stores:</span>
-        <span>${totalStores} total (${foodlandCount} Foodland, ${safewayCount} Safeway, ${ktaCount} KTA)</span>
-        <span style="color:#4ecca3;font-weight:600">Driving:</span>
-        <span>${totalMiles} miles, ${hours}h ${mins}m</span>
-        <span style="color:#4ecca3;font-weight:600">Stop time:</span>
-        <span>~${stopMinutes} min/store × ${totalStores} = ${totalStopHrs}h ${totalStopMins}m</span>
-        <span style="color:#4ecca3;font-weight:600;border-top:1px solid #0f3460;padding-top:4px">Total:</span>
-        <span style="border-top:1px solid #0f3460;padding-top:4px;font-weight:600;color:#4ecca3">${grandHrs}h ${grandMins}m per full delivery run</span>
-      </div>`;
-  } catch(e) {
-    console.error('Route calc error:', e);
-    info.textContent = 'Could not calculate route: ' + e.message;
+async function preloadAllRoutes() {
+  const chainTypes = ['foodland', 'safeway', 'kta'];
+  // Generate all non-empty combos: 7 total
+  const combos = [];
+  for (let i = 1; i < 8; i++) {
+    const combo = {};
+    chainTypes.forEach((c, idx) => { combo[c] = !!(i & (1 << idx)); });
+    combos.push(combo);
   }
+
+  const info = document.getElementById('routeInfo');
+  info.textContent = `Pre-calculating routes (0/${combos.length})...`;
+
+  for (let i = 0; i < combos.length; i++) {
+    const combo = combos[i];
+    const key = cacheKey(combo);
+    try {
+      const stores = STORES.filter(s => combo[s.type]);
+      const trip = await fetchRoute(stores);
+      routeCache[key] = trip;
+    } catch(e) {
+      console.warn('Failed to preload route for', key, e);
+    }
+    info.textContent = `Pre-calculating routes (${i + 1}/${combos.length})...`;
+  }
+
+  // Show current selection and summary table
+  showRoute();
+  renderRouteSummary();
+}
+
+function showRoute() {
+  const info = document.getElementById('routeInfo');
+  const key = cacheKey(enabledChains);
+  const activeStores = STORES.filter(s => enabledChains[s.type]);
+
+  if (activeStores.length === 0) {
+    if (routeLayer) { deliveryMap.removeLayer(routeLayer); routeLayer = null; }
+    info.textContent = 'No stores selected.';
+    return;
+  }
+
+  const trip = routeCache[key];
+  if (!trip) {
+    info.textContent = 'Route not available for this combination.';
+    if (routeLayer) { deliveryMap.removeLayer(routeLayer); routeLayer = null; }
+    return;
+  }
+
+  const totalMinutes = Math.round(trip.duration / 60);
+  const totalMiles = Math.round(trip.distance / 1609.34);
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+
+  // Draw route on map
+  if (routeLayer) deliveryMap.removeLayer(routeLayer);
+  routeLayer = L.geoJSON(trip.geometry, {
+    style: { color: '#2d8a6e', weight: 5, opacity: 0.9 }
+  }).addTo(deliveryMap);
+
+  // Store counts
+  const foodlandCount = activeStores.filter(s => s.type === 'foodland').length;
+  const safewayCount = activeStores.filter(s => s.type === 'safeway').length;
+  const ktaCount = activeStores.filter(s => s.type === 'kta').length;
+  const totalStores = activeStores.length;
+  const countParts = [];
+  if (foodlandCount) countParts.push(`${foodlandCount} Foodland`);
+  if (safewayCount) countParts.push(`${safewayCount} Safeway`);
+  if (ktaCount) countParts.push(`${ktaCount} KTA`);
+
+  // Stop time
+  const stopMinutes = 15;
+  const totalStopTime = totalStores * stopMinutes;
+  const totalStopHrs = Math.floor(totalStopTime / 60);
+  const totalStopMins = totalStopTime % 60;
+  const grandTotal = totalMinutes + totalStopTime;
+  const grandHrs = Math.floor(grandTotal / 60);
+  const grandMins = grandTotal % 60;
+
+  info.innerHTML = `
+    <div style="display:grid;grid-template-columns:auto auto;gap:4px 16px;max-width:500px;">
+      <span style="color:#4ecca3;font-weight:600">Stores:</span>
+      <span>${totalStores} total (${countParts.join(', ')})</span>
+      <span style="color:#4ecca3;font-weight:600">Driving:</span>
+      <span>${totalMiles} miles, ${hours}h ${mins}m</span>
+      <span style="color:#4ecca3;font-weight:600">Stop time:</span>
+      <span>~${stopMinutes} min/store × ${totalStores} = ${totalStopHrs}h ${totalStopMins}m</span>
+      <span style="color:#4ecca3;font-weight:600;border-top:1px solid #0f3460;padding-top:4px">Total:</span>
+      <span style="border-top:1px solid #0f3460;padding-top:4px;font-weight:600;color:#4ecca3">${grandHrs}h ${grandMins}m per full delivery run</span>
+    </div>`;
+  renderRouteSummary();
+}
+
+function renderRouteSummary() {
+  const chainTypes = ['foodland', 'safeway', 'kta'];
+  const comboLabels = { foodland: 'Foodland', safeway: 'Safeway', kta: 'KTA' };
+  const stopMinutes = 15;
+
+  let html = '<h3 style="color:#4ecca3;font-size:0.95rem;margin-bottom:8px;">All Delivery Scenarios</h3>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:0.8rem;">';
+  html += '<thead><tr><th style="text-align:left;padding:6px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">Chains</th>';
+  html += '<th class="num" style="padding:6px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">Stores</th>';
+  html += '<th class="num" style="padding:6px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">Miles</th>';
+  html += '<th class="num" style="padding:6px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">Drive Time</th>';
+  html += '<th class="num" style="padding:6px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">Stop Time</th>';
+  html += '<th class="num" style="padding:6px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">Total Time</th>';
+  html += '</tr></thead><tbody>';
+
+  for (let i = 1; i < 8; i++) {
+    const combo = {};
+    chainTypes.forEach((c, idx) => { combo[c] = !!(i & (1 << idx)); });
+    const key = cacheKey(combo);
+    const trip = routeCache[key];
+    const labels = chainTypes.filter(c => combo[c]).map(c => comboLabels[c]).join(' + ');
+    const stores = STORES.filter(s => combo[s.type]);
+    const storeCount = stores.length;
+    const isActive = key === cacheKey(enabledChains);
+    const rowStyle = isActive ? ' style="background:rgba(78,204,163,0.1)"' : '';
+
+    if (trip) {
+      const miles = Math.round(trip.distance / 1609.34);
+      const driveMin = Math.round(trip.duration / 60);
+      const driveH = Math.floor(driveMin / 60);
+      const driveM = driveMin % 60;
+      const stopTime = storeCount * stopMinutes;
+      const stopH = Math.floor(stopTime / 60);
+      const stopM = stopTime % 60;
+      const totalMin = driveMin + stopTime;
+      const totalH = Math.floor(totalMin / 60);
+      const totalM = totalMin % 60;
+      html += `<tr${rowStyle}>
+        <td style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${labels}</td>
+        <td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${storeCount}</td>
+        <td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${miles}</td>
+        <td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${driveH}h ${driveM}m</td>
+        <td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${stopH}h ${stopM}m</td>
+        <td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);color:#4ecca3;font-weight:600;">${totalH}h ${totalM}m</td>
+      </tr>`;
+    } else {
+      html += `<tr${rowStyle}><td style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${labels}</td><td colspan="5" style="padding:5px 8px;color:#888;">—</td></tr>`;
+    }
+  }
+
+  html += '</tbody></table>';
+  document.getElementById('routeSummary').innerHTML = html;
 }
 
 /* ── Init ── */
