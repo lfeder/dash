@@ -151,7 +151,10 @@
       <div class="breakdown" id="breakdownSection"></div>
       <div class="breakdown" id="selfDelivSection"></div>
       <div class="breakdown" id="mapSection">
-        <div id="map" style="height:500px;border-radius:6px;"></div>
+        <div style="display:flex;gap:16px;align-items:flex-start;">
+          <div id="routeTableContainer" style="flex:1;min-width:300px;"></div>
+          <div id="map" style="flex:1.2;height:500px;border-radius:6px;min-width:400px;"></div>
+        </div>
         <div id="routeInfo" style="display:none;"></div>
         <div id="routeSummary" style="display:none;"></div>
       </div>
@@ -819,8 +822,9 @@ function renderBreakdown(model) {
       <input type="hidden" id="driverHours" value="8">
       <tr class="total-row"><td>Total Self-Delivery</td><td class="num" id="sd-total-wk">${fmt$(selfWeekly)}</td><td class="num" id="sd-total-yr">${fmt$(selfWeekly * 52)}</td></tr>
     </tbody></table>`;
-    selfHtml += buildRouteTable(model);
     selfSection.innerHTML = selfHtml;
+    const rtc = document.getElementById('routeTableContainer');
+    if (rtc) rtc.innerHTML = buildRouteTable(model);
   } else {
     // Update values in-place without destroying sliders
     document.getElementById('sd-truck-rate').textContent = fmt$(getSlider('truckPayment')) + '/mo';
@@ -841,8 +845,8 @@ function renderBreakdown(model) {
     document.getElementById('sd-driver-yr').textContent = fmt$(model.weeklyDriverCost * 52);
     document.getElementById('sd-total-wk').textContent = fmt$(selfWeekly);
     document.getElementById('sd-total-yr').textContent = fmt$(selfWeekly * 52);
-    const rtEl = document.getElementById('routeCompare');
-    if (rtEl) rtEl.outerHTML = buildRouteTable(model);
+    const rtc = document.getElementById('routeTableContainer');
+    if (rtc) rtc.innerHTML = buildRouteTable(model);
   }
 }
 
