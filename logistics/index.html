@@ -894,7 +894,7 @@ async function calcRoute() {
     // Draw route on map
     if (routeLayer) deliveryMap.removeLayer(routeLayer);
     routeLayer = L.geoJSON(trip.geometry, {
-      style: { color: '#4ecca3', weight: 3, opacity: 0.7 }
+      style: { color: '#2d8a6e', weight: 5, opacity: 0.9 }
     }).addTo(deliveryMap);
 
     // Get the store counts by type
