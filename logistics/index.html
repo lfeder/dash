@@ -582,6 +582,77 @@ function toggleDetail(id) {
   }
 }
 
+function buildRouteTable(model) {
+  const chainTypes = ['foodland', 'safeway', 'kta'];
+  const comboLabels = { foodland: 'Foodland', safeway: 'Safeway', kta: 'KTA' };
+  const stopMinutes = 15;
+  const driverWageVal = getSlider('driverWage');
+  const driverHrs = getSlider('driverHours');
+  const delivPerWeek = model.delivPerWeek;
+
+  const rows = [];
+  for (let i = 1; i < 8; i++) {
+    const combo = {};
+    chainTypes.forEach((c, idx) => { combo[c] = !!(i & (1 << idx)); });
+    const key = cacheKey(combo);
+    const trip = getRouteDataForCombo(key, excludeOceanView);
+    if (!trip) continue;
+    const labels = chainTypes.filter(c => combo[c]).map(c => comboLabels[c]).join(' + ');
+    const stores = STORES.filter(s => combo[s.type] && !(excludeOceanView && s.name.includes('Ocean View')));
+    const storeCount = stores.length;
+    const miles = Math.round(trip.distance / 1609.34);
+    const driveMin = Math.round(trip.duration / 60);
+    const stopTime = storeCount * stopMinutes;
+    const totalMin = driveMin + stopTime;
+    const hasFoodland = combo.foodland;
+    const driverDays = hasFoodland ? 4 : 2;
+    const fuelWk = (miles / 8) * 5 * delivPerWeek;
+    const driverWk = driverWageVal * 1.25 * driverHrs * driverDays;
+    const fixedWk = (getSlider('truckPayment') + getSlider('insurance') + getSlider('maintenance')) / (52/12);
+    const totalWk = fixedWk + fuelWk + driverWk;
+    const isActive = key === cacheKey(selectedChains);
+    rows.push({ labels, storeCount, miles, driveMin, stopTime, totalMin, driverDays, totalWk, isActive });
+  }
+
+  rows.sort((a, b) => a.miles - b.miles);
+
+  let html = '<div id="routeCompare" style="margin-top:16px;">';
+  html += '<h3 style="color:#4ecca3;font-size:0.95rem;margin-bottom:4px;">Delivery Routes (shortest to longest)</h3>';
+  html += '<div style="color:#777;font-size:0.75rem;margin-bottom:8px;">';
+  html += 'Each store = ~15 min stop. ';
+  html += 'Foodland stores span both Hilo &amp; Kona sides, requiring 4 driver days/wk (Mon/Thu Hilo, Tue/Fri Kona). ';
+  html += 'KTA and Safeway only need 2 days/wk.';
+  html += '</div>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:0.8rem;">';
+  html += '<thead><tr>';
+  html += '<th style="text-align:left;padding:5px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">Route</th>';
+  html += '<th class="num" style="padding:5px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">Stores</th>';
+  html += '<th class="num" style="padding:5px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">Miles</th>';
+  html += '<th class="num" style="padding:5px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">Drive</th>';
+  html += '<th class="num" style="padding:5px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">w/ Stops</th>';
+  html += '<th class="num" style="padding:5px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">Days/wk</th>';
+  html += '<th class="num" style="padding:5px 8px;border-bottom:2px solid #0f3460;color:#4ecca3;">Total $/wk</th>';
+  html += '</tr></thead><tbody>';
+
+  rows.forEach(r => {
+    const driveH = Math.floor(r.driveMin / 60), driveM = r.driveMin % 60;
+    const totalH = Math.floor(r.totalMin / 60), totalM = r.totalMin % 60;
+    const rowStyle = r.isActive ? ' style="background:rgba(78,204,163,0.1)"' : '';
+    html += `<tr${rowStyle}>
+      <td style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${r.labels}</td>
+      <td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${r.storeCount}</td>
+      <td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${r.miles}</td>
+      <td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${driveH}h ${driveM}m</td>
+      <td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${totalH}h ${totalM}m</td>
+      <td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);">${r.driverDays}</td>
+      <td class="num" style="padding:5px 8px;border-bottom:1px solid rgba(15,52,96,0.5);color:#4ecca3;font-weight:600;">${fmt$(r.totalWk)}</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table></div>';
+  return html;
+}
+
 function renderBreakdown(model) {
   const { retailerCosts, selfTotalMonthly, WEEKS_PER_MONTH } = model;
   const section = document.getElementById('breakdownSection');
@@ -748,6 +819,7 @@ function renderBreakdown(model) {
       <input type="hidden" id="driverHours" value="8">
       <tr class="total-row"><td>Total Self-Delivery</td><td class="num" id="sd-total-wk">${fmt$(selfWeekly)}</td><td class="num" id="sd-total-yr">${fmt$(selfWeekly * 52)}</td></tr>
     </tbody></table>`;
+    selfHtml += buildRouteTable(model);
     selfSection.innerHTML = selfHtml;
   } else {
     // Update values in-place without destroying sliders
@@ -769,6 +841,8 @@ function renderBreakdown(model) {
     document.getElementById('sd-driver-yr').textContent = fmt$(model.weeklyDriverCost * 52);
     document.getElementById('sd-total-wk').textContent = fmt$(selfWeekly);
     document.getElementById('sd-total-yr').textContent = fmt$(selfWeekly * 52);
+    const rtEl = document.getElementById('routeCompare');
+    if (rtEl) rtEl.outerHTML = buildRouteTable(model);
   }
 }
 
