@@ -96,10 +96,9 @@
 <div id="main">
   <div style="display:flex;align-items:center;gap:24px;margin-bottom:16px;flex-wrap:wrap;">
     <div class="customer-tabs" style="margin-bottom:0;">
-      <div class="customer-tab active" data-customer="all" onclick="selectCustomer('all')">All Big Island</div>
-      <div class="customer-tab" data-customer="foodland" onclick="selectCustomer('foodland')">Foodland</div>
-      <div class="customer-tab" data-customer="safeway" onclick="selectCustomer('safeway')">Safeway</div>
-      <div class="customer-tab" data-customer="kta" onclick="selectCustomer('kta')">KTA</div>
+      <div class="customer-tab active" data-chain="foodland" onclick="toggleChain('foodland')">Foodland</div>
+      <div class="customer-tab active" data-chain="safeway" onclick="toggleChain('safeway')">Safeway</div>
+      <div class="customer-tab active" data-chain="kta" onclick="toggleChain('kta')">KTA</div>
     </div>
     <div class="customer-tabs" style="margin-bottom:0;">
       <div class="customer-tab" data-year="2025" onclick="selectYear('2025')">2025</div>
@@ -211,7 +210,7 @@ function fetchTab(gid) {
 
 /* ── State ── */
 let allRows = [];
-let selectedCustomer = 'all';
+const selectedChains = { foodland: true, safeway: true, kta: true };
 let selectedYear = '2026';
 
 /* ── Customer mapping ──
@@ -234,7 +233,7 @@ const BI_DISTRIBUTORS = ['AP Kona', 'AP Kona - Foodland', 'Honaunau Market', 'Hi
 // Store counts
 const STORE_COUNTS = { foodland: 9, safeway: 2, kta: 7 };
 
-const SLIDER_DEFAULTS = { truckPayment: 2000, insurance: 200, fuel: 80, driverWage: 22, driverHours: 8, maintenance: 500 };
+const SLIDER_DEFAULTS = { truckPayment: 2000, insurance: 200, driverWage: 22, driverHours: 8, maintenance: 500 };
 
 function getSlider(id) { const el = document.getElementById(id); return el ? Number(el.value) : (SLIDER_DEFAULTS[id] || 0); }
 
@@ -335,7 +334,6 @@ function computeModel() {
   const delivPerWeek = getSlider('delivPerWeek');
   const truckPayment = getSlider('truckPayment');
   const insurance = getSlider('insurance');
-  const fuelPerDay = getSlider('fuel');
   const driverWage = getSlider('driverWage');
   const driverHours = getSlider('driverHours');
   const maintenanceMo = getSlider('maintenance');
@@ -433,11 +431,30 @@ function computeModel() {
     };
   });
 
-  // Self-delivery: total fixed cost shared proportionally
+  // Self-delivery: route-based fuel and dynamic driver days
   const totalWeeklyCases = Object.values(retailers).reduce((s, r) => s + r.weeklyCases, 0);
+
+  // Determine which sides of island have stores (for selected chains)
+  const activeStores = STORES.filter(s => selectedChains[s.type]);
+  const hasHilo = activeStores.some(s => s.side === 'hilo');
+  const hasKona = activeStores.some(s => s.side === 'kona');
+  const numSides = (hasHilo ? 1 : 0) + (hasKona ? 1 : 0);
+  const driverDaysPerWeek = delivPerWeek * numSides;
+
+  // Fuel from route miles: 8mpg, $5/gal
+  const routeKey = cacheKey(selectedChains);
+  const routeData = ROUTE_DATA[routeKey];
+  const routeMiles = routeData ? Math.round(routeData.distance / 1609.34) : 0;
+  const fuelPerTrip = (routeMiles / 8) * 5; // full loop cost
+  const weeklyFuel = fuelPerTrip * delivPerWeek;
+
+  // Driver cost
+  const weeklyDriverCost = driverWage * 1.25 * driverHours * driverDaysPerWeek;
+
   const selfFixedMonthly = truckPayment + insurance + maintenanceMo;
-  const selfVariableMonthly = (fuelPerDay + driverWage * 1.25 * driverHours) * delivPerWeek * WEEKS_PER_MONTH;
-  const selfTotalMonthly = selfFixedMonthly + selfVariableMonthly;
+  const selfVariableWeekly = weeklyFuel + weeklyDriverCost;
+  const selfTotalWeekly = (selfFixedMonthly / WEEKS_PER_MONTH) + selfVariableWeekly;
+  const selfTotalMonthly = selfTotalWeekly * WEEKS_PER_MONTH;
 
   Object.entries(retailerCosts).forEach(([key, rc]) => {
     const share = totalWeeklyCases > 0 ? retailers[key].weeklyCases / totalWeeklyCases : 0;
@@ -445,7 +462,7 @@ function computeModel() {
     rc.selfShare = share;
   });
 
-  return { retailers, retailerCosts, selfTotalMonthly, selfFixedMonthly, selfVariableMonthly, totalWeeklyCases, markup, delivPerWeek, WEEKS_PER_MONTH };
+  return { retailers, retailerCosts, selfTotalMonthly, selfFixedMonthly, selfVariableWeekly, totalWeeklyCases, markup, delivPerWeek, WEEKS_PER_MONTH, driverDaysPerWeek, weeklyFuel, weeklyDriverCost, routeMiles, numSides };
 }
 
 function fmt$(n) { return '$' + Math.round(n).toLocaleString(); }
@@ -486,11 +503,26 @@ function update() {
   renderBreakdown(model);
 }
 
-function selectCustomer(customer) {
-  selectedCustomer = customer;
-  document.querySelectorAll('.customer-tab[data-customer]').forEach(t =>
-    t.classList.toggle('active', t.dataset.customer === customer)
+function toggleChain(chain) {
+  selectedChains[chain] = !selectedChains[chain];
+  // Ensure at least one chain is selected
+  if (!selectedChains.foodland && !selectedChains.safeway && !selectedChains.kta) {
+    selectedChains[chain] = true;
+    return;
+  }
+  document.querySelectorAll('.customer-tab[data-chain]').forEach(t =>
+    t.classList.toggle('active', selectedChains[t.dataset.chain])
   );
+  // Sync map legend
+  Object.entries(enabledChains).forEach(([k]) => { enabledChains[k] = selectedChains[k]; });
+  if (deliveryMap) {
+    Object.entries(markerLayers).forEach(([type, layer]) => {
+      if (type === 'farm') return;
+      if (selectedChains[type]) deliveryMap.addLayer(layer);
+      else deliveryMap.removeLayer(layer);
+    });
+    showRoute();
+  }
   update();
 }
 
@@ -510,7 +542,7 @@ function renderResults(model) {
   const { retailerCosts, WEEKS_PER_MONTH } = model;
 
   let distTotal = 0, hfaTotal = 0, selfTotal = 0;
-  const keys = selectedCustomer === 'all' ? Object.keys(retailerCosts) : [selectedCustomer];
+  const keys = Object.keys(retailerCosts).filter(k => selectedChains[k]);
 
   keys.forEach(k => {
     if (!retailerCosts[k]) return;
@@ -573,7 +605,7 @@ function renderBreakdown(model) {
   let totGross = 0, totNet = 0, totPal = 0, totStores = 0, totDist = 0, totHfa = 0, totSelf = 0;
 
   Object.entries(retailerCosts).forEach(([key, rc]) => {
-    const highlight = selectedCustomer === key ? ' style="background:rgba(78,204,163,0.1)"' : '';
+    const highlight = selectedChains[key] ? ' style="background:rgba(78,204,163,0.1)"' : '';
     const detailId = 'detail-' + key;
     const hasData = rc.data.rows.length > 0;
 
@@ -675,12 +707,9 @@ function renderBreakdown(model) {
   section.innerHTML = html;
 
   // Self-delivery cost breakdown — separate card with inline sliders
-  const delivDays = getSlider('delivPerWeek');
   const selfSection = document.getElementById('selfDelivSection');
   const driverHrs = getSlider('driverHours');
-  const driverWage = getSlider('driverWage');
-  const driverWeekly = driverWage * 1.25 * driverHrs * delivDays;
-  const fuelWeekly = getSlider('fuel') * delivDays;
+  const driverWageVal = getSlider('driverWage');
   const selfWeekly = selfTotalMonthly / WEEKS_PER_MONTH;
   const truckWk = getSlider('truckPayment') / WEEKS_PER_MONTH;
   const insWk = getSlider('insurance') / WEEKS_PER_MONTH;
@@ -707,14 +736,14 @@ function renderBreakdown(model) {
         <td class="num" id="sd-maint-yr">${fmt$(maintWk * 52)}</td>
       </tr>
       <tr>
-        <td><span id="sd-fuel-label">Fuel ($/day, ${delivDays} days/wk)</span> <input type="range" id="fuel" min="20" max="200" value="${getSlider('fuel')}" step="10" oninput="update()" style="${sliderCss}"> <span style="color:#4ecca3;font-weight:600" id="sd-fuel-rate">$${getSlider('fuel')}/day</span></td>
-        <td class="num" id="sd-fuel-wk">${fmt$(fuelWeekly)}</td>
-        <td class="num" id="sd-fuel-yr">${fmt$(fuelWeekly * 52)}</td>
+        <td><span id="sd-fuel-label">Fuel (${model.routeMiles} mi route ÷ 8mpg × $5/gal × ${model.delivPerWeek}/wk)</span></td>
+        <td class="num" id="sd-fuel-wk">${fmt$(model.weeklyFuel)}</td>
+        <td class="num" id="sd-fuel-yr">${fmt$(model.weeklyFuel * 52)}</td>
       </tr>
       <tr>
-        <td><span id="sd-driver-label">Driver ($/hr x1.25, ${driverHrs}hr/day, ${delivDays} days/wk)</span> <input type="range" id="driverWage" min="15" max="40" value="${driverWage}" step="1" oninput="update()" style="${sliderCss}"> <span style="color:#4ecca3;font-weight:600" id="sd-driver-rate">$${driverWage}/hr</span></td>
-        <td class="num" id="sd-driver-wk">${fmt$(driverWeekly)}</td>
-        <td class="num" id="sd-driver-yr">${fmt$(driverWeekly * 52)}</td>
+        <td><span id="sd-driver-label">Driver ($${driverWageVal}/hr × 1.25, ${driverHrs}hr/day, ${model.driverDaysPerWeek} days/wk)</span> <input type="range" id="driverWage" min="15" max="40" value="${driverWageVal}" step="1" oninput="update()" style="${sliderCss}"> <span style="color:#4ecca3;font-weight:600" id="sd-driver-rate">$${driverWageVal}/hr</span></td>
+        <td class="num" id="sd-driver-wk">${fmt$(model.weeklyDriverCost)}</td>
+        <td class="num" id="sd-driver-yr">${fmt$(model.weeklyDriverCost * 52)}</td>
       </tr>
       <input type="hidden" id="driverHours" value="8">
       <tr class="total-row"><td>Total Self-Delivery</td><td class="num" id="sd-total-wk">${fmt$(selfWeekly)}</td><td class="num" id="sd-total-yr">${fmt$(selfWeekly * 52)}</td></tr>
@@ -731,14 +760,13 @@ function renderBreakdown(model) {
     document.getElementById('sd-maint-rate').textContent = fmt$(getSlider('maintenance')) + '/mo';
     document.getElementById('sd-maint-wk').textContent = fmt$(maintWk);
     document.getElementById('sd-maint-yr').textContent = fmt$(maintWk * 52);
-    document.getElementById('sd-fuel-label').textContent = `Fuel ($/day, ${delivDays} days/wk)`;
-    document.getElementById('sd-fuel-rate').textContent = `$${getSlider('fuel')}/day`;
-    document.getElementById('sd-fuel-wk').textContent = fmt$(fuelWeekly);
-    document.getElementById('sd-fuel-yr').textContent = fmt$(fuelWeekly * 52);
-    document.getElementById('sd-driver-label').textContent = `Driver ($/hr x1.25, ${driverHrs}hr/day, ${delivDays} days/wk)`;
-    document.getElementById('sd-driver-rate').textContent = `$${driverWage}/hr`;
-    document.getElementById('sd-driver-wk').textContent = fmt$(driverWeekly);
-    document.getElementById('sd-driver-yr').textContent = fmt$(driverWeekly * 52);
+    document.getElementById('sd-fuel-label').textContent = `Fuel (${model.routeMiles} mi route ÷ 8mpg × $5/gal × ${model.delivPerWeek}/wk)`;
+    document.getElementById('sd-fuel-wk').textContent = fmt$(model.weeklyFuel);
+    document.getElementById('sd-fuel-yr').textContent = fmt$(model.weeklyFuel * 52);
+    document.getElementById('sd-driver-label').textContent = `Driver ($${driverWageVal}/hr × 1.25, ${driverHrs}hr/day, ${model.driverDaysPerWeek} days/wk)`;
+    document.getElementById('sd-driver-rate').textContent = `$${driverWageVal}/hr`;
+    document.getElementById('sd-driver-wk').textContent = fmt$(model.weeklyDriverCost);
+    document.getElementById('sd-driver-yr').textContent = fmt$(model.weeklyDriverCost * 52);
     document.getElementById('sd-total-wk').textContent = fmt$(selfWeekly);
     document.getElementById('sd-total-yr').textContent = fmt$(selfWeekly * 52);
   }
@@ -747,7 +775,7 @@ function renderBreakdown(model) {
 
 
 /* ── Save/Load slider settings ── */
-const SLIDER_IDS = ['markup', 'apKonaFlPct', 'honSafPct', 'hiloKtaPct', 'palletCost', 'dropCost', 'delivPerWeek', 'truckPayment', 'insurance', 'fuel', 'driverWage', 'maintenance'];
+const SLIDER_IDS = ['markup', 'apKonaFlPct', 'honSafPct', 'hiloKtaPct', 'palletCost', 'dropCost', 'delivPerWeek', 'truckPayment', 'insurance', 'driverWage', 'maintenance'];
 const STORAGE_KEY = 'logistics-sliders';
 
 function saveSliders() {
@@ -781,26 +809,26 @@ const FARM = { name: 'Hawaii Farming', lat: 19.9710, lng: -155.6830, type: 'farm
 
 const STORES = [
   // Foodland / Sack N Save / Malama Market
-  { name: '#26 Sack N Save Pu\'ainako', lat: 19.6920, lng: -155.0670, type: 'foodland' },
-  { name: '#21 Sack N Save Hilo', lat: 19.7220, lng: -155.0850, type: 'foodland' },
-  { name: '#41 Foodland Kea\'au', lat: 19.6225, lng: -155.0378, type: 'foodland' },
-  { name: '#2802 MM Pahoa', lat: 19.4930, lng: -154.9460, type: 'foodland' },
-  { name: '#2808 MM Honoka\'a', lat: 20.0791, lng: -155.4699, type: 'foodland' },
-  { name: '#39 Foodland Farms Mauna Lani', lat: 19.9298, lng: -155.8687, type: 'foodland' },
-  { name: '#38 Foodland Waimea', lat: 20.0207, lng: -155.6668, type: 'foodland' },
-  { name: '#25 Sack N Save Kona', lat: 19.6395, lng: -155.9920, type: 'foodland' },
-  { name: '#2805 MM Ocean View', lat: 19.3290, lng: -155.7650, type: 'foodland' },
+  { name: '#26 Sack N Save Pu\'ainako', addr: '2100 Kanoelehua Ave, Hilo', lat: 19.6920, lng: -155.0670, type: 'foodland', side: 'hilo' },
+  { name: '#21 Sack N Save Hilo', addr: '250 Kinoole St, Hilo', lat: 19.7220, lng: -155.0850, type: 'foodland', side: 'hilo' },
+  { name: '#41 Foodland Kea\'au', addr: '16-586 Old Volcano Rd, Keaau', lat: 19.6225, lng: -155.0378, type: 'foodland', side: 'hilo' },
+  { name: '#2802 MM Pahoa', addr: 'Pahoa Village Rd, Pahoa', lat: 19.4930, lng: -154.9460, type: 'foodland', side: 'hilo' },
+  { name: '#2808 MM Honoka\'a', addr: '45-5002 Lehua St, Honokaa', lat: 20.0791, lng: -155.4699, type: 'foodland', side: 'hilo' },
+  { name: '#39 Foodland Farms Mauna Lani', addr: '68-1330 Mauna Lani Dr, Kamuela', lat: 19.9298, lng: -155.8687, type: 'foodland', side: 'kona' },
+  { name: '#38 Foodland Waimea', addr: '67-1185 Hawaii Belt Rd, Kamuela', lat: 20.0207, lng: -155.6668, type: 'foodland', side: 'kona' },
+  { name: '#25 Sack N Save Kona', addr: '75-5595 Palani Rd, Kailua-Kona', lat: 19.6395, lng: -155.9920, type: 'foodland', side: 'kona' },
+  { name: '#2805 MM Ocean View', addr: '92-8701 Hawaii Belt Rd, Ocean View', lat: 19.3358, lng: -155.7670, type: 'foodland', side: 'kona' },
   // Safeway
-  { name: 'Safeway Kona', lat: 19.6375, lng: -155.9878, type: 'safeway' },
-  { name: 'Safeway Hilo', lat: 19.6988, lng: -155.0625, type: 'safeway' },
+  { name: 'Safeway Kona', addr: '75-971 Henry St, Kailua-Kona', lat: 19.6375, lng: -155.9878, type: 'safeway', side: 'kona' },
+  { name: 'Safeway Hilo', addr: '381 E Makaala St, Hilo', lat: 19.6988, lng: -155.0625, type: 'safeway', side: 'hilo' },
   // KTA
-  { name: 'KTA Kailua-Kona', lat: 19.6400, lng: -155.9935, type: 'kta' },
-  { name: 'KTA Keauhou', lat: 19.5758, lng: -155.9690, type: 'kta' },
-  { name: 'KTA Kealakekua', lat: 19.5140, lng: -155.9200, type: 'kta' },
-  { name: 'KTA Waimea', lat: 20.0230, lng: -155.6700, type: 'kta' },
-  { name: 'KTA Waikoloa Village', lat: 19.9360, lng: -155.7870, type: 'kta' },
-  { name: 'KTA Downtown Hilo', lat: 19.7240, lng: -155.0900, type: 'kta' },
-  { name: 'KTA Puainako', lat: 19.6960, lng: -155.0640, type: 'kta' },
+  { name: 'KTA Kailua-Kona', addr: '74-5594 Palani Rd, Kailua-Kona', lat: 19.6400, lng: -155.9935, type: 'kta', side: 'kona' },
+  { name: 'KTA Keauhou', addr: '78-6831 Alii Dr, Kailua-Kona', lat: 19.5758, lng: -155.9690, type: 'kta', side: 'kona' },
+  { name: 'KTA Kealakekua', addr: '81-6602 Mamalahoa Hwy, Kealakekua', lat: 19.5140, lng: -155.9200, type: 'kta', side: 'kona' },
+  { name: 'KTA Waimea', addr: '65-1158 Mamalahoa Hwy, Kamuela', lat: 20.0230, lng: -155.6700, type: 'kta', side: 'kona' },
+  { name: 'KTA Waikoloa Village', addr: '68-3916 Paniolo Ave, Waikoloa', lat: 19.9360, lng: -155.7870, type: 'kta', side: 'kona' },
+  { name: 'KTA Downtown Hilo', addr: '321 Keawe St, Hilo', lat: 19.7240, lng: -155.0900, type: 'kta', side: 'hilo' },
+  { name: 'KTA Puainako', addr: '50 E Puainako St, Hilo', lat: 19.6960, lng: -155.0640, type: 'kta', side: 'hilo' },
 ];
 
 const MARKER_COLORS = { farm: '#4ecca3', foodland: '#3498db', safeway: '#e74c3c', kta: '#f39c12' };
@@ -828,7 +856,7 @@ function initMap() {
     const color = MARKER_COLORS[loc.type];
     const marker = L.circleMarker([loc.lat, loc.lng], {
       radius: radius || 7, fillColor: color, color: '#222', weight: 1, fillOpacity: 0.9
-    }).bindPopup(`<b>${loc.name}</b><br>${MARKER_LABELS[loc.type]}`);
+    }).bindPopup(`<b>${loc.name}</b><br>${loc.addr || ''}<br>${MARKER_LABELS[loc.type]}`);
     markerLayers[loc.type].addLayer(marker);
   }
 
