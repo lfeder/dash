@@ -434,7 +434,7 @@ function computeModel() {
   });
 
   // Self-delivery: route-based fuel and dynamic driver days
-  const totalWeeklyCases = Object.values(retailers).reduce((s, r) => s + r.weeklyCases, 0);
+  const totalWeeklyCases = Object.entries(retailers).reduce((s, [k, r]) => s + (selectedChains[k] ? r.weeklyCases : 0), 0);
 
   // Determine which sides of island have stores (for selected chains)
   const activeStores = STORES.filter(s => selectedChains[s.type] && !(excludeOceanView && s.name.includes('Ocean View')));
@@ -460,7 +460,7 @@ function computeModel() {
   const selfTotalMonthly = selfTotalWeekly * WEEKS_PER_MONTH;
 
   Object.entries(retailerCosts).forEach(([key, rc]) => {
-    const share = totalWeeklyCases > 0 ? retailers[key].weeklyCases / totalWeeklyCases : 0;
+    const share = (selectedChains[key] && totalWeeklyCases > 0) ? retailers[key].weeklyCases / totalWeeklyCases : 0;
     rc.selfCostMonthly = selfTotalMonthly * share;
     rc.selfShare = share;
   });
