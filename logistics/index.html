@@ -459,11 +459,68 @@ function computeModel() {
   const selfTotalWeekly = (selfFixedMonthly / WEEKS_PER_MONTH) + selfVariableWeekly;
   const selfTotalMonthly = selfTotalWeekly * WEEKS_PER_MONTH;
 
-  Object.entries(retailerCosts).forEach(([key, rc]) => {
-    const share = (selectedChains[key] && totalWeeklyCases > 0) ? retailers[key].weeklyCases / totalWeeklyCases : 0;
-    rc.selfCostMonthly = selfTotalMonthly * share;
-    rc.selfShare = share;
-  });
+  // Fair cost allocation using Shapley values (average marginal contribution)
+  // Computes self-delivery cost for any subset of chains
+  function selfCostForSubset(subset) {
+    if (subset.length === 0) return 0;
+    const subChains = {};
+    subset.forEach(k => { subChains[k] = true; });
+    const subKey = Object.keys(subChains).sort().join(',');
+    const subRoute = getRouteData(subKey);
+    const subMiles = subRoute ? Math.round(subRoute.distance / 1609.34) : 0;
+    const subFuel = (subMiles / 8) * 5 * delivPerWeek;
+    const subDays = subChains.foodland ? 4 : 2;
+    const subDriver = driverWage * 1.25 * driverHours * subDays;
+    return (selfFixedMonthly / WEEKS_PER_MONTH) + subFuel + subDriver;
+  }
+
+  const activeChainKeys = Object.keys(selectedChains).filter(k => selectedChains[k]);
+
+  if (activeChainKeys.length <= 1) {
+    // Single chain or none: 100% allocation
+    Object.entries(retailerCosts).forEach(([key, rc]) => {
+      rc.selfCostMonthly = selectedChains[key] ? selfTotalMonthly : 0;
+      rc.selfShare = selectedChains[key] ? 1 : 0;
+    });
+  } else {
+    // Shapley: average marginal contribution across all orderings
+    const shapley = {};
+    activeChainKeys.forEach(k => { shapley[k] = 0; });
+
+    function permutations(arr) {
+      if (arr.length <= 1) return [arr];
+      const result = [];
+      arr.forEach((item, i) => {
+        const rest = [...arr.slice(0, i), ...arr.slice(i + 1)];
+        permutations(rest).forEach(p => result.push([item, ...p]));
+      });
+      return result;
+    }
+
+    const perms = permutations(activeChainKeys);
+    perms.forEach(perm => {
+      let prevCost = 0;
+      const seen = [];
+      perm.forEach(chain => {
+        seen.push(chain);
+        const cost = selfCostForSubset(seen);
+        shapley[chain] += (cost - prevCost);
+        prevCost = cost;
+      });
+    });
+
+    const selfTotalWeeklyCheck = selfCostForSubset(activeChainKeys);
+    Object.entries(retailerCosts).forEach(([key, rc]) => {
+      if (selectedChains[key]) {
+        const weeklyShare = shapley[key] / perms.length;
+        rc.selfShare = weeklyShare / selfTotalWeeklyCheck;
+        rc.selfCostMonthly = weeklyShare * WEEKS_PER_MONTH;
+      } else {
+        rc.selfCostMonthly = 0;
+        rc.selfShare = 0;
+      }
+    });
+  }
 
   return { retailers, retailerCosts, selfTotalMonthly, selfFixedMonthly, selfVariableWeekly, totalWeeklyCases, markup, delivPerWeek, WEEKS_PER_MONTH, driverDaysPerWeek, weeklyFuel, weeklyDriverCost, routeMiles, numSides };
 }
