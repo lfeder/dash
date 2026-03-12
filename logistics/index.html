@@ -151,9 +151,16 @@
       <div class="results-grid" id="resultsGrid"></div>
       <div class="breakdown" id="breakdownSection"></div>
       <div class="breakdown" id="selfDelivSection"></div>
+      <div class="breakdown" id="mapSection">
+        <h3>Delivery Route Map</h3>
+        <div id="map" style="height:500px;border-radius:6px;margin-bottom:10px;"></div>
+        <div id="routeInfo" style="font-size:0.85rem;color:#aaa;"></div>
+      </div>
     </div>
   </div>
 </div>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
 /* ── Data loading (same pattern as sales dashboard) ── */
@@ -767,6 +774,129 @@ function loadSliders() {
   } catch(e) { console.warn('Failed to load slider settings', e); }
 }
 
+/* ── Map ── */
+const FARM = { name: 'Hawaii Farming', lat: 19.9355, lng: -155.7917, type: 'farm' };
+
+const STORES = [
+  // Foodland (including Sack N Save - same parent company)
+  { name: 'Foodland Kona Commons', lat: 19.6422, lng: -155.9897, type: 'foodland' },
+  { name: 'Foodland Waikoloa', lat: 19.9139, lng: -155.8611, type: 'foodland' },
+  { name: 'Foodland Farms Mauna Lani', lat: 19.9298, lng: -155.8687, type: 'foodland' },
+  { name: 'Foodland Kamuela', lat: 19.9973, lng: -155.7940, type: 'foodland' },
+  { name: 'Foodland Keaau', lat: 19.6225, lng: -155.0378, type: 'foodland' },
+  { name: 'Sack N Save Kona', lat: 19.6395, lng: -155.9920, type: 'foodland' },
+  { name: 'Sack N Save Hilo', lat: 19.7220, lng: -155.0850, type: 'foodland' },
+  { name: 'Sack N Save Puainako', lat: 19.6920, lng: -155.0670, type: 'foodland' },
+  { name: 'Foodland Crossroads Kona', lat: 19.6367, lng: -155.9870, type: 'foodland' },
+  // Safeway
+  { name: 'Safeway Kona', lat: 19.6375, lng: -155.9878, type: 'safeway' },
+  { name: 'Safeway Hilo', lat: 19.6988, lng: -155.0625, type: 'safeway' },
+  // KTA
+  { name: 'KTA Kailua-Kona', lat: 19.6400, lng: -155.9935, type: 'kta' },
+  { name: 'KTA Keauhou', lat: 19.5758, lng: -155.9690, type: 'kta' },
+  { name: 'KTA Kealakekua', lat: 19.5140, lng: -155.9200, type: 'kta' },
+  { name: 'KTA Waimea', lat: 20.0230, lng: -155.6700, type: 'kta' },
+  { name: 'KTA Waikoloa Village', lat: 19.9360, lng: -155.7870, type: 'kta' },
+  { name: 'KTA Downtown Hilo', lat: 19.7240, lng: -155.0900, type: 'kta' },
+  { name: 'KTA Puainako', lat: 19.6960, lng: -155.0640, type: 'kta' },
+];
+
+const MARKER_COLORS = { farm: '#4ecca3', foodland: '#3498db', safeway: '#e74c3c', kta: '#f39c12' };
+let deliveryMap;
+
+function initMap() {
+  deliveryMap = L.map('map', { scrollWheelZoom: true }).setView([19.75, -155.5], 9);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors', maxZoom: 18
+  }).addTo(deliveryMap);
+
+  function dot(loc, radius) {
+    const color = MARKER_COLORS[loc.type];
+    L.circleMarker([loc.lat, loc.lng], {
+      radius: radius || 7, fillColor: color, color: '#222', weight: 1, fillOpacity: 0.9
+    }).addTo(deliveryMap).bindPopup(`<b>${loc.name}</b><br>${loc.type.toUpperCase()}`);
+  }
+
+  // Farm marker (larger)
+  dot(FARM, 10);
+
+  // Store markers
+  STORES.forEach(s => dot(s));
+
+  // Add legend
+  const legend = L.control({ position: 'bottomright' });
+  legend.onAdd = function() {
+    const div = L.DomUtil.create('div', '');
+    div.style.cssText = 'background:#16213e;padding:8px 12px;border-radius:6px;font-size:0.75rem;color:#e0e0e0;line-height:1.8;';
+    div.innerHTML = Object.entries(MARKER_COLORS).map(([k, c]) =>
+      `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${c};margin-right:6px;vertical-align:middle;"></span>${k === 'farm' ? 'Hawaii Farming' : k.charAt(0).toUpperCase() + k.slice(1)}`
+    ).join('<br>');
+    return div;
+  };
+  legend.addTo(deliveryMap);
+
+  // Calculate optimized delivery route via OSRM
+  calcRoute();
+}
+
+async function calcRoute() {
+  const info = document.getElementById('routeInfo');
+  info.textContent = 'Calculating delivery route...';
+
+  // Build waypoints: farm → all stores → farm (round trip)
+  // Use OSRM trip endpoint for optimized ordering
+  const allPoints = [FARM, ...STORES];
+  const coords = allPoints.map(p => `${p.lng},${p.lat}`).join(';');
+  const url = `https://router.project-osrm.org/trip/v1/driving/${coords}?source=first&roundtrip=true&overview=full&geometries=geojson`;
+
+  try {
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (data.code !== 'Ok') { info.textContent = 'Route calculation failed.'; return; }
+
+    const trip = data.trips[0];
+    const totalMinutes = Math.round(trip.duration / 60);
+    const totalMiles = Math.round(trip.distance / 1609.34);
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+
+    // Draw route on map
+    L.geoJSON(trip.geometry, {
+      style: { color: '#4ecca3', weight: 3, opacity: 0.7 }
+    }).addTo(deliveryMap);
+
+    // Get the store counts by type
+    const foodlandCount = STORES.filter(s => s.type === 'foodland').length;
+    const safewayCount = STORES.filter(s => s.type === 'safeway').length;
+    const ktaCount = STORES.filter(s => s.type === 'kta').length;
+    const totalStores = STORES.length;
+
+    // Estimate time per stop (loading/unloading)
+    const stopMinutes = 15;
+    const totalStopTime = totalStores * stopMinutes;
+    const totalStopHrs = Math.floor(totalStopTime / 60);
+    const totalStopMins = totalStopTime % 60;
+    const grandTotal = totalMinutes + totalStopTime;
+    const grandHrs = Math.floor(grandTotal / 60);
+    const grandMins = grandTotal % 60;
+
+    info.innerHTML = `
+      <div style="display:grid;grid-template-columns:auto auto;gap:4px 16px;max-width:500px;">
+        <span style="color:#4ecca3;font-weight:600">Stores:</span>
+        <span>${totalStores} total (${foodlandCount} Foodland, ${safewayCount} Safeway, ${ktaCount} KTA)</span>
+        <span style="color:#4ecca3;font-weight:600">Driving:</span>
+        <span>${totalMiles} miles, ${hours}h ${mins}m</span>
+        <span style="color:#4ecca3;font-weight:600">Stop time:</span>
+        <span>~${stopMinutes} min/store × ${totalStores} = ${totalStopHrs}h ${totalStopMins}m</span>
+        <span style="color:#4ecca3;font-weight:600;border-top:1px solid #0f3460;padding-top:4px">Total:</span>
+        <span style="border-top:1px solid #0f3460;padding-top:4px;font-weight:600;color:#4ecca3">${grandHrs}h ${grandMins}m per full delivery run</span>
+      </div>`;
+  } catch(e) {
+    console.error('Route calc error:', e);
+    info.textContent = 'Could not calculate route (offline or API error).';
+  }
+}
+
 /* ── Init ── */
 async function loadData() {
   const results = await Promise.all(TABS.map(t => fetchTab(t.gid)));
@@ -787,6 +917,7 @@ async function loadData() {
   document.getElementById('main').style.display = 'block';
   loadSliders();
   update();
+  initMap();
 }
 
 // Version label
