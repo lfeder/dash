@@ -775,7 +775,8 @@ function loadSliders() {
 }
 
 /* ── Map ── */
-const FARM = { name: 'Hawaii Farming', lat: 19.9355, lng: -155.7917, type: 'farm' };
+// 66-1247 Lalamilo Farm Road, Kamuela
+const FARM = { name: 'Hawaii Farming', lat: 19.9710, lng: -155.6830, type: 'farm' };
 
 const STORES = [
   // Foodland (including Sack N Save - same parent company)
@@ -802,7 +803,10 @@ const STORES = [
 ];
 
 const MARKER_COLORS = { farm: '#4ecca3', foodland: '#3498db', safeway: '#e74c3c', kta: '#f39c12' };
+const MARKER_LABELS = { farm: 'Hawaii Farming', foodland: 'Foodland', safeway: 'Safeway', kta: 'KTA' };
 let deliveryMap;
+let markerLayers = {}; // layer groups by type for toggle
+let routeLayer;
 
 function initMap() {
   deliveryMap = L.map('map', { scrollWheelZoom: true }).setView([19.75, -155.5], 9);
@@ -810,11 +814,17 @@ function initMap() {
     attribution: '&copy; OpenStreetMap contributors', maxZoom: 18
   }).addTo(deliveryMap);
 
+  // Create layer groups per type
+  Object.keys(MARKER_COLORS).forEach(type => {
+    markerLayers[type] = L.layerGroup().addTo(deliveryMap);
+  });
+
   function dot(loc, radius) {
     const color = MARKER_COLORS[loc.type];
-    L.circleMarker([loc.lat, loc.lng], {
+    const marker = L.circleMarker([loc.lat, loc.lng], {
       radius: radius || 7, fillColor: color, color: '#222', weight: 1, fillOpacity: 0.9
-    }).addTo(deliveryMap).bindPopup(`<b>${loc.name}</b><br>${loc.type.toUpperCase()}`);
+    }).bindPopup(`<b>${loc.name}</b><br>${MARKER_LABELS[loc.type]}`);
+    markerLayers[loc.type].addLayer(marker);
   }
 
   // Farm marker (larger)
@@ -823,14 +833,30 @@ function initMap() {
   // Store markers
   STORES.forEach(s => dot(s));
 
-  // Add legend
+  // Clickable legend to toggle chains
   const legend = L.control({ position: 'bottomright' });
   legend.onAdd = function() {
     const div = L.DomUtil.create('div', '');
-    div.style.cssText = 'background:#16213e;padding:8px 12px;border-radius:6px;font-size:0.75rem;color:#e0e0e0;line-height:1.8;';
-    div.innerHTML = Object.entries(MARKER_COLORS).map(([k, c]) =>
-      `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${c};margin-right:6px;vertical-align:middle;"></span>${k === 'farm' ? 'Hawaii Farming' : k.charAt(0).toUpperCase() + k.slice(1)}`
-    ).join('<br>');
+    div.style.cssText = 'background:#16213e;padding:8px 12px;border-radius:6px;font-size:0.75rem;color:#e0e0e0;line-height:2.2;cursor:pointer;user-select:none;';
+    Object.entries(MARKER_COLORS).forEach(([type, color]) => {
+      const row = document.createElement('div');
+      row.dataset.type = type;
+      row.innerHTML = `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};margin-right:6px;vertical-align:middle;"></span>${MARKER_LABELS[type]}`;
+      row.onclick = function(e) {
+        e.stopPropagation();
+        if (type === 'farm') return; // don't toggle farm
+        if (deliveryMap.hasLayer(markerLayers[type])) {
+          deliveryMap.removeLayer(markerLayers[type]);
+          row.style.opacity = '0.35';
+          row.style.textDecoration = 'line-through';
+        } else {
+          deliveryMap.addLayer(markerLayers[type]);
+          row.style.opacity = '1';
+          row.style.textDecoration = 'none';
+        }
+      };
+      div.appendChild(row);
+    });
     return div;
   };
   legend.addTo(deliveryMap);
@@ -851,8 +877,13 @@ async function calcRoute() {
 
   try {
     const resp = await fetch(url);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
-    if (data.code !== 'Ok') { info.textContent = 'Route calculation failed.'; return; }
+    console.log('OSRM response:', data);
+    if (data.code !== 'Ok') {
+      info.textContent = 'Route calculation failed: ' + (data.message || data.code);
+      return;
+    }
 
     const trip = data.trips[0];
     const totalMinutes = Math.round(trip.duration / 60);
@@ -861,7 +892,8 @@ async function calcRoute() {
     const mins = totalMinutes % 60;
 
     // Draw route on map
-    L.geoJSON(trip.geometry, {
+    if (routeLayer) deliveryMap.removeLayer(routeLayer);
+    routeLayer = L.geoJSON(trip.geometry, {
       style: { color: '#4ecca3', weight: 3, opacity: 0.7 }
     }).addTo(deliveryMap);
 
@@ -893,7 +925,7 @@ async function calcRoute() {
       </div>`;
   } catch(e) {
     console.error('Route calc error:', e);
-    info.textContent = 'Could not calculate route (offline or API error).';
+    info.textContent = 'Could not calculate route: ' + e.message;
   }
 }
 
