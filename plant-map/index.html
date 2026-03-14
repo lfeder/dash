@@ -964,7 +964,9 @@ function applySplit(i) {
     const saves = [];
     for (const idx of SELECTED) {
         EDITS[idx] = { split: [a, b] };
-        if (RAW_ROWS[idx]) saves.push({ row: RAW_ROWS[idx].sheetRow, value: `${a}/${b}` });
+        const sheetA = a.replace(' (5/bag)', '');
+        const sheetB = b.replace(' (5/bag)', '');
+        if (RAW_ROWS[idx]) saves.push({ row: RAW_ROWS[idx].sheetRow, value: `${sheetA}/${sheetB}` });
     }
     SELECTED.clear();
     rebuild();
