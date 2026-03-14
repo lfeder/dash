@@ -374,7 +374,10 @@ const EDIT_OPTIONS = [
     { label: 'J5', variety: 'Japanese', ppb: 5, color: '#F8BBD0' },
     { label: 'E', variety: 'English', ppb: 4, color: '#2196F3' },
 ];
-const SPLIT_OPTIONS = [['Japanese (5/bag)','Keiki'],['English','Keiki']];
+const SPLIT_OPTIONS = [
+    { label: 'J5/K', varieties: ['Japanese','Keiki'], colors: ['#F8BBD0','#4CAF50'] },
+    { label: 'E/K', varieties: ['English','Keiki'], colors: ['#2196F3','#4CAF50'] },
+];
 let POPUP_POS = { x: 0, y: 0 };
 
 function buildData(rows) {
@@ -389,9 +392,9 @@ function buildData(rows) {
         if (isNaN(row.row_num) || isNaN(bags) || bags === 0) return;
 
         const edit = EDITS[idx];
-        let split = null;
+        let split = null, splitColors = null;
         if (edit) {
-            if (edit.split) { split = edit.split; variety = edit.split[0]; }
+            if (edit.split) { split = edit.split; splitColors = edit.colors || null; variety = edit.split[0]; }
             else if (edit.variety) { variety = edit.variety; if (edit.ppb) ppb = edit.ppb; }
         } else if (variety.includes('/')) {
             split = variety.split('/').map(s => s.trim());
@@ -413,6 +416,7 @@ function buildData(rows) {
             color_key: ppb === 5 && variety === 'Japanese' ? 'Japanese (5/bag)' : variety,
             rawIdx: idx,
             split: split,
+            splitColors: splitColors,
             sheetRow: row.sheetRow
         });
 
@@ -800,8 +804,10 @@ function renderCard(name, opts) {
             const len = e.bags * BAG_PX;
             const tipV = e.split ? `${e.split[0]}/${e.split[1]}` : e.variety;
             const tip = `Row ${e.row_num} · ${tipV} · ${e.bags} bags · ${e.total_plants} plants`;
+            const sc0 = e.splitColors ? e.splitColors[0] : (COLORS[e.split && e.split[0]] || '#888');
+            const sc1 = e.splitColors ? e.splitColors[1] : (COLORS[e.split && e.split[1]] || '#888');
             const bg = e.split
-                ? `repeating-linear-gradient(${v ? '180deg' : '90deg'},${COLORS[e.split[0]]||'#888'} 0px,${COLORS[e.split[0]]||'#888'} 6px,${COLORS[e.split[1]]||'#888'} 6px,${COLORS[e.split[1]]||'#888'} 12px)`
+                ? `repeating-linear-gradient(${v ? '180deg' : '90deg'},${sc0} 0px,${sc0} 6px,${sc1} 6px,${sc1} 12px)`
                 : COLORS[e.color_key];
             const sel = SELECTED.has(e.rawIdx) ? ' selected' : '';
             html += `<div class="card-row-bar${sel}" data-idx="${e.rawIdx}" style="${lenProp}:${len}px;${thkProp}:${ROW_W}px;border-radius:1px;background:${bg};flex-shrink:0;cursor:pointer" onclick="handleBarClick(event,${e.rawIdx})" onmouseover="showTooltip(event,'${tip}')" onmousemove="moveTooltip(event)" onmouseout="hideTooltip()"></div>`;
@@ -931,8 +937,8 @@ function renderPopup() {
         html += `<button style="border:2px solid ${opt.color};color:${opt.color}" onclick="applyVariety(${i})">${opt.label}</button>`;
     });
     html += `</div><div class="row">`;
-    SPLIT_OPTIONS.forEach(([a, b], i) => {
-        html += `<button onclick="applySplit(${i})" style="background:linear-gradient(90deg,${COLORS[a]} 50%,${COLORS[b]} 50%);color:#fff;border:1px solid #555;font-size:0.75rem">${ABBREV[a]}/${ABBREV[b]}</button>`;
+    SPLIT_OPTIONS.forEach((opt, i) => {
+        html += `<button onclick="applySplit(${i})" style="background:linear-gradient(90deg,${opt.colors[0]} 50%,${opt.colors[1]} 50%);color:#fff;border:1px solid #555;font-size:0.75rem">${opt.label}</button>`;
     });
     html += `</div>`;
     popup.innerHTML = html;
@@ -960,13 +966,12 @@ function applyVariety(i) {
 }
 
 function applySplit(i) {
-    const [a, b] = SPLIT_OPTIONS[i];
+    const opt = SPLIT_OPTIONS[i];
+    const [a, b] = opt.varieties;
     const saves = [];
     for (const idx of SELECTED) {
-        EDITS[idx] = { split: [a, b] };
-        const sheetA = a.replace(' (5/bag)', '');
-        const sheetB = b.replace(' (5/bag)', '');
-        if (RAW_ROWS[idx]) saves.push({ row: RAW_ROWS[idx].sheetRow, value: `${sheetA}/${sheetB}` });
+        EDITS[idx] = { split: [a, b], colors: opt.colors };
+        if (RAW_ROWS[idx]) saves.push({ row: RAW_ROWS[idx].sheetRow, value: `${a}/${b}` });
     }
     SELECTED.clear();
     rebuild();
