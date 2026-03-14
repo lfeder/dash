@@ -891,6 +891,50 @@ function showOverview() {
     html += renderGrid('JTL', 'farm-layout', 'farm-row', false);
     html += renderGrid('BIP', 'other-locations', 'bip-col', true);
     html += '</div>';
+
+    // Summary table
+    const TABLE_ORDER = ['Kona','GH3','GH1','Hamakua','Kohala','GH7','Waimea','GH4','GH2','GH6','Hilo','GH5','GH8'];
+    const TABLE_COLS = ['Keiki','Japanese','English'];
+    const TABLE_LABELS = { Keiki: 'K', Japanese: 'J', English: 'E' };
+    html += '<table style="margin-top:16px;border-collapse:collapse;font-size:0.85rem;color:var(--text-primary)">';
+    html += '<tr><th style="padding:4px 10px;border:1px solid var(--border);text-align:left"></th>';
+    TABLE_COLS.forEach(v => {
+        html += `<th style="padding:4px 10px;border:1px solid var(--border);color:${COLORS[v]}">${TABLE_LABELS[v]}</th>`;
+    });
+    html += '</tr>';
+    const totals = { Keiki: 0, Japanese: 0, English: 0 };
+    TABLE_ORDER.forEach(name => {
+        const gh = DATA[name];
+        if (!gh) return;
+        const counts = { Keiki: 0, Japanese: 0, English: 0 };
+        for (const entries of Object.values(gh.sides)) {
+            for (const e of entries) {
+                if (e.split) {
+                    const half = Math.round(e.total_plants / 2);
+                    e.split.forEach(sv => {
+                        if (sv === 'Japanese' || sv === 'Japanese (5/bag)') counts.Japanese += half;
+                        else if (counts[sv] !== undefined) counts[sv] += half;
+                    });
+                } else {
+                    const base = e.variety === 'Japanese' || e.color_key === 'Japanese (5/bag)' ? 'Japanese' : e.variety;
+                    if (counts[base] !== undefined) counts[base] += e.total_plants;
+                }
+            }
+        }
+        const label = name.replace('GH', '');
+        html += `<tr><td style="padding:4px 10px;border:1px solid var(--border);font-weight:700">${label}</td>`;
+        TABLE_COLS.forEach(v => {
+            totals[v] += counts[v];
+            html += `<td style="padding:4px 10px;border:1px solid var(--border);text-align:right">${counts[v] ? counts[v].toLocaleString() : ''}</td>`;
+        });
+        html += '</tr>';
+    });
+    html += `<tr style="font-weight:700"><td style="padding:4px 10px;border:1px solid var(--border)">Total</td>`;
+    TABLE_COLS.forEach(v => {
+        html += `<td style="padding:4px 10px;border:1px solid var(--border);text-align:right;color:${COLORS[v]}">${totals[v].toLocaleString()}</td>`;
+    });
+    html += '</tr></table>';
+
     document.getElementById('content').innerHTML = html;
 }
 
