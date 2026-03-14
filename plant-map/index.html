@@ -717,7 +717,18 @@ function renderCard(name, opts) {
     const vCounts = {};
     let totalBags = 0;
     for (const entries of Object.values(gh.sides)) {
-        for (const e of entries) { vCounts[e.color_key] = (vCounts[e.color_key] || 0) + e.total_plants; totalBags += e.bags; }
+        for (const e of entries) {
+            totalBags += e.bags;
+            if (e.split) {
+                const half = Math.round(e.total_plants / 2);
+                e.split.forEach(sv => {
+                    const sk = e.plants_per_bag === 5 && sv === 'Japanese' ? 'Japanese (5/bag)' : sv;
+                    vCounts[sk] = (vCounts[sk] || 0) + half;
+                });
+            } else {
+                vCounts[e.color_key] = (vCounts[e.color_key] || 0) + e.total_plants;
+            }
+        }
     }
 
     // Bar dimensions: vertical bars have height=length, width=thickness; horizontal is swapped
@@ -799,6 +810,9 @@ function renderCard(name, opts) {
 
     html += `</div><div class="gh-card-footer">`;
     VARIETY_ORDER.forEach(va => { if (vCounts[va]) html += `<span style="color:${COLORS[va]}">${ABBREV[va]}:${vCounts[va].toLocaleString()}</span> `; });
+    const jPlants = (vCounts['Japanese'] || 0) + (vCounts['Japanese (5/bag)'] || 0);
+    const jPct = gh.total_plants > 0 ? Math.round(jPlants / gh.total_plants * 1000) / 10 : 0;
+    html += `<span style="color:${COLORS['Japanese']}">J:${jPct}%</span>`;
     html += `</div></div>`;
     return html;
 }
