@@ -398,6 +398,7 @@ function buildData(rows) {
             else if (edit.variety) { variety = edit.variety; if (edit.ppb) ppb = edit.ppb; }
         } else if (variety.includes('/')) {
             split = variety.split('/').map(s => s.trim());
+            splitColors = split.map(s => COLORS[s + ' (5/bag)'] || COLORS[s] || '#888');
             variety = split[0];
         }
 
@@ -486,20 +487,20 @@ function parseGvizResponse(response) {
     const rows = [];
     for (let ri = 0; ri < table.rows.length; ri++) {
         const c = table.rows[ri].c;
-        // Columns: Greenhouse, Side, Row, Bags, Plants/Bag, Total Plants, Variety, Bags2, Plants/Bag2, Variety2
-        const gh = c[0] ? (c[0].v || '') : '';
+        // Columns: Sort, Greenhouse, Side, Row, Bags, Plants/Bag, Total Plants, Variety, Bags2, Plants/Bag2, Variety2
+        const gh = c[1] ? (c[1].v || '') : '';
         if (!gh) continue;
-        const bags2 = (c[7] && c[7].v) ? Number(c[7].v) : 0;
-        const ppb2 = (c[8] && c[8].v) ? Number(c[8].v) : 0;
-        const var2 = (c[9] && c[9].v) ? String(c[9].v) : '';
+        const bags2 = (c[8] && c[8].v) ? Number(c[8].v) : 0;
+        const ppb2 = (c[9] && c[9].v) ? Number(c[9].v) : 0;
+        const var2 = (c[10] && c[10].v) ? String(c[10].v) : '';
         rows.push({
             greenhouse: String(gh),
-            side: (c[1] && c[1].v) ? String(c[1].v) : 'Main',
-            row_num: c[2] ? Number(c[2].v) : 0,
-            bags: c[3] ? Number(c[3].v) : 0,
-            plants_per_bag: c[4] ? Number(c[4].v) : 0,
-            total_plants: c[5] ? Number(c[5].v) : 0,
-            variety: (c[6] && c[6].v) ? String(c[6].v) : '',
+            side: (c[2] && c[2].v) ? String(c[2].v) : 'Main',
+            row_num: c[3] ? Number(c[3].v) : 0,
+            bags: c[4] ? Number(c[4].v) : 0,
+            plants_per_bag: c[5] ? Number(c[5].v) : 0,
+            total_plants: c[6] ? Number(c[6].v) : 0,
+            variety: (c[7] && c[7].v) ? String(c[7].v) : '',
             bags2: bags2,
             plants_per_bag2: ppb2,
             total_plants2: bags2 * ppb2,
