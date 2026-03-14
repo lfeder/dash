@@ -951,13 +951,28 @@ function clearEdits() {
 
 function saveToSheet(saves) {
     if (!APPS_SCRIPT_URL || !saves.length) return;
-    fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({ edits: saves }),
-    }).then(() => showSaveStatus('Saved'))
-      .catch(() => showSaveStatus('Error'));
+    // Use a form POST via hidden iframe to avoid CORS entirely
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = APPS_SCRIPT_URL;
+    form.target = 'saveFrame';
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'payload';
+    input.value = JSON.stringify({ edits: saves });
+    form.appendChild(input);
+    let iframe = document.getElementById('saveFrame');
+    if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.name = 'saveFrame';
+        iframe.id = 'saveFrame';
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+    }
+    document.body.appendChild(form);
+    form.submit();
+    form.remove();
+    showSaveStatus('Saved');
 }
 
 function showSaveStatus(msg) {
