@@ -241,6 +241,36 @@ body {
     display: none;
 }
 
+.card-row-bar.selected {
+    outline: 2px solid #fff;
+    outline-offset: -1px;
+    z-index: 1;
+}
+.edit-toolbar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #222;
+    border-top: 2px solid #4ecca3;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 200;
+    flex-wrap: wrap;
+}
+.edit-toolbar button {
+    padding: 6px 14px;
+    border-radius: 4px;
+    border: 1px solid #555;
+    cursor: pointer;
+    font-size: 0.85rem;
+    background: #333;
+    color: #fff;
+}
+.edit-toolbar button:hover { background: #444; }
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: var(--bg-primary); }
@@ -339,17 +369,29 @@ let MAX_BAGS = 0;
 let RAW_ROWS = [];
 let VIEW_MODE = 'new'; // 'current' or 'new'
 let BAG_CHANGES = {}; // { 'GH1': { current: Date, next: Date, cycles: number, allDates: Date[] }, ... }
+let EDITS = {};        // { rawIdx: { variety: 'X' } or { split: ['X','Y'] } }
+let SELECTED = new Set();
+const EDIT_VARIETIES = ['Keiki', 'Japanese', 'Japanese (5/bag)', 'English'];
+const SPLIT_OPTIONS = [['Japanese','Keiki'],['Japanese','English'],['Japanese (5/bag)','Keiki'],['Keiki','English']];
 
 function buildData(rows) {
     const useAlt = VIEW_MODE === 'new';
     const greenhouses = {};
 
-    rows.forEach(row => {
+    rows.forEach((row, idx) => {
         const bags = useAlt && row.bags2 ? row.bags2 : row.bags;
         const ppb = useAlt && row.plants_per_bag2 ? row.plants_per_bag2 : row.plants_per_bag;
-        const variety = useAlt && row.variety2 ? row.variety2 : row.variety;
+        let variety = useAlt && row.variety2 ? row.variety2 : row.variety;
         const total_plants = bags * ppb;
         if (isNaN(row.row_num) || isNaN(bags) || bags === 0) return;
+
+        const edit = EDITS[idx];
+        let split = null;
+        if (edit) {
+            if (edit.split) { split = edit.split; variety = edit.split[0]; }
+            else if (edit.variety) { variety = edit.variety; }
+        }
+
         const gh = row.greenhouse;
         const sideKey = row.side || 'Main';
 
@@ -362,7 +404,9 @@ function buildData(rows) {
             plants_per_bag: ppb,
             total_plants: total_plants,
             variety: variety,
-            color_key: ppb === 5 ? `${variety} (5/bag)` : variety
+            color_key: ppb === 5 ? `${variety} (5/bag)` : variety,
+            rawIdx: idx,
+            split: split
         });
 
         greenhouses[gh].total_plants += total_plants;
@@ -398,8 +442,17 @@ function computeSummary(data) {
         totalPlants += ghData.total_plants;
         for (const entries of Object.values(ghData.sides)) {
             for (const entry of entries) {
-                varietyCounts[entry.color_key] = (varietyCounts[entry.color_key] || 0) + entry.total_plants;
-                varietyRows[entry.color_key] = (varietyRows[entry.color_key] || 0) + 1;
+                if (entry.split) {
+                    const half = Math.round(entry.total_plants / 2);
+                    entry.split.forEach(sv => {
+                        const sk = entry.plants_per_bag === 5 ? `${sv} (5/bag)` : sv;
+                        varietyCounts[sk] = (varietyCounts[sk] || 0) + half;
+                        varietyRows[sk] = (varietyRows[sk] || 0) + 0.5;
+                    });
+                } else {
+                    varietyCounts[entry.color_key] = (varietyCounts[entry.color_key] || 0) + entry.total_plants;
+                    varietyRows[entry.color_key] = (varietyRows[entry.color_key] || 0) + 1;
+                }
             }
         }
     }
@@ -532,6 +585,7 @@ function rebuild() {
                 if (entry.bags > MAX_BAGS) MAX_BAGS = entry.bags;
     renderHeader();
     showOverview();
+    renderToolbar();
 }
 
 function toggleView() {
@@ -725,8 +779,13 @@ function renderCard(name, opts) {
         html += `<div style="display:flex;flex-direction:${secDir};gap:1px;${align}${fixStyle}${padSide}">`;
         gh.sides[side].forEach(e => {
             const len = e.bags * BAG_PX;
-            const tip = `Row ${e.row_num} · ${e.variety} · ${e.bags} bags · ${e.total_plants} plants`;
-            html += `<div style="${lenProp}:${len}px;${thkProp}:${ROW_W}px;border-radius:1px;background:${COLORS[e.color_key]};flex-shrink:0;cursor:pointer" onmouseover="showTooltip(event,'${tip}')" onmousemove="moveTooltip(event)" onmouseout="hideTooltip()"></div>`;
+            const tipV = e.split ? `${e.split[0]}/${e.split[1]}` : e.variety;
+            const tip = `Row ${e.row_num} · ${tipV} · ${e.bags} bags · ${e.total_plants} plants`;
+            const bg = e.split
+                ? `repeating-linear-gradient(${v ? '180deg' : '90deg'},${COLORS[e.split[0]]||'#888'} 0px,${COLORS[e.split[0]]||'#888'} 6px,${COLORS[e.split[1]]||'#888'} 6px,${COLORS[e.split[1]]||'#888'} 12px)`
+                : COLORS[e.color_key];
+            const sel = SELECTED.has(e.rawIdx) ? ' selected' : '';
+            html += `<div class="card-row-bar${sel}" data-idx="${e.rawIdx}" style="${lenProp}:${len}px;${thkProp}:${ROW_W}px;border-radius:1px;background:${bg};flex-shrink:0;cursor:pointer" onclick="handleBarClick(event,${e.rawIdx})" onmouseover="showTooltip(event,'${tip}')" onmousemove="moveTooltip(event)" onmouseout="hideTooltip()"></div>`;
         });
         html += `</div>`;
     });
@@ -806,6 +865,73 @@ function showOverview() {
     document.getElementById('content').innerHTML = html;
 }
 
+
+// --- Row editing ---
+function handleBarClick(e, idx) {
+    e.stopPropagation();
+    if (e.shiftKey) {
+        if (SELECTED.has(idx)) SELECTED.delete(idx); else SELECTED.add(idx);
+    } else {
+        if (SELECTED.has(idx) && SELECTED.size === 1) SELECTED.clear();
+        else { SELECTED.clear(); SELECTED.add(idx); }
+    }
+    updateSelectionUI();
+}
+
+function updateSelectionUI() {
+    document.querySelectorAll('.card-row-bar').forEach(el => {
+        el.classList.toggle('selected', SELECTED.has(Number(el.dataset.idx)));
+    });
+    renderToolbar();
+}
+
+function renderToolbar() {
+    let tb = document.getElementById('editToolbar');
+    if (SELECTED.size === 0) { if (tb) tb.remove(); return; }
+    if (!tb) {
+        tb = document.createElement('div');
+        tb.id = 'editToolbar';
+        tb.className = 'edit-toolbar';
+        document.body.appendChild(tb);
+    }
+    let html = `<span style="color:#aaa;font-size:0.8rem">${SELECTED.size} selected</span>`;
+    EDIT_VARIETIES.forEach((v, i) => {
+        html += `<button style="border:2px solid ${COLORS[v]};color:${COLORS[v]}" onclick="applyVariety(${i})">${ABBREV[v]}</button>`;
+    });
+    html += `<span style="color:#666;margin:0 4px">|</span><span style="color:#aaa;font-size:0.8rem">Split:</span>`;
+    SPLIT_OPTIONS.forEach(([a, b], i) => {
+        html += `<button onclick="applySplit(${i})" style="background:linear-gradient(90deg,${COLORS[a]} 50%,${COLORS[b]} 50%);color:#fff;border:1px solid #555">${ABBREV[a]}/${ABBREV[b]}</button>`;
+    });
+    html += `<button onclick="clearEdits()" style="margin-left:auto;background:#553333;border-color:#883333">Reset All</button>`;
+    tb.innerHTML = html;
+}
+
+function applyVariety(i) {
+    const v = EDIT_VARIETIES[i];
+    for (const idx of SELECTED) EDITS[idx] = { variety: v };
+    SELECTED.clear();
+    rebuild();
+}
+
+function applySplit(i) {
+    const [a, b] = SPLIT_OPTIONS[i];
+    for (const idx of SELECTED) EDITS[idx] = { split: [a, b] };
+    SELECTED.clear();
+    rebuild();
+}
+
+function clearEdits() {
+    EDITS = {};
+    SELECTED.clear();
+    rebuild();
+}
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.card-row-bar') && !e.target.closest('.edit-toolbar')) {
+        SELECTED.clear();
+        updateSelectionUI();
+    }
+});
 
 // Tooltip
 function showTooltip(e, text) {
