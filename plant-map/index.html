@@ -810,9 +810,9 @@ function renderCard(name, opts) {
 
     html += `</div><div class="gh-card-footer">`;
     VARIETY_ORDER.forEach(va => { if (vCounts[va]) html += `<span style="color:${COLORS[va]}">${ABBREV[va]}:${vCounts[va].toLocaleString()}</span> `; });
-    const jPlants = (vCounts['Japanese'] || 0) + (vCounts['Japanese (5/bag)'] || 0);
-    const jPct = gh.total_plants > 0 ? Math.round(jPlants / gh.total_plants * 1000) / 10 : 0;
-    html += `<span style="color:${COLORS['Japanese']}">J:${jPct}%</span>`;
+    const ePlants = vCounts['English'] || 0;
+    const ePct = gh.total_plants > 0 ? Math.round(ePlants / gh.total_plants * 1000) / 10 : 0;
+    html += `<span style="color:${COLORS['English']}">E:${ePct}%</span>`;
     html += `</div></div>`;
     return html;
 }
