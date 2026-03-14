@@ -371,6 +371,8 @@ let VIEW_MODE = 'new'; // 'current' or 'new'
 let BAG_CHANGES = {}; // { 'GH1': { current: Date, next: Date, cycles: number, allDates: Date[] }, ... }
 let EDITS = {};        // { rawIdx: { variety: 'X' } or { split: ['X','Y'] } }
 let SELECTED = new Set();
+let LAST_CLICKED_IDX = null;  // for shift+click range selection
+const APPS_SCRIPT_URL = '';  // paste your deployed Apps Script web app URL here
 const EDIT_VARIETIES = ['Keiki', 'Japanese', 'Japanese (5/bag)', 'English'];
 const SPLIT_OPTIONS = [['Japanese','Keiki'],['Japanese','English'],['Japanese (5/bag)','Keiki'],['Keiki','English']];
 
@@ -390,6 +392,9 @@ function buildData(rows) {
         if (edit) {
             if (edit.split) { split = edit.split; variety = edit.split[0]; }
             else if (edit.variety) { variety = edit.variety; }
+        } else if (variety.includes('/')) {
+            split = variety.split('/').map(s => s.trim());
+            variety = split[0];
         }
 
         const gh = row.greenhouse;
@@ -406,7 +411,8 @@ function buildData(rows) {
             variety: variety,
             color_key: ppb === 5 && variety === 'Japanese' ? 'Japanese (5/bag)' : variety,
             rawIdx: idx,
-            split: split
+            split: split,
+            sheetRow: row.sheetRow
         });
 
         greenhouses[gh].total_plants += total_plants;
@@ -473,8 +479,8 @@ function parseGvizResponse(response) {
     }
     const table = response.table;
     const rows = [];
-    for (const row of table.rows) {
-        const c = row.c;
+    for (let ri = 0; ri < table.rows.length; ri++) {
+        const c = table.rows[ri].c;
         // Columns: Greenhouse, Side, Row, Bags, Plants/Bag, Total Plants, Variety, Bags2, Plants/Bag2, Variety2
         const gh = c[0] ? (c[0].v || '') : '';
         if (!gh) continue;
@@ -492,7 +498,8 @@ function parseGvizResponse(response) {
             bags2: bags2,
             plants_per_bag2: ppb2,
             total_plants2: bags2 * ppb2,
-            variety2: var2
+            variety2: var2,
+            sheetRow: ri + 2  // 1-based, +1 for header row
         });
     }
     return rows;
@@ -869,12 +876,21 @@ function showOverview() {
 // --- Row editing ---
 function handleBarClick(e, idx) {
     e.stopPropagation();
-    if (e.shiftKey) {
-        if (SELECTED.has(idx)) SELECTED.delete(idx); else SELECTED.add(idx);
+    if (e.shiftKey && LAST_CLICKED_IDX !== null) {
+        // Range select: find all bar elements between last click and this one
+        const bars = Array.from(document.querySelectorAll('.card-row-bar'));
+        const idxList = bars.map(b => Number(b.dataset.idx));
+        const fromPos = idxList.indexOf(LAST_CLICKED_IDX);
+        const toPos = idxList.indexOf(idx);
+        if (fromPos !== -1 && toPos !== -1) {
+            const lo = Math.min(fromPos, toPos), hi = Math.max(fromPos, toPos);
+            for (let i = lo; i <= hi; i++) SELECTED.add(idxList[i]);
+        }
     } else {
         if (SELECTED.has(idx) && SELECTED.size === 1) SELECTED.clear();
         else { SELECTED.clear(); SELECTED.add(idx); }
     }
+    LAST_CLICKED_IDX = idx;
     updateSelectionUI();
 }
 
@@ -908,22 +924,56 @@ function renderToolbar() {
 
 function applyVariety(i) {
     const v = EDIT_VARIETIES[i];
-    for (const idx of SELECTED) EDITS[idx] = { variety: v };
+    const saves = [];
+    for (const idx of SELECTED) {
+        EDITS[idx] = { variety: v };
+        if (RAW_ROWS[idx]) saves.push({ row: RAW_ROWS[idx].sheetRow, value: v });
+    }
     SELECTED.clear();
     rebuild();
+    saveToSheet(saves);
 }
 
 function applySplit(i) {
     const [a, b] = SPLIT_OPTIONS[i];
-    for (const idx of SELECTED) EDITS[idx] = { split: [a, b] };
+    const saves = [];
+    for (const idx of SELECTED) {
+        EDITS[idx] = { split: [a, b] };
+        if (RAW_ROWS[idx]) saves.push({ row: RAW_ROWS[idx].sheetRow, value: `${a}/${b}` });
+    }
     SELECTED.clear();
     rebuild();
+    saveToSheet(saves);
 }
 
 function clearEdits() {
     EDITS = {};
     SELECTED.clear();
     rebuild();
+}
+
+function saveToSheet(saves) {
+    if (!APPS_SCRIPT_URL || !saves.length) return;
+    fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ edits: saves }),
+    }).then(r => r.json()).then(r => {
+        showSaveStatus(r.status === 'ok' ? 'Saved' : 'Error');
+    }).catch(() => showSaveStatus('Error'));
+}
+
+function showSaveStatus(msg) {
+    let el = document.getElementById('saveStatus');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'saveStatus';
+        el.style.cssText = 'position:fixed;bottom:60px;right:16px;background:#333;padding:6px 14px;border-radius:4px;font-size:0.85rem;z-index:201;transition:opacity 0.3s';
+        document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.style.opacity = '1';
+    el.style.color = msg === 'Saved' ? '#4ecca3' : '#e57373';
+    setTimeout(() => { el.style.opacity = '0'; }, 2000);
 }
 
 document.addEventListener('click', function(e) {
