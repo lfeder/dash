@@ -371,11 +371,10 @@ let LAST_CLICKED_IDX = null;  // for shift+click range selection
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwtqmQMvQo_F5sXCR2ov0mMyCjE5WwtdBkK1a3LTACIfl3fp5zZP51BLY-eV9XUS5w4/exec';
 const EDIT_OPTIONS = [
     { label: 'K', variety: 'Keiki', ppb: 4, color: '#4CAF50' },
-    { label: 'J4', variety: 'Japanese', ppb: 4, color: '#E91E63' },
     { label: 'J5', variety: 'Japanese', ppb: 5, color: '#F8BBD0' },
     { label: 'E', variety: 'English', ppb: 4, color: '#2196F3' },
 ];
-const SPLIT_OPTIONS = [['Japanese','Keiki'],['Japanese','English'],['Keiki','English']];
+const SPLIT_OPTIONS = [['Japanese (5/bag)','Keiki'],['English','Keiki']];
 let POPUP_POS = { x: 0, y: 0 };
 
 function buildData(rows) {
