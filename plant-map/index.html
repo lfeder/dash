@@ -404,7 +404,7 @@ function buildData(rows) {
             plants_per_bag: ppb,
             total_plants: total_plants,
             variety: variety,
-            color_key: ppb === 5 ? `${variety} (5/bag)` : variety,
+            color_key: ppb === 5 && variety === 'Japanese' ? 'Japanese (5/bag)' : variety,
             rawIdx: idx,
             split: split
         });
