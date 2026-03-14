@@ -243,22 +243,21 @@ body {
     outline-offset: -1px;
     z-index: 1;
 }
-.edit-toolbar {
+.edit-popup {
     position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
     background: #222;
-    border-top: 2px solid #4ecca3;
-    padding: 10px 16px;
+    border: 1px solid #4ecca3;
+    border-radius: 6px;
+    padding: 8px;
     display: flex;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    gap: 6px;
     z-index: 200;
-    flex-wrap: wrap;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
 }
-.edit-toolbar button {
-    padding: 6px 14px;
+.edit-popup .row { display: flex; gap: 4px; align-items: center; }
+.edit-popup button {
+    padding: 5px 12px;
     border-radius: 4px;
     border: 1px solid #555;
     cursor: pointer;
@@ -266,7 +265,7 @@ body {
     background: #333;
     color: #fff;
 }
-.edit-toolbar button:hover { background: #444; }
+.edit-popup button:hover { background: #444; }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 8px; }
@@ -370,8 +369,14 @@ let EDITS = {};        // { rawIdx: { variety: 'X' } or { split: ['X','Y'] } }
 let SELECTED = new Set();
 let LAST_CLICKED_IDX = null;  // for shift+click range selection
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwtqmQMvQo_F5sXCR2ov0mMyCjE5WwtdBkK1a3LTACIfl3fp5zZP51BLY-eV9XUS5w4/exec';
-const EDIT_VARIETIES = ['Keiki', 'Japanese', 'English'];
+const EDIT_OPTIONS = [
+    { label: 'K', variety: 'Keiki', ppb: 4, color: '#4CAF50' },
+    { label: 'J4', variety: 'Japanese', ppb: 4, color: '#E91E63' },
+    { label: 'J5', variety: 'Japanese', ppb: 5, color: '#F8BBD0' },
+    { label: 'E', variety: 'English', ppb: 4, color: '#2196F3' },
+];
 const SPLIT_OPTIONS = [['Japanese','Keiki'],['Japanese','English'],['Keiki','English']];
+let POPUP_POS = { x: 0, y: 0 };
 
 function buildData(rows) {
     const useAlt = VIEW_MODE === 'new';
@@ -379,7 +384,7 @@ function buildData(rows) {
 
     rows.forEach((row, idx) => {
         const bags = useAlt && row.bags2 ? row.bags2 : row.bags;
-        const ppb = useAlt && row.plants_per_bag2 ? row.plants_per_bag2 : row.plants_per_bag;
+        let ppb = useAlt && row.plants_per_bag2 ? row.plants_per_bag2 : row.plants_per_bag;
         let variety = useAlt && row.variety2 ? row.variety2 : row.variety;
         const total_plants = bags * ppb;
         if (isNaN(row.row_num) || isNaN(bags) || bags === 0) return;
@@ -388,7 +393,7 @@ function buildData(rows) {
         let split = null;
         if (edit) {
             if (edit.split) { split = edit.split; variety = edit.split[0]; }
-            else if (edit.variety) { variety = edit.variety; }
+            else if (edit.variety) { variety = edit.variety; if (edit.ppb) ppb = edit.ppb; }
         } else if (variety.includes('/')) {
             split = variety.split('/').map(s => s.trim());
             variety = split[0];
@@ -589,7 +594,7 @@ function rebuild() {
                 if (entry.bags > MAX_BAGS) MAX_BAGS = entry.bags;
     renderHeader();
     showOverview();
-    renderToolbar();
+    renderPopup();
 }
 
 function toggleView() {
@@ -887,6 +892,7 @@ function showOverview() {
 // --- Row editing ---
 function handleBarClick(e, idx) {
     e.stopPropagation();
+    POPUP_POS = { x: e.clientX, y: e.clientY };
     if (e.shiftKey && LAST_CLICKED_IDX !== null) {
         // Range select: find all bar elements between last click and this one
         const bars = Array.from(document.querySelectorAll('.card-row-bar'));
@@ -909,36 +915,45 @@ function updateSelectionUI() {
     document.querySelectorAll('.card-row-bar').forEach(el => {
         el.classList.toggle('selected', SELECTED.has(Number(el.dataset.idx)));
     });
-    renderToolbar();
+    renderPopup();
 }
 
-function renderToolbar() {
-    let tb = document.getElementById('editToolbar');
-    if (SELECTED.size === 0) { if (tb) tb.remove(); return; }
-    if (!tb) {
-        tb = document.createElement('div');
-        tb.id = 'editToolbar';
-        tb.className = 'edit-toolbar';
-        document.body.appendChild(tb);
+function renderPopup() {
+    let popup = document.getElementById('editPopup');
+    if (SELECTED.size === 0) { if (popup) popup.remove(); return; }
+    if (!popup) {
+        popup = document.createElement('div');
+        popup.id = 'editPopup';
+        popup.className = 'edit-popup';
+        document.body.appendChild(popup);
     }
-    let html = `<span style="color:#aaa;font-size:0.8rem">${SELECTED.size} selected</span>`;
-    EDIT_VARIETIES.forEach((v, i) => {
-        html += `<button style="border:2px solid ${COLORS[v]};color:${COLORS[v]}" onclick="applyVariety(${i})">${ABBREV[v]}</button>`;
+    let html = `<div class="row"><span style="color:#aaa;font-size:0.75rem">${SELECTED.size} row${SELECTED.size > 1 ? 's' : ''}</span></div><div class="row">`;
+    EDIT_OPTIONS.forEach((opt, i) => {
+        html += `<button style="border:2px solid ${opt.color};color:${opt.color}" onclick="applyVariety(${i})">${opt.label}</button>`;
     });
-    html += `<span style="color:#666;margin:0 4px">|</span><span style="color:#aaa;font-size:0.8rem">Split:</span>`;
+    html += `</div><div class="row">`;
     SPLIT_OPTIONS.forEach(([a, b], i) => {
-        html += `<button onclick="applySplit(${i})" style="background:linear-gradient(90deg,${COLORS[a]} 50%,${COLORS[b]} 50%);color:#fff;border:1px solid #555">${ABBREV[a]}/${ABBREV[b]}</button>`;
+        html += `<button onclick="applySplit(${i})" style="background:linear-gradient(90deg,${COLORS[a]} 50%,${COLORS[b]} 50%);color:#fff;border:1px solid #555;font-size:0.75rem">${ABBREV[a]}/${ABBREV[b]}</button>`;
     });
-    html += `<button onclick="clearEdits()" style="margin-left:auto;background:#553333;border-color:#883333">Reset All</button>`;
-    tb.innerHTML = html;
+    html += `</div>`;
+    popup.innerHTML = html;
+    // Position near mouse
+    popup.style.left = POPUP_POS.x + 'px';
+    popup.style.top = POPUP_POS.y + 'px';
+    // Adjust if off-screen
+    requestAnimationFrame(() => {
+        const r = popup.getBoundingClientRect();
+        if (r.bottom > window.innerHeight) popup.style.top = (POPUP_POS.y - r.height - 8) + 'px';
+        if (r.right > window.innerWidth) popup.style.left = (POPUP_POS.x - r.width) + 'px';
+    });
 }
 
 function applyVariety(i) {
-    const v = EDIT_VARIETIES[i];
+    const opt = EDIT_OPTIONS[i];
     const saves = [];
     for (const idx of SELECTED) {
-        EDITS[idx] = { variety: v };
-        if (RAW_ROWS[idx]) saves.push({ row: RAW_ROWS[idx].sheetRow, value: v });
+        EDITS[idx] = { variety: opt.variety, ppb: opt.ppb };
+        if (RAW_ROWS[idx]) saves.push({ row: RAW_ROWS[idx].sheetRow, value: opt.variety, ppb: opt.ppb });
     }
     SELECTED.clear();
     rebuild();
@@ -1004,7 +1019,7 @@ function showSaveStatus(msg) {
 }
 
 document.addEventListener('click', function(e) {
-    if (!e.target.closest('.card-row-bar') && !e.target.closest('.edit-toolbar')) {
+    if (!e.target.closest('.card-row-bar') && !e.target.closest('.edit-popup')) {
         SELECTED.clear();
         updateSelectionUI();
     }

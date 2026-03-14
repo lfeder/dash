@@ -20,6 +20,7 @@ function doPost(e) {
 
   data.edits.forEach(function(edit) {
     sheet.getRange(edit.row, 10).setValue(edit.value);
+    if (edit.ppb) sheet.getRange(edit.row, 9).setValue(edit.ppb);
   });
 
   return ContentService.createTextOutput(JSON.stringify({ status: 'ok' }))
