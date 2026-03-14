@@ -306,7 +306,7 @@ body {
     <span id="version" style="font-size:0.65rem;color:#555;"></span>
     <div class="header-stats" id="headerStats"></div>
     <div class="variety-legend" id="headerLegend"></div>
-    <button id="toggleBtn" onclick="toggleView()" style="margin-left:auto;padding:4px 12px;border-radius:4px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:0.8rem;white-space:nowrap">Current</button>
+    <button id="toggleBtn" onclick="toggleView()" style="margin-left:auto;padding:4px 12px;border-radius:4px;border:1px solid var(--border);background:#4ecca3;color:#1a1a2e;cursor:pointer;font-size:0.8rem;white-space:nowrap">New</button>
 </div>
 
 <div class="content" id="content"></div>
@@ -337,7 +337,7 @@ let SUMMARY = {};
 let GH_NAMES = [];
 let MAX_BAGS = 0;
 let RAW_ROWS = [];
-let VIEW_MODE = 'current'; // 'current' or 'new'
+let VIEW_MODE = 'new'; // 'current' or 'new'
 let BAG_CHANGES = {}; // { 'GH1': { current: Date, next: Date, cycles: number, allDates: Date[] }, ... }
 
 function buildData(rows) {
