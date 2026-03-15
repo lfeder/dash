@@ -1133,15 +1133,9 @@ let simTick = 0;
 let simPaused = false;
 
 function getSimBrightness(week) {
-    // week 1-12: 1=white, 2-8 grow to full color, 9-12 dim to black
-    if (week <= 1) return { brightness: 2.5, saturate: 0 };
-    if (week <= 8) {
-        const t = (week - 1) / 7; // 0 at week1, 1 at week8
-        return { brightness: 2.5 - 1.5 * t, saturate: t };
-    }
-    // weeks 9-12: dim from full to black
-    const t = (week - 8) / 4; // 0 at week8, 1 at week12
-    return { brightness: 1.0 - t * 0.95, saturate: 1.0 - t * 0.9 };
+    // weeks 1-4: white (seedlings), weeks 5-12: normal color
+    if (week <= 4) return { brightness: 2.5, saturate: 0 };
+    return { brightness: 1, saturate: 1 };
 }
 
 const SIM_START = new Date(2026, 2, 15); // 3/15/26
