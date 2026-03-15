@@ -1161,13 +1161,18 @@ function applySimFilters() {
                         bar.style.filter = filter;
                     });
                     // Week number overlay
+                    const oTop = name === 'Kona' ? '40%' : '45%';
+                    const oLeft = name === 'GH4' ? '40%' : '50%';
                     card.style.position = 'relative';
                     let overlay = card.querySelector('.sim-week-overlay');
                     if (!overlay) {
                         overlay = document.createElement('div');
                         overlay.className = 'sim-week-overlay';
-                        overlay.style.cssText = 'position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);font-size:3rem;font-weight:900;color:rgba(0,0,0,0.5);pointer-events:none;z-index:10';
+                        overlay.style.cssText = `position:absolute;top:${oTop};left:${oLeft};transform:translate(-50%,-50%);font-size:3rem;font-weight:900;color:rgba(0,0,0,0.5);pointer-events:none;z-index:10`;
                         card.appendChild(overlay);
+                    } else {
+                        overlay.style.top = oTop;
+                        overlay.style.left = oLeft;
                     }
                     overlay.textContent = week;
                 }
