@@ -20,6 +20,7 @@
 <nav>
   <span class="brand">Dash</span>
   <div class="tabs" id="tabs"></div>
+  <span id="version" style="margin-left:auto;font-size:0.65rem;color:#555"></span>
 </nav>
 <iframe id="frame" src=""></iframe>
 <script>
@@ -52,6 +53,16 @@ DASHBOARDS.forEach(d => {
 
 navigate(location.hash.slice(1) || DASHBOARDS[0].id);
 window.addEventListener('hashchange', () => navigate(location.hash.slice(1)));
+
+(function() {
+  const now = new Date();
+  const hst = new Date(now.getTime() - 10 * 60 * 60 * 1000);
+  const mm = String(hst.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(hst.getUTCDate()).padStart(2, '0');
+  const hh = String(hst.getUTCHours()).padStart(2, '0');
+  const min = String(hst.getUTCMinutes()).padStart(2, '0');
+  document.getElementById('version').textContent = `${mm}/${dd} ${hh}:${min}`;
+})();
 </script>
 </body>
 </html>
