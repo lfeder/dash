@@ -332,8 +332,13 @@ body {
 <div class="header-stats" id="headerStats"></div>
     <div class="variety-legend" id="headerLegend"></div>
     <button id="simBtn" onclick="toggleSim()" style="padding:4px 12px;border-radius:4px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:0.8rem;white-space:nowrap;margin-left:auto">Sim</button>
-    <button id="simStopBtn" onclick="stopSim()" style="padding:4px 8px;border-radius:4px;border:1px solid var(--border);background:var(--bg-card);color:#e57373;cursor:pointer;font-size:0.8rem;display:none" title="Stop simulation">✕</button>
-    <span id="simWeek" style="font-size:0.8rem;color:var(--text-secondary);display:none"></span>
+    <div id="simControls" style="display:none;align-items:center;gap:4px">
+        <button onclick="simStep(-1)" style="padding:4px 8px;border-radius:4px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:0.9rem" title="Back 1 week">◀</button>
+        <button id="simPauseBtn" onclick="toggleSim()" style="padding:4px 8px;border-radius:4px;border:1px solid var(--border);background:#FF9800;color:#1a1a2e;cursor:pointer;font-size:0.9rem" title="Pause/Resume">⏸</button>
+        <button onclick="simStep(1)" style="padding:4px 8px;border-radius:4px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:0.9rem" title="Forward 1 week">▶</button>
+        <button onclick="stopSim()" style="padding:4px 8px;border-radius:4px;border:1px solid var(--border);background:var(--bg-card);color:#e57373;cursor:pointer;font-size:0.9rem" title="Stop">⏹</button>
+        <span id="simWeek" style="font-size:0.8rem;color:var(--text-secondary)"></span>
+    </div>
     <button id="toggleBtn" onclick="toggleView()" style="padding:4px 12px;border-radius:4px;border:1px solid var(--border);background:#4ecca3;color:#1a1a2e;cursor:pointer;font-size:0.8rem;white-space:nowrap">New</button>
 </div>
 
@@ -1185,35 +1190,53 @@ function startSimInterval() {
     }, 1000);
 }
 
+function showSimControls(show) {
+    document.getElementById('simControls').style.display = show ? 'flex' : 'none';
+    document.getElementById('simBtn').style.display = show ? 'none' : '';
+}
+
+function updatePauseBtn() {
+    const btn = document.getElementById('simPauseBtn');
+    if (simTimer) {
+        btn.textContent = '⏸';
+        btn.title = 'Pause';
+        btn.style.background = '#FF9800';
+    } else {
+        btn.textContent = '▶';
+        btn.title = 'Resume';
+        btn.style.background = '#4ecca3';
+    }
+}
+
 function toggleSim() {
-    const btn = document.getElementById('simBtn');
-    const weekEl = document.getElementById('simWeek');
     if (simTimer) {
         // Running → Pause
         clearInterval(simTimer);
         simTimer = null;
         simPaused = true;
-        btn.textContent = 'Resume';
-        btn.style.background = '#4ecca3';
-        btn.style.color = '#1a1a2e';
+        updatePauseBtn();
     } else if (simPaused) {
         // Paused → Resume
         simPaused = false;
-        btn.textContent = 'Pause';
-        btn.style.background = '#FF9800';
-        btn.style.color = '#1a1a2e';
+        updatePauseBtn();
         startSimInterval();
     } else {
         // Stopped → Start
         simTick = 0;
         applySimFilters();
-        weekEl.style.display = '';
-        document.getElementById('simStopBtn').style.display = '';
-        btn.textContent = 'Pause';
-        btn.style.background = '#FF9800';
-        btn.style.color = '#1a1a2e';
+        showSimControls(true);
+        updatePauseBtn();
+        simPaused = false;
         startSimInterval();
     }
+}
+
+function simStep(dir) {
+    if (simTimer) { clearInterval(simTimer); simTimer = null; }
+    simPaused = true;
+    simTick = Math.max(0, Math.min(51, simTick + dir));
+    applySimFilters();
+    updatePauseBtn();
 }
 
 function stopSim() {
@@ -1221,12 +1244,7 @@ function stopSim() {
     simTimer = null;
     simPaused = false;
     clearSimFilters();
-    const btn = document.getElementById('simBtn');
-    btn.textContent = 'Sim';
-    btn.style.background = 'var(--bg-card)';
-    btn.style.color = 'var(--text-primary)';
-    document.getElementById('simWeek').style.display = 'none';
-    document.getElementById('simStopBtn').style.display = 'none';
+    showSimControls(false);
 }
 
 init();
