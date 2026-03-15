@@ -202,7 +202,7 @@ body {
 }
 
 .card-row-bar {
-    transition: opacity 0.15s;
+    transition: opacity 0.15s, filter 0.8s ease;
 }
 
 .gh-card:hover .card-row-bar {
@@ -332,7 +332,9 @@ body {
     <span id="version" style="font-size:0.65rem;color:#555;"></span>
     <div class="header-stats" id="headerStats"></div>
     <div class="variety-legend" id="headerLegend"></div>
-    <button id="toggleBtn" onclick="toggleView()" style="margin-left:auto;padding:4px 12px;border-radius:4px;border:1px solid var(--border);background:#4ecca3;color:#1a1a2e;cursor:pointer;font-size:0.8rem;white-space:nowrap">New</button>
+    <button id="simBtn" onclick="toggleSim()" style="padding:4px 12px;border-radius:4px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:0.8rem;white-space:nowrap;margin-left:auto">Sim</button>
+    <span id="simWeek" style="font-size:0.8rem;color:var(--text-secondary);display:none"></span>
+    <button id="toggleBtn" onclick="toggleView()" style="padding:4px 12px;border-radius:4px;border:1px solid var(--border);background:#4ecca3;color:#1a1a2e;cursor:pointer;font-size:0.8rem;white-space:nowrap">New</button>
 </div>
 
 <div class="content" id="content"></div>
@@ -348,7 +350,7 @@ body {
   const dd = String(hst.getUTCDate()).padStart(2, '0');
   const hh = String(hst.getUTCHours()).padStart(2, '0');
   const min = String(hst.getUTCMinutes()).padStart(2, '0');
-  document.getElementById('version').textContent = `v${mm}${dd}-${hh}:${min}`;
+  document.getElementById('version').textContent = `v15-03 ${hh}:${min}`;
 })();
 
 // --- Configuration ---
@@ -1121,6 +1123,75 @@ function moveTooltip(e) {
 
 function hideTooltip() {
     document.getElementById('tooltip').style.display = 'none';
+}
+
+// --- Sim ---
+const SIM_ORDER = ['Kona','GH3','GH1',['Hamakua','Kohala'],'GH7','Waimea','GH4','GH2','GH6','Hilo','GH5','GH8'];
+let simTimer = null;
+let simTick = 0;
+
+function getSimBrightness(week) {
+    // week 1-12: 1=white, 2-8 grow to full color, 9-12 dim to black
+    if (week <= 1) return { brightness: 2.5, saturate: 0 };
+    if (week <= 8) {
+        const t = (week - 1) / 7; // 0 at week1, 1 at week8
+        return { brightness: 2.5 - 1.5 * t, saturate: t };
+    }
+    // weeks 9-12: dim from full to black
+    const t = (week - 8) / 4; // 0 at week8, 1 at week12
+    return { brightness: 1.0 - t * 0.95, saturate: 1.0 - t * 0.9 };
+}
+
+function applySimFilters() {
+    SIM_ORDER.forEach((gh, i) => {
+        const week = ((simTick + i) % 12) + 1;
+        const { brightness, saturate } = getSimBrightness(week);
+        const filter = `brightness(${brightness}) saturate(${saturate})`;
+        const names = Array.isArray(gh) ? gh : [gh];
+        names.forEach(name => {
+            const cards = document.querySelectorAll('.gh-card');
+            cards.forEach(card => {
+                const label = card.querySelector('.gh-card-name');
+                if (label && label.textContent === name) {
+                    card.querySelectorAll('.card-row-bar').forEach(bar => {
+                        bar.style.filter = filter;
+                    });
+                }
+            });
+        });
+    });
+    document.getElementById('simWeek').textContent = `Week ${(simTick % 12) + 1}`;
+}
+
+function clearSimFilters() {
+    document.querySelectorAll('.card-row-bar').forEach(bar => {
+        bar.style.filter = '';
+    });
+}
+
+function toggleSim() {
+    const btn = document.getElementById('simBtn');
+    const weekEl = document.getElementById('simWeek');
+    if (simTimer) {
+        clearInterval(simTimer);
+        simTimer = null;
+        clearSimFilters();
+        btn.textContent = 'Sim';
+        btn.style.background = 'var(--bg-card)';
+        btn.style.color = 'var(--text-primary)';
+        weekEl.style.display = 'none';
+    } else {
+        simTick = 0;
+        applySimFilters();
+        weekEl.style.display = '';
+        btn.textContent = 'Stop';
+        btn.style.background = '#e57373';
+        btn.style.color = '#1a1a2e';
+        simTimer = setInterval(() => {
+            simTick++;
+            applySimFilters();
+        }, 1000);
+    }
 }
 
 init();
