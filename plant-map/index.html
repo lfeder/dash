@@ -1144,9 +1144,17 @@ function getSimBrightness(week) {
     return { brightness: 1.0 - t * 0.95, saturate: 1.0 - t * 0.9 };
 }
 
+const SIM_START = new Date(2026, 2, 15); // 3/15/26
+const SIM_WAIMEA_IDX = 5; // Waimea's index in SIM_ORDER
+
+function simDateStr() {
+    const d = new Date(SIM_START.getTime() + simTick * 7 * 24 * 60 * 60 * 1000);
+    return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function applySimFilters() {
     SIM_ORDER.forEach((gh, i) => {
-        const week = ((simTick + i) % 12) + 1;
+        const week = ((simTick + i - SIM_WAIMEA_IDX + 120) % 12) + 1;
         const { brightness, saturate } = getSimBrightness(week);
         const filter = `brightness(${brightness}) saturate(${saturate})`;
         const names = Array.isArray(gh) ? gh : [gh];
@@ -1158,21 +1166,36 @@ function applySimFilters() {
                     card.querySelectorAll('.card-row-bar').forEach(bar => {
                         bar.style.filter = filter;
                     });
+                    // Week number overlay
+                    card.style.position = 'relative';
+                    let overlay = card.querySelector('.sim-week-overlay');
+                    if (!overlay) {
+                        overlay = document.createElement('div');
+                        overlay.className = 'sim-week-overlay';
+                        overlay.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:3rem;font-weight:900;color:rgba(0,0,0,0.5);pointer-events:none;z-index:10';
+                        card.appendChild(overlay);
+                    }
+                    overlay.textContent = week;
                 }
             });
         });
     });
-    document.getElementById('simWeek').textContent = `Week ${(simTick % 12) + 1}`;
+    document.getElementById('simWeek').textContent = simDateStr();
 }
 
 function clearSimFilters() {
     document.querySelectorAll('.card-row-bar').forEach(bar => {
         bar.style.filter = '';
     });
+    document.querySelectorAll('.sim-week-overlay').forEach(el => el.remove());
 }
 
 function startSimInterval() {
-    simTimer = setInterval(() => { simTick++; applySimFilters(); }, 1000);
+    simTimer = setInterval(() => {
+        simTick++;
+        if (simTick >= 52) { stopSim(); return; }
+        applySimFilters();
+    }, 1000);
 }
 
 function toggleSim() {
