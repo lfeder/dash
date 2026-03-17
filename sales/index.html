@@ -617,7 +617,7 @@ function renderChart(type, rows, label, useByCust) {
 
   // Nudge overlapping lines so identical values are visible
   datasets.forEach((ds, i) => {
-    const offset = (i - (datasets.length - 1) / 2) * 0.05;
+    const offset = i * 0.05;
     ds.data = ds.data.map(v => v == null ? null : v + offset);
   });
 
