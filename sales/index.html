@@ -57,7 +57,7 @@
 
 <div id="header">
   <h1>Sales Dashboard</h1>
-  <span id="version" style="font-size:0.65rem;color:#555;margin-left:8px;"></span>
+  <span id="version" style="font-size:0.65rem;color:#ccc;margin-left:8px;"></span>
   <div style="display:flex;align-items:center;gap:12px;">
     <button id="toggle25" onclick="toggle25Lines()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer;">Show '25</button>
     <button id="toggleByCust" onclick="toggleByCust()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer;">By Customer</button>
@@ -541,7 +541,7 @@ function renderChart(type, rows, label, useByCust) {
     keys.forEach(key => {
       const [custName, prod] = key.split('|');
       const color = colorMap[key];
-      const fadedColor = hexToRgba(color, 0.3);
+      const fadedColor = hexToRgba(color, 0.7);
       const has26 = Object.keys(data[key][2026]).length > 0;
       if (has26) {
         datasets.push({
@@ -591,7 +591,7 @@ function renderChart(type, rows, label, useByCust) {
     datasets = [];
     activeProducts.forEach(p => {
       const color = colorMap[p];
-      const fadedColor = hexToRgba(color, 0.3);
+      const fadedColor = hexToRgba(color, 0.7);
       const has26 = Object.keys(data[p][2026]).length > 0;
       if (has26) {
         datasets.push({
@@ -615,6 +615,12 @@ function renderChart(type, rows, label, useByCust) {
       }
     });
   }
+
+  // Nudge overlapping lines so identical values are visible
+  datasets.forEach((ds, i) => {
+    const offset = (i - (datasets.length - 1) / 2) * 1;
+    ds.data = ds.data.map(v => v == null ? null : v + offset);
+  });
 
   const chartRef = type === 'cuke' ? cukeChart : lettuceChart;
   if (chartRef) chartRef.destroy();
@@ -665,14 +671,14 @@ function renderChart(type, rows, label, useByCust) {
             label: ctx => {
               const ds = ctx.dataset;
               const name = ds.label.replace(/ '\d+$/, '');
-              return ` ${name} '${ds.year % 100}: ${ctx.formattedValue}`;
+              return ` ${name} '${ds.year % 100}: ${Math.round(ctx.parsed.y)}`;
             }
           }
         }
       },
       scales: {
         x: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-        y: { title: { display: true, text: 'Cases', color: '#888' }, ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+        y: { beginAtZero: true, title: { display: true, text: 'Cases', color: '#888' }, ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } }
       }
     }
   });
