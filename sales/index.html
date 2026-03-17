@@ -541,7 +541,7 @@ function renderChart(type, rows, label, useByCust) {
     keys.forEach(key => {
       const [custName, prod] = key.split('|');
       const color = colorMap[key];
-      const fadedColor = hexToRgba(color, 0.7);
+      const fadedColor = hexToRgba(color, 0.6);
       const has26 = Object.keys(data[key][2026]).length > 0;
       if (has26) {
         datasets.push({
@@ -591,7 +591,7 @@ function renderChart(type, rows, label, useByCust) {
     datasets = [];
     activeProducts.forEach(p => {
       const color = colorMap[p];
-      const fadedColor = hexToRgba(color, 0.7);
+      const fadedColor = hexToRgba(color, 0.6);
       const has26 = Object.keys(data[p][2026]).length > 0;
       if (has26) {
         datasets.push({
@@ -678,7 +678,12 @@ function renderChart(type, rows, label, useByCust) {
       },
       scales: {
         x: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-        y: { beginAtZero: true, title: { display: true, text: 'Cases', color: '#888' }, ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+        y: {
+          grace: '10%',
+          title: { display: true, text: 'Cases', color: '#888' },
+          ticks: { color: '#888', precision: 0 },
+          grid: { color: 'rgba(255,255,255,0.05)' }
+        }
       }
     }
   });
