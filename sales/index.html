@@ -57,7 +57,6 @@
 
 <div id="header">
   <h1>Sales Dashboard</h1>
-  <span id="version" style="font-size:0.65rem;color:#ccc;margin-left:8px;"></span>
   <div style="display:flex;align-items:center;gap:12px;">
     <button id="toggle25" onclick="toggle25Lines()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer;">Show '25</button>
     <button id="toggleByCust" onclick="toggleByCust()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer;">By Customer</button>
@@ -618,7 +617,7 @@ function renderChart(type, rows, label, useByCust) {
 
   // Nudge overlapping lines so identical values are visible
   datasets.forEach((ds, i) => {
-    const offset = (i - (datasets.length - 1) / 2) * 0.25;
+    const offset = (i - (datasets.length - 1) / 2) * 0.05;
     ds.data = ds.data.map(v => v == null ? null : v + offset);
   });
 
@@ -691,17 +690,6 @@ function renderChart(type, rows, label, useByCust) {
   if (type === 'cuke') cukeChart = chart;
   else lettuceChart = chart;
 }
-
-// Version label (MMDD-HH:MM in HST)
-(function() {
-  const now = new Date();
-  const hst = new Date(now.getTime() - 10 * 60 * 60 * 1000);
-  const mm = String(hst.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(hst.getUTCDate()).padStart(2, '0');
-  const hh = String(hst.getUTCHours()).padStart(2, '0');
-  const min = String(hst.getUTCMinutes()).padStart(2, '0');
-  document.getElementById('version').textContent = `v${mm}${dd}-${hh}:${min}`;
-})();
 
 loadData().catch(err => {
   document.getElementById('loading').textContent = 'Error loading data. Make sure the sheet is shared (anyone with link can view).';
