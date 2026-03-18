@@ -20,6 +20,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .msg-ai { align-self: flex-start; background: #16213e; border: 1px solid #0f3460; border-bottom-left-radius: 2px; }
 .msg-error { align-self: flex-start; background: #2a1a1a; border: 1px solid #e74c3c; color: #e74c3c; }
 .msg-status { align-self: center; color: #888; font-size: 0.75rem; }
+#loading-status { display: flex; align-items: center; justify-content: center; flex: 1; font-size: 1.1rem; color: #4ecca3; flex-direction: column; gap: 8px; }
+#loading-status .sub { font-size: 0.75rem; color: #888; }
 .msg-code { font-size: 0.7rem; margin-top: 8px; padding: 8px; background: #1a1a2e; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; font-family: 'Consolas', 'Monaco', monospace; color: #aaa; }
 .msg-code summary { color: #888; font-size: 0.65rem; cursor: pointer; }
 .msg-cost { font-size: 0.6rem; color: #555; margin-top: 4px; }
@@ -55,14 +57,15 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 </div>
 
 <div id="chat-wrap">
-  <div id="messages"></div>
+  <div id="loading-status">Loading data from Google Sheets...<div class="sub" id="loading-tab"></div></div>
+  <div id="messages" style="display:none"></div>
   <div class="examples" id="examples">
     <button class="example-btn" onclick="askExample(this)">What tables are loaded?</button>
     <button class="example-btn" onclick="askExample(this)">How many rows per table?</button>
     <button class="example-btn" onclick="askExample(this)">List all columns in each table</button>
   </div>
   <div id="input-area">
-    <input type="text" id="question" placeholder="Loading data..." disabled />
+    <input type="text" id="question" placeholder="Ask a question about your farm data..." disabled />
     <button class="btn-primary" id="ask-btn" onclick="ask()" disabled>Ask</button>
   </div>
 </div>
@@ -124,8 +127,9 @@ async function loadAllData() {
     }
   }
 
+  const loadingTab = document.getElementById('loading-tab');
   for (const tab of tabList) {
-    statusEl.placeholder = `Loading ${tab.tabName}... (${loaded}/${tabList.length})`;
+    loadingTab.textContent = `${tab.tabName} (${loaded + failed + 1}/${tabList.length})`;
     try {
       const rows = await fetchTab(tab.sheetId, tab.tabName);
       if (rows.length > 0) {
@@ -139,13 +143,14 @@ async function loadAllData() {
     }
   }
 
+  document.getElementById('loading-status').style.display = 'none';
+  document.getElementById('messages').style.display = 'flex';
+
   if (Object.keys(data).length > 0) {
-    statusEl.placeholder = 'Ask a question about your farm data...';
     statusEl.disabled = false;
     document.getElementById('ask-btn').disabled = false;
     addMessage('status', `Loaded ${Object.keys(data).length} tables, ${Object.values(data).reduce((s,r) => s + r.length, 0).toLocaleString()} rows` + (failed ? ` (${failed} failed)` : ''));
   } else {
-    statusEl.placeholder = 'No data loaded - check console for errors';
     addMessage('error', 'Failed to load any data. Errors: ' + errors.join('; '));
   }
 
