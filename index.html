@@ -20,7 +20,7 @@
 <nav>
   <span class="brand">Dash</span>
   <div class="tabs" id="tabs"></div>
-  <span id="version" style="margin-left:auto;font-size:0.65rem;color:#aaa"></span>
+  <span id="version" style="margin-left:auto;font-size:0.7rem;color:#e0e0e0"></span>
 </nav>
 <iframe id="frame" src=""></iframe>
 <script>
@@ -28,6 +28,7 @@ const DASHBOARDS = [
   { id: 'sales',     label: 'Sales',     src: 'sales/index.html' },
   { id: 'plant-map', label: 'Plant Map', src: 'plant-map/index.html' },
   { id: 'logistics', label: 'Logistics', src: 'logistics/index.html' },
+  { id: 'chat',      label: 'Chat',      src: 'chat/index.html' },
 ];
 
 const tabs = document.getElementById('tabs');
@@ -61,7 +62,7 @@ window.addEventListener('hashchange', () => navigate(location.hash.slice(1)));
   const dd = String(hst.getUTCDate()).padStart(2, '0');
   const hh = String(hst.getUTCHours()).padStart(2, '0');
   const min = String(hst.getUTCMinutes()).padStart(2, '0');
-  document.getElementById('version').textContent = `${mm}/${dd} ${hh}:${min}`;
+  document.getElementById('version').textContent = `${mm}-${dd} ${hh}:${min}`;
 })();
 </script>
 </body>

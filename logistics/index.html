@@ -86,7 +86,6 @@
   <div style="display:flex;align-items:center;gap:12px;">
     <button id="saveBtn" onclick="saveSliders()" style="padding:4px 12px;font-size:0.75rem;background:#0f3460;color:#4ecca3;border:1px solid #4ecca3;border-radius:4px;cursor:pointer;">Save Settings</button>
     <span id="saveMsg" style="font-size:0.7rem;color:#4ecca3;display:none;">Saved!</span>
-    <span id="version" style="font-size:0.65rem;color:#555;"></span>
     <div class="info" id="status">Loading data...</div>
   </div>
 </div>
@@ -1226,16 +1225,6 @@ async function loadData() {
   initMap();
 }
 
-// Version label
-(function() {
-  const now = new Date();
-  const hst = new Date(now.getTime() - 10 * 60 * 60 * 1000);
-  const mm = String(hst.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(hst.getUTCDate()).padStart(2, '0');
-  const hh = String(hst.getUTCHours()).padStart(2, '0');
-  const min = String(hst.getUTCMinutes()).padStart(2, '0');
-  document.getElementById('version').textContent = `v${mm}${dd}-${hh}:${min}`;
-})();
 
 loadData().catch(err => {
   document.getElementById('loading').textContent = 'Error loading data. Make sure the sheet is shared.';
