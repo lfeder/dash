@@ -91,7 +91,15 @@ function parseGvizTable(table) {
   const cols = table.cols.map(c => c.label || c.id);
   return table.rows.map(r => {
     const obj = {};
-    r.c.forEach((cell, i) => { obj[cols[i]] = cell ? (cell.v != null ? cell.v : '') : ''; });
+    r.c.forEach((cell, i) => {
+      if (!cell) { obj[cols[i]] = ''; return; }
+      // Use formatted value for dates (gviz dates are strings like "Date(2024,1,25)" which JS can't parse)
+      if (typeof cell.v === 'string' && cell.v.startsWith('Date(') && cell.f) {
+        obj[cols[i]] = cell.f;
+      } else {
+        obj[cols[i]] = cell.v != null ? cell.v : '';
+      }
+    });
     return obj;
   });
 }
@@ -178,6 +186,7 @@ async function callClaude(question) {
 ${schema}
 Access data like: data['grow_C_seeding'], data['maint_req'], etc.
 Each entry is an array of objects (rows).
+Date fields are strings in "M/d/yyyy" format (e.g. "2/25/2024"). Parse with new Date(dateString).
 
 Question: ${question}
 
