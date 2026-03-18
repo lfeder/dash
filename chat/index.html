@@ -4,67 +4,43 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Farm AI Chat</title>
-<!-- v: 17-03 15:00 -->
+<!-- v: 03-17 17:45 -->
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; }
 #header { background: #16213e; padding: 8px 20px; border-bottom: 1px solid #0f3460; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
 #header h1 { font-size: 1.1rem; color: #4ecca3; }
 #header .stats { font-size: 0.7rem; color: #888; display: flex; gap: 16px; }
-#main { flex: 1; display: flex; overflow: hidden; }
-
-/* Sidebar */
-#sidebar { width: 260px; background: #16213e; border-right: 1px solid #0f3460; padding: 12px; overflow-y: auto; flex-shrink: 0; font-size: 0.8rem; }
-#sidebar h3 { font-size: 0.8rem; color: #4ecca3; margin: 12px 0 6px; }
-#sidebar h3:first-child { margin-top: 0; }
-#sidebar input[type=password], #sidebar textarea { width: 100%; background: #1a1a2e; border: 1px solid #0f3460; color: #e0e0e0; padding: 6px 8px; border-radius: 4px; font-size: 0.75rem; font-family: inherit; }
-#sidebar textarea { height: 60px; resize: vertical; }
-.btn { padding: 6px 12px; font-size: 0.75rem; background: #0f3460; color: #ccc; border: 1px solid #555; border-radius: 4px; cursor: pointer; transition: background 0.15s; }
-.btn:hover { background: #1a4a7a; }
-.btn-primary { background: #4ecca3; color: #1a1a2e; border-color: #4ecca3; font-weight: 600; }
-.btn-primary:hover { background: #3dbb94; }
-.btn-sm { padding: 3px 8px; font-size: 0.7rem; }
-.sheet-section { margin-bottom: 8px; }
-.sheet-label { font-size: 0.7rem; color: #aaa; margin-bottom: 3px; }
-.tab-list { font-size: 0.7rem; color: #888; line-height: 1.4; }
-.status-box { background: #1a1a2e; border-radius: 4px; padding: 8px; margin-top: 8px; font-size: 0.7rem; }
-.status-box .row { display: flex; justify-content: space-between; margin-bottom: 2px; }
-.status-box .val { color: #4ecca3; }
-#load-progress { width: 100%; height: 3px; background: #0f3460; border-radius: 2px; margin-top: 6px; display: none; }
-#load-progress .bar { height: 100%; background: #4ecca3; border-radius: 2px; transition: width 0.2s; width: 0%; }
 
 /* Chat area */
-#chat-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+#chat-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 #messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
 .msg { max-width: 85%; padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; line-height: 1.5; }
 .msg-user { align-self: flex-end; background: #0f3460; border-bottom-right-radius: 2px; }
 .msg-ai { align-self: flex-start; background: #16213e; border: 1px solid #0f3460; border-bottom-left-radius: 2px; }
 .msg-error { align-self: flex-start; background: #2a1a1a; border: 1px solid #e74c3c; color: #e74c3c; }
-.msg-code { font-size: 0.7rem; margin-top: 8px; padding: 8px; background: #1a1a2e; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; font-family: 'Consolas', 'Monaco', monospace; color: #aaa; cursor: pointer; }
+.msg-status { align-self: center; color: #888; font-size: 0.75rem; }
+.msg-code { font-size: 0.7rem; margin-top: 8px; padding: 8px; background: #1a1a2e; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; font-family: 'Consolas', 'Monaco', monospace; color: #aaa; }
 .msg-code summary { color: #888; font-size: 0.65rem; cursor: pointer; }
 .msg-cost { font-size: 0.6rem; color: #555; margin-top: 4px; }
 .result-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.75rem; }
 .result-table th { text-align: left; padding: 4px 8px; border-bottom: 2px solid #0f3460; color: #4ecca3; background: #16213e; position: sticky; top: 0; }
 .result-table td { padding: 3px 8px; border-bottom: 1px solid #0f3460; }
 .result-table th.num, .result-table td.num { text-align: right; }
-.welcome { text-align: center; color: #888; padding: 40px 20px; font-size: 0.9rem; }
-.welcome h2 { color: #4ecca3; font-size: 1.1rem; margin-bottom: 8px; }
 
 /* Input */
 #input-area { padding: 10px 16px; border-top: 1px solid #0f3460; display: flex; gap: 8px; flex-shrink: 0; }
 #question { flex: 1; background: #16213e; border: 1px solid #0f3460; color: #e0e0e0; padding: 10px 14px; border-radius: 6px; font-size: 0.85rem; font-family: inherit; outline: none; }
 #question:focus { border-color: #4ecca3; }
 #question::placeholder { color: #555; }
+.btn-primary { padding: 6px 16px; font-size: 0.85rem; background: #4ecca3; color: #1a1a2e; border: 1px solid #4ecca3; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background 0.15s; }
+.btn-primary:hover { background: #3dbb94; }
+.btn-primary:disabled { opacity: 0.4; cursor: default; }
 
 /* Examples */
 .examples { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 8px; }
 .example-btn { padding: 4px 10px; font-size: 0.7rem; background: #0f3460; color: #aaa; border: 1px solid transparent; border-radius: 12px; cursor: pointer; transition: all 0.15s; }
 .example-btn:hover { color: #e0e0e0; border-color: #4ecca3; }
-
-@media (max-width: 768px) {
-  #main { flex-direction: column; }
-  #sidebar { width: 100%; max-height: 200px; border-right: none; border-bottom: 1px solid #0f3460; }
-}
 </style>
 </head>
 <body>
@@ -78,117 +54,43 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   </div>
 </div>
 
-<div id="main">
-  <div id="sidebar">
-    <h3>API Key</h3>
-    <input type="password" id="api-key" placeholder="sk-ant-..." />
-
-    <h3>Data Tabs</h3>
-    <p style="font-size:0.65rem;color:#666;margin-bottom:6px">Tab names per sheet, comma-separated</p>
-    <div id="sheet-configs"></div>
-
-    <div style="margin-top:10px;display:flex;gap:6px">
-      <button class="btn btn-primary" style="flex:1" onclick="loadAllData()">Load Data</button>
-      <button class="btn btn-sm" onclick="saveConfig()">Save Config</button>
-    </div>
-
-    <div id="load-progress"><div class="bar"></div></div>
-    <div id="load-status" style="font-size:0.7rem;color:#4ecca3;margin-top:4px"></div>
-
-    <div class="status-box" id="status-box" style="display:none">
-      <div class="row"><span>Tables</span><span class="val" id="sb-tables">0</span></div>
-      <div class="row"><span>Total rows</span><span class="val" id="sb-rows">0</span></div>
-      <div class="row"><span>Queries</span><span class="val" id="sb-queries">0</span></div>
-      <div class="row"><span>Session cost</span><span class="val" id="sb-cost">$0.0000</span></div>
-    </div>
+<div id="chat-wrap">
+  <div id="messages"></div>
+  <div class="examples" id="examples">
+    <button class="example-btn" onclick="askExample(this)">What tables are loaded?</button>
+    <button class="example-btn" onclick="askExample(this)">How many rows per table?</button>
+    <button class="example-btn" onclick="askExample(this)">List all columns in each table</button>
   </div>
-
-  <div id="chat-area">
-    <div id="messages">
-      <div class="welcome">
-        <h2>Farm AI Chat</h2>
-        <p>Load your data, then ask questions about it.</p>
-      </div>
-    </div>
-    <div class="examples" id="examples">
-      <button class="example-btn" onclick="askExample(this)">What tables are loaded?</button>
-      <button class="example-btn" onclick="askExample(this)">How many rows per table?</button>
-      <button class="example-btn" onclick="askExample(this)">List all columns in each table</button>
-    </div>
-    <div id="input-area">
-      <input type="text" id="question" placeholder="Ask a question about your farm data..." disabled />
-      <button class="btn btn-primary" id="ask-btn" onclick="ask()" disabled>Ask</button>
-    </div>
+  <div id="input-area">
+    <input type="text" id="question" placeholder="Loading data..." disabled />
+    <button class="btn-primary" id="ask-btn" onclick="ask()" disabled>Ask</button>
   </div>
 </div>
 
 <script>
 // ── Config ──────────────────────────────────────────────
 const SHEETS = {
-  grow:  { id: '1VtEecYn-W1pbnIU1hRHfxIpkH2DtK7hj0CpcpiLoziM', description: 'Growing & Nursery Data' },
-  fsafe: { id: '1MbHJoJmq0w8hWz8rl9VXezmK-63MFmuK19lz3pu0dfc', description: 'Food Safety Data' },
-  maint: { id: '1e7AuQAOpKAHpmvizIgBNyUk42GscXNpz96hFX8C8uio', description: 'Maintenance Data' }
+  grow:  { id: '1VtEecYn-W1pbnIU1hRHfxIpkH2DtK7hj0CpcpiLoziM', tabs: ['grow_C_seeding', 'grow_C_harvest', 'grow_L_seeding', 'grow_spray_sched'] },
+  fsafe: { id: '1MbHJoJmq0w8hWz8rl9VXezmK-63MFmuK19lz3pu0dfc', tabs: ['fsafe_log_list', 'fsafe_log_corrective_action', 'fsafe_corrective_actions', 'fsafe_test_name', 'fsafe_site_name', 'fsafe_log_emp', 'fsafe_log_water', 'fsafe_log_test_n_hold', 'fsafe_log_test_n_hold_APC', 'fsafe_log_training', 'fsafe_log_training_employees', 'fsafe_log_C_gh_pre', 'fsafe_log_C_gh_post', 'fsafe_log_C_ph_pre', 'fsafe_log_C_ph_post', 'fsafe_log_L_gh_pre', 'fsafe_log_L_gh_post', 'fsafe_log_L_ph_pre', 'fsafe_log_L_ph_post', 'fsafe_log_pest', 'fsafe_log_pest_stations', 'fsafe_log_glass', 'fsafe_log_calibration', 'fsafe_log_visitors'] },
+  maint: { id: '1e7AuQAOpKAHpmvizIgBNyUk42GscXNpz96hFX8C8uio', tabs: ['maint_req', 'maint_house_inspections', 'maint_houses', 'maint_sites'] }
 };
-const SKIP_PATTERNS = ['Chart', 'Pivot', 'Copy of', 'Sheet3', 'Claude Cache'];
+
+const _k = ['c2stYW50LWFwaTAzLWd4RDczeUFIdzZj','VGtPWWZmcWpWSVpWb1VKNml4X1BQVjho','dU5sUlN1N3BvYjVnNkVKRG9hZ3l4UmJt','NEhCYU9XcDJnb3pSMk5CSXZydXl5d2kx','TVZBLTRaWXNMd0FB'];
+const API_KEY = atob(_k.join(''));
 
 // ── State ───────────────────────────────────────────────
-const data = {};        // { tabKey: [ {col:val, ...}, ... ] }
+const data = {};
 let totalCost = 0;
 let queryCount = 0;
-
-// ── Init ────────────────────────────────────────────────
-(function init() {
-  // Restore API key
-  const _k = ['c2stYW50LWFwaTAzLWd4RDczeUFIdzZj','VGtPWWZmcWpWSVpWb1VKNml4X1BQVjho','dU5sUlN1N3BvYjVnNkVKRG9hZ3l4UmJt','NEhCYU9XcDJnb3pSMk5CSXZydXl5d2kx','TVZBLTRaWXNMd0FB'];
-  const savedKey = localStorage.getItem('farm_chat_api_key') || atob(_k.join(''));
-  document.getElementById('api-key').value = savedKey;
-
-  // Build sheet config inputs
-  const container = document.getElementById('sheet-configs');
-  const defaultTabs = {
-    grow: 'grow_C_seeding, grow_C_harvest, grow_L_seeding, grow_spray_sched',
-    fsafe: 'fsafe_log_list, fsafe_log_corrective_action, fsafe_corrective_actions, fsafe_test_name, fsafe_site_name, fsafe_log_emp, fsafe_log_water, fsafe_log_test_n_hold, fsafe_log_test_n_hold_APC, fsafe_log_training, fsafe_log_training_employees, fsafe_log_C_gh_pre, fsafe_log_C_gh_post, fsafe_log_C_ph_pre, fsafe_log_C_ph_post, fsafe_log_L_gh_pre, fsafe_log_L_gh_post, fsafe_log_L_ph_pre, fsafe_log_L_ph_post, fsafe_log_pest, fsafe_log_pest_stations, fsafe_log_glass, fsafe_log_calibration, fsafe_log_visitors',
-    maint: 'maint_req, maint_house_inspections, maint_houses, maint_sites'
-  };
-  const savedTabs = JSON.parse(localStorage.getItem('farm_chat_tabs') || 'null') || defaultTabs;
-  for (const [key, info] of Object.entries(SHEETS)) {
-    const div = document.createElement('div');
-    div.className = 'sheet-section';
-    div.innerHTML = `<div class="sheet-label">${key} — ${info.description}</div>
-      <textarea id="tabs-${key}" placeholder="tab1, tab2, tab3">${savedTabs[key] || ''}</textarea>`;
-    container.appendChild(div);
-  }
-
-  // Enter key to ask
-  document.getElementById('question').addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(); }
-  });
-
-  // Save API key on change
-  document.getElementById('api-key').addEventListener('change', function() {
-    localStorage.setItem('farm_chat_api_key', this.value);
-  });
-
-
-})();
-
-function saveConfig() {
-  const tabs = {};
-  for (const key of Object.keys(SHEETS)) {
-    tabs[key] = document.getElementById('tabs-' + key).value;
-  }
-  localStorage.setItem('farm_chat_tabs', JSON.stringify(tabs));
-  localStorage.setItem('farm_chat_api_key', document.getElementById('api-key').value);
-}
 
 // ── gviz data loading ───────────────────────────────────
 function parseGvizTable(table) {
   const cols = table.cols.map(c => c.label || c.id);
-  return { cols, rows: table.rows.map(r => {
+  return table.rows.map(r => {
     const obj = {};
     r.c.forEach((cell, i) => { obj[cols[i]] = cell ? (cell.v != null ? cell.v : '') : ''; });
     return obj;
-  })};
+  });
 }
 
 function fetchTab(sheetId, sheetName) {
@@ -198,7 +100,7 @@ function fetchTab(sheetId, sheetName) {
     window[cbName] = function(resp) {
       delete window[cbName];
       if (script.parentNode) script.parentNode.removeChild(script);
-      if (resp.status === 'error') { reject(resp.errors); return; }
+      if (resp.status === 'error') { reject(sheetName + ': ' + JSON.stringify(resp.errors)); return; }
       resolve(parseGvizTable(resp.table));
     };
     const script = document.createElement('script');
@@ -209,61 +111,45 @@ function fetchTab(sheetId, sheetName) {
 }
 
 async function loadAllData() {
-  // Gather tab names from config
+  const statusEl = document.getElementById('question');
+  let loaded = 0;
+  let failed = 0;
+  const errors = [];
+
+  // Build flat tab list
   const tabList = [];
   for (const [key, info] of Object.entries(SHEETS)) {
-    const raw = document.getElementById('tabs-' + key).value.trim();
-    if (!raw) continue;
-    const names = raw.split(',').map(s => s.trim()).filter(Boolean);
-    for (const name of names) {
-      if (SKIP_PATTERNS.some(p => name.includes(p))) continue;
-      tabList.push({ sheetKey: key, sheetId: info.id, tabName: name });
+    for (const tab of info.tabs) {
+      tabList.push({ sheetId: info.id, tabName: tab });
     }
   }
 
-  if (tabList.length === 0) {
-    document.getElementById('load-status').textContent = 'Enter tab names first';
-    return;
-  }
-
-  saveConfig();
-
-  const progress = document.getElementById('load-progress');
-  const bar = progress.querySelector('.bar');
-  const status = document.getElementById('load-status');
-  progress.style.display = 'block';
-  bar.style.width = '0%';
-
-  // Clear previous data
-  for (const k of Object.keys(data)) delete data[k];
-
-  let loaded = 0;
   for (const tab of tabList) {
-    status.textContent = `Loading ${tab.tabName}...`;
+    statusEl.placeholder = `Loading ${tab.tabName}... (${loaded}/${tabList.length})`;
     try {
-      const result = await fetchTab(tab.sheetId, tab.tabName);
-      if (result.rows.length > 0) {
-        data[tab.tabName] = result.rows;
+      const rows = await fetchTab(tab.sheetId, tab.tabName);
+      if (rows.length > 0) {
+        data[tab.tabName] = rows;
       }
+      loaded++;
     } catch (e) {
-      console.warn(`Skipped ${tab.tabName}:`, e);
+      failed++;
+      errors.push(String(e));
+      console.warn('Failed:', e);
     }
-    loaded++;
-    bar.style.width = (loaded / tabList.length * 100) + '%';
   }
 
-  progress.style.display = 'none';
-  status.textContent = `Loaded ${Object.keys(data).length} tables`;
+  if (Object.keys(data).length > 0) {
+    statusEl.placeholder = 'Ask a question about your farm data...';
+    statusEl.disabled = false;
+    document.getElementById('ask-btn').disabled = false;
+    addMessage('status', `Loaded ${Object.keys(data).length} tables, ${Object.values(data).reduce((s,r) => s + r.length, 0).toLocaleString()} rows` + (failed ? ` (${failed} failed)` : ''));
+  } else {
+    statusEl.placeholder = 'No data loaded - check console for errors';
+    addMessage('error', 'Failed to load any data. Errors: ' + errors.join('; '));
+  }
+
   updateStats();
-
-  // Enable chat
-  document.getElementById('question').disabled = false;
-  document.getElementById('ask-btn').disabled = false;
-
-  // Clear welcome
-  const msgs = document.getElementById('messages');
-  const welcome = msgs.querySelector('.welcome');
-  if (welcome) welcome.remove();
 }
 
 // ── Schema ──────────────────────────────────────────────
@@ -282,13 +168,10 @@ function getSchema() {
 
 // ── Claude API ──────────────────────────────────────────
 async function callClaude(question) {
-  const apiKey = document.getElementById('api-key').value;
-  if (!apiKey) throw new Error('Enter your Claude API key in the sidebar');
-
   const schema = getSchema();
   const prompt = `You have these JavaScript data arrays in an object called \`data\`:
 ${schema}
-Access data like: data['grow_chem'], data['maint_req'], etc.
+Access data like: data['grow_C_seeding'], data['maint_req'], etc.
 Each entry is an array of objects (rows).
 
 Question: ${question}
@@ -302,7 +185,7 @@ Write concise JavaScript code to answer this. Store the answer in \`result\`.
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
-      'x-api-key': apiKey,
+      'x-api-key': API_KEY,
       'anthropic-version': '2023-06-01',
       'content-type': 'application/json',
       'anthropic-dangerous-direct-browser-access': 'true'
@@ -382,9 +265,8 @@ function addMessage(role, html, extra) {
 }
 
 function askExample(btn) {
-  const q = document.getElementById('question');
-  if (q.disabled) return;
-  q.value = btn.textContent;
+  if (document.getElementById('question').disabled) return;
+  document.getElementById('question').value = btn.textContent;
   ask();
 }
 
@@ -392,12 +274,10 @@ async function ask() {
   const input = document.getElementById('question');
   const question = input.value.trim();
   if (!question) return;
-  if (Object.keys(data).length === 0) { addMessage('error', 'Load data first'); return; }
+  if (Object.keys(data).length === 0) { addMessage('error', 'Data not loaded yet'); return; }
 
   input.value = '';
   addMessage('user', question);
-
-  // Hide examples after first question
   document.getElementById('examples').style.display = 'none';
 
   const thinking = document.createElement('div');
@@ -437,15 +317,15 @@ function updateStats() {
   document.getElementById('stat-tables').textContent = tables ? `${tables} tables` : '';
   document.getElementById('stat-rows').textContent = rows ? `${rows.toLocaleString()} rows` : '';
   document.getElementById('stat-cost').textContent = queryCount ? `$${totalCost.toFixed(4)}` : '';
-  const box = document.getElementById('status-box');
-  if (tables) {
-    box.style.display = 'block';
-    document.getElementById('sb-tables').textContent = tables;
-    document.getElementById('sb-rows').textContent = rows.toLocaleString();
-    document.getElementById('sb-queries').textContent = queryCount;
-    document.getElementById('sb-cost').textContent = '$' + totalCost.toFixed(4);
-  }
 }
+
+// ── Enter key ───────────────────────────────────────────
+document.getElementById('question').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(); }
+});
+
+// ── Auto-load on page open ──────────────────────────────
+loadAllData();
 </script>
 </body>
 </html>
