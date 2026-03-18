@@ -176,11 +176,12 @@ Each entry is an array of objects (rows).
 
 Question: ${question}
 
-Write concise JavaScript code to answer this. Store the answer in \`result\`.
+Write ONLY executable JavaScript code. Store the answer in \`result\`.
 - result can be: a string, a number, an array of objects (for tables), or an object
 - For array-of-objects results, include only relevant columns
 - Use standard JS array methods (filter, map, reduce, sort, etc.)
-- NO console.log, NO explanations, ONLY code`;
+- NO console.log, NO comments, NO explanations, NO markdown, NO text before or after the code
+- Output MUST be a single valid JavaScript code block and nothing else`;
 
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -209,6 +210,10 @@ Write concise JavaScript code to answer this. Store the answer in \`result\`.
 
   let code = json.content[0].text;
   code = code.replace(/```javascript\n?/g, '').replace(/```js\n?/g, '').replace(/```\n?/g, '');
+  // Strip any non-code text before first valid JS and after last semicolon/brace
+  const lines = code.split('\n');
+  const codeLines = lines.filter(l => !l.match(/^(Wait|Let me|Actually|Looking|Here|Note|The |I |This )/));
+  code = codeLines.join('\n');
 
   return { code: code.trim(), inputTokens, outputTokens, cost };
 }
