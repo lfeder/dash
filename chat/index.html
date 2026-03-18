@@ -206,7 +206,7 @@ Write ONLY executable JavaScript code. Store the answer in \`result\`.
       'anthropic-dangerous-direct-browser-access': 'true'
     },
     body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 1024,
       messages: [{ role: 'user', content: prompt }]
     })
@@ -220,7 +220,7 @@ Write ONLY executable JavaScript code. Store the answer in \`result\`.
   const json = await resp.json();
   const inputTokens = json.usage.input_tokens;
   const outputTokens = json.usage.output_tokens;
-  const cost = (inputTokens * 0.25 / 1e6) + (outputTokens * 1.25 / 1e6);
+  const cost = (inputTokens * 3 / 1e6) + (outputTokens * 15 / 1e6);
 
   let code = json.content[0].text;
   code = code.replace(/```javascript\n?/g, '').replace(/```js\n?/g, '').replace(/```\n?/g, '');
