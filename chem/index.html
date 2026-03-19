@@ -216,7 +216,7 @@ function buildSeedingLookup(variety) {
     const harvestDays = parseFloat(row.harvestday);
     let yieldVal = null;
     if (!isNaN(lbPerBoard) && !isNaN(harvestDays) && harvestDays > 0) {
-      yieldVal = Math.round(lbPerBoard * 365 / harvestDays * 6 / 18 * 10) / 10;
+      yieldVal = Math.round(lbPerBoard * 365 / harvestDays * 6.18 * 10) / 10;
     }
     if (!start) continue;
     if (!lookup[pond]) lookup[pond] = [];
