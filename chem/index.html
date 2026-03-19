@@ -150,7 +150,7 @@ function getOverallDateRange(pondRanges) {
 
 function fmtLabel(d) {
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return d.getDate() === 1 || d.getDate() <= 2 ? months[d.getMonth()] : String(d.getDate());
+  return months[d.getMonth()] + ' ' + d.getDate();
 }
 
 function renderCharts(variety) {
