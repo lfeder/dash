@@ -31,12 +31,12 @@
 </head>
 <body>
 <div id="header">
-  <h1>Chemistry</h1>
   <div class="controls">
     <label>Variety: <select id="varietySelect"><option value="">Loading…</option></select></label>
     <label>From: <input type="date" id="dateFrom"></label>
     <label>To: <input type="date" id="dateTo"></label>
     <div id="pondButtons"></div>
+    <span class="pond-btn" id="yieldBtn" style="color:#fff;border-color:#fff;">Yields</span>
     <span id="info"></span>
   </div>
 </div>
@@ -58,6 +58,7 @@ let chemData = [], seedingData = [];
 let charts = {};
 let activePonds = new Set();
 let currentPondRanges = {};
+let showYields = false;
 
 // --- Data loading (JSONP via gviz) ---
 function fetchSheet(sheetId, tabOrGid, isTab) {
@@ -113,6 +114,9 @@ function populateVarieties() {
   sel.onchange = () => onVarietyChange(sel.value);
   document.getElementById('dateFrom').onchange = () => redraw();
   document.getElementById('dateTo').onchange = () => redraw();
+  const yBtn = document.getElementById('yieldBtn');
+  yBtn.onclick = () => { showYields = !showYields; yBtn.classList.toggle('off', !showYields); redraw(); };
+  yBtn.classList.add('off');
   // Default to GA
   if (names.includes('GA')) { sel.value = 'GA'; onVarietyChange('GA'); }
 }
@@ -195,7 +199,7 @@ function getOverallDateRange(pondRanges) {
 }
 
 function fmtLabel(d) {
-  return String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  return d.toISOString().slice(0, 10);
 }
 
 // Build a lookup: pond+date → {variety, boards} from seeding data
@@ -208,9 +212,15 @@ function buildSeedingLookup(variety) {
     const end = parseDate(row.harvestdate) || parseDate(row.expectedharvestdate) || new Date();
     const boards = row.boardsperpond || '';
     const seedname = row.seedname || '';
+    const lbPerBoard = parseFloat(row.poundsperboard);
+    const harvestDays = parseFloat(row.harvestday);
+    let yieldVal = null;
+    if (!isNaN(lbPerBoard) && !isNaN(harvestDays) && harvestDays > 0) {
+      yieldVal = Math.round(lbPerBoard * 365 / harvestDays * 6 / 18 * 10) / 10;
+    }
     if (!start) continue;
     if (!lookup[pond]) lookup[pond] = [];
-    lookup[pond].push({ start, end, seedname, boards });
+    lookup[pond].push({ start, end, seedname, boards, yieldVal });
   }
   return lookup;
 }
@@ -300,8 +310,81 @@ function renderCharts(variety) {
         pointStyle: 'circle',
         tension: 0,
         fill: false,
-        spanGaps: true
+        spanGaps: true,
+        yAxisID: 'y'
       });
+    }
+
+    // Add yield datasets on right y-axis if enabled
+    if (showYields) {
+      for (const pond of ponds) {
+        const entries = seedingLookup[pond] || [];
+        const yieldData = allDateStrs.map(ds => {
+          const d = new Date(ds + 'T00:00:00');
+          for (const e of entries) {
+            if (d >= e.start && d <= e.end && e.yieldVal != null) return e.yieldVal;
+          }
+          return null;
+        });
+        const hasData = yieldData.some(v => v !== null);
+        if (!hasData) continue;
+        datasets.push({
+          label: pond + ' yield',
+          data: yieldData,
+          borderColor: POND_COLORS[pond] || '#999',
+          backgroundColor: 'transparent',
+          borderWidth: 1,
+          borderDash: [4, 3],
+          pointRadius: 0,
+          tension: 0,
+          fill: false,
+          spanGaps: true,
+          yAxisID: 'y1'
+        });
+      }
+    }
+
+    const scales = {
+      x: {
+        ticks: {
+          color: '#888',
+          maxTicksLimit: 10,
+          callback: function(val, idx) {
+            const ds = allDateStrs[idx];
+            if (!ds) return '';
+            const d = new Date(ds + 'T00:00:00');
+            const mm = String(d.getMonth()+1).padStart(2,'0');
+            const yy = String(d.getFullYear()).slice(2);
+            // Show label on first tick and every ~3 months
+            if (idx === 0) return mm + '-' + yy;
+            const prev = allDateStrs[idx - 1];
+            const pd = new Date(prev + 'T00:00:00');
+            if (d.getMonth() !== pd.getMonth() || d.getFullYear() !== pd.getFullYear()) {
+              const totalMonths = allDateStrs.length > 20 ? 3 : 2;
+              const firstD = new Date(allDateStrs[0] + 'T00:00:00');
+              const monthsSinceStart = (d.getFullYear() - firstD.getFullYear()) * 12 + d.getMonth() - firstD.getMonth();
+              if (monthsSinceStart % totalMonths === 0) return mm + '-' + yy;
+            }
+            return '';
+          },
+          autoSkip: false,
+          maxRotation: 0
+        },
+        grid: { display: false }
+      },
+      y: {
+        position: 'left',
+        ticks: { color: '#888', maxTicksLimit: 5 },
+        grid: { color: 'rgba(255,255,255,0.05)' }
+      }
+    };
+    if (showYields) {
+      scales.y1 = {
+        position: 'right',
+        title: { display: true, text: 'lb/sf/yr', color: '#888', font: { size: 10 } },
+        ticks: { color: '#888', maxTicksLimit: 5 },
+        grid: { display: false }
+      };
     }
 
     const ctx = document.getElementById(`chart-${elem}`).getContext('2d');
@@ -312,16 +395,7 @@ function renderCharts(variety) {
         responsive: true,
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
-        scales: {
-          x: {
-            ticks: { color: '#888', maxTicksLimit: 10 },
-            grid: { display: false }
-          },
-          y: {
-            ticks: { color: '#888', maxTicksLimit: 5 },
-            grid: { color: 'rgba(255,255,255,0.05)' }
-          }
-        },
+        scales,
         plugins: {
           legend: {
             position: 'top',
@@ -339,7 +413,7 @@ function renderCharts(variety) {
                 const lines = [];
                 const seen = new Set();
                 items.forEach(item => {
-                  const pond = item.dataset.label;
+                  const pond = item.dataset.label.replace(' yield', '');
                   if (seen.has(pond)) return;
                   seen.add(pond);
                   const si = getSeedingInfo(seedingLookup, pond, dateStr);
