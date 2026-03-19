@@ -42,6 +42,7 @@ const CHEM_SHEET = '1XwavjRPi3xMJClslOjuC_4ONrbdl8l_qw0_JallE2c0';
 const GROW_SHEET = '1VtEecYn-W1pbnIU1hRHfxIpkH2DtK7hj0CpcpiLoziM';
 const GROW_TAB = 'grow_L_seeding';
 
+const ELEMENT_ORDER = ['EC','pH','N','NH4','P','K','Ca','Mg','S','Fe','Mn','B','Cu','Zn','Mo','Na'];
 const POND_COLORS = {
   P1: '#e74c3c', P2: '#3498db', P3: '#27ae60', P4: '#f39c12',
   P5: '#7f8c8d', P6: '#e84393', P7: '#00cec9'
@@ -182,7 +183,13 @@ function renderCharts(variety) {
   });
   const allDateStrs = [...allDatesSet].sort();
   const labels = allDateStrs.map(s => { const d = new Date(s + 'T00:00:00'); return fmtLabel(d); });
-  const elements = [...elementsSet].sort();
+  const elements = [...elementsSet].sort((a, b) => {
+    const ai = ELEMENT_ORDER.indexOf(a), bi = ELEMENT_ORDER.indexOf(b);
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    if (ai !== -1) return -1;
+    if (bi !== -1) return 1;
+    return a.localeCompare(b);
+  });
 
   for (const elem of elements) {
     const card = document.createElement('div');
