@@ -33,6 +33,7 @@
 <div id="header">
   <div class="controls">
     <label>Variety: <select id="varietySelect"><option value="">Loading…</option></select></label>
+    <label>Seed: <select id="seedSelect"><option value="">All</option></select></label>
     <label>From: <input type="date" id="dateFrom"></label>
     <label>To: <input type="date" id="dateTo"></label>
     <div id="pondButtons"></div>
@@ -124,8 +125,22 @@ function populateVarieties() {
 function onVarietyChange(variety) {
   const btnContainer = document.getElementById('pondButtons');
   btnContainer.innerHTML = '';
-  if (!variety) { activePonds.clear(); currentPondRanges = {}; redraw(); return; }
-  currentPondRanges = getPondDateRanges(variety);
+  const seedSel = document.getElementById('seedSelect');
+  if (!variety) { activePonds.clear(); currentPondRanges = {}; seedSel.innerHTML = '<option value="">All</option>'; redraw(); return; }
+  // Populate seed dropdown filtered by variety
+  const seeds = [...new Set(seedingData.filter(r => (r.variety || '') === variety).map(r => r.seedname || '').filter(Boolean))].sort();
+  seedSel.innerHTML = '<option value="">All</option>' + seeds.map(n => `<option value="${n}">${n}</option>`).join('');
+  seedSel.onchange = () => onSeedOrVarietyChange();
+  onSeedOrVarietyChange();
+}
+
+function onSeedOrVarietyChange() {
+  const variety = document.getElementById('varietySelect').value;
+  const seed = document.getElementById('seedSelect').value;
+  const btnContainer = document.getElementById('pondButtons');
+  btnContainer.innerHTML = '';
+  if (!variety) return;
+  currentPondRanges = getPondDateRanges(variety, seed);
   const ponds = Object.keys(currentPondRanges).sort();
   activePonds = new Set(ponds);
   // Set date range to overall min/max
@@ -154,12 +169,12 @@ function redraw() {
   renderCharts(document.getElementById('varietySelect').value);
 }
 
-function getPondDateRanges(variety) {
-  // For each pond, find all seeding cycles with this variety and their ponddate→harvestdate ranges
+function getPondDateRanges(variety, seed) {
   const ranges = {};
   for (const row of seedingData) {
     const v = row.variety || '';
     if (v !== variety) continue;
+    if (seed && (row.seedname || '') !== seed) continue;
     const pond = (row.pond || '').toUpperCase();
     if (!pond.startsWith('P')) continue;
     const start = parseDate(row.ponddate);
@@ -203,10 +218,11 @@ function fmtLabel(d) {
 }
 
 // Build a lookup: pond+date → {variety, boards} from seeding data
-function buildSeedingLookup(variety) {
+function buildSeedingLookup(variety, seed) {
   const lookup = {};
   for (const row of seedingData) {
     if ((row.variety || '') !== variety) continue;
+    if (seed && (row.seedname || '') !== seed) continue;
     const pond = (row.pond || '').toUpperCase();
     const start = parseDate(row.ponddate);
     const end = parseDate(row.harvestdate) || parseDate(row.expectedharvestdate) || new Date();
@@ -263,7 +279,8 @@ function renderCharts(variety) {
   if (filtered.length === 0) { info.textContent = 'No chemistry data for selection.'; return; }
   info.textContent = '';
 
-  const seedingLookup = buildSeedingLookup(variety);
+  const seed = document.getElementById('seedSelect').value;
+  const seedingLookup = buildSeedingLookup(variety, seed);
 
   const allDatesSet = new Set();
   const elementsSet = new Set();
