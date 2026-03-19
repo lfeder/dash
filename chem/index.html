@@ -220,7 +220,7 @@ function buildSeedingLookup(variety) {
     }
     if (!start) continue;
     if (!lookup[pond]) lookup[pond] = [];
-    lookup[pond].push({ start, end, seedname, boards, yieldVal });
+    lookup[pond].push({ start, end, seedname, boards, yieldVal, lbPerBoard, harvestDays });
   }
   return lookup;
 }
@@ -417,7 +417,13 @@ function renderCharts(variety) {
                   if (seen.has(pond)) return;
                   seen.add(pond);
                   const si = getSeedingInfo(seedingLookup, pond, dateStr);
-                  if (si) lines.push(`${pond}: ${si.seedname} (${si.boards} boards)`);
+                  if (si) {
+                    let detail = `${pond}: ${si.seedname} (${si.boards} bds`;
+                    if (!isNaN(si.lbPerBoard)) detail += `, ${si.lbPerBoard} lb/bd`;
+                    if (!isNaN(si.harvestDays)) detail += `, ${si.harvestDays}d`;
+                    detail += ')';
+                    lines.push(detail);
+                  }
                 });
                 return lines.length ? ['', '—', ...lines] : '';
               }
