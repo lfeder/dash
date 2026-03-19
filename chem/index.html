@@ -10,13 +10,17 @@
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; }
   #header { background: #16213e; padding: 12px 24px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid #0f3460; flex-wrap: wrap; }
   #header h1 { font-size: 1.3rem; color: #4ecca3; }
-  #version { font-size: 0.8rem; color: #e0e0e0; }
   #loading { display: flex; align-items: center; justify-content: center; height: 80vh; font-size: 1.2rem; color: #4ecca3; }
   .controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .controls label { font-size: 0.85rem; color: #aaa; }
   .controls select { background: #0f3460; color: #e0e0e0; border: 1px solid #4ecca3; border-radius: 4px; padding: 4px 8px; font-size: 0.85rem; }
   .controls select:focus { outline: none; border-color: #4ecca3; }
   #info { font-size: 0.8rem; color: #aaa; margin-left: 8px; }
+  .controls input[type="date"] { background: #0f3460; color: #e0e0e0; border: 1px solid #4ecca3; border-radius: 4px; padding: 4px 8px; font-size: 0.85rem; }
+  .controls input[type="date"]:focus { outline: none; border-color: #4ecca3; }
+  #pondButtons { display: flex; gap: 4px; flex-wrap: wrap; }
+  .pond-btn { padding: 2px 10px; border-radius: 4px; border: 1px solid; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: opacity 0.15s; }
+  .pond-btn.off { opacity: 0.3; }
   #grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 12px; }
   .chart-card { background: #16213e; border-radius: 8px; padding: 12px; }
   .chart-card h3 { font-size: 0.95rem; color: #ccc; margin-bottom: 4px; }
@@ -28,9 +32,11 @@
 <body>
 <div id="header">
   <h1>Chemistry</h1>
-  <span id="version"></span>
   <div class="controls">
     <label>Variety: <select id="varietySelect"><option value="">Loading…</option></select></label>
+    <label>From: <input type="date" id="dateFrom"></label>
+    <label>To: <input type="date" id="dateTo"></label>
+    <div id="pondButtons"></div>
     <span id="info"></span>
   </div>
 </div>
@@ -50,6 +56,8 @@ const POND_COLORS = {
 
 let chemData = [], seedingData = [];
 let charts = {};
+let activePonds = new Set();
+let currentPondRanges = {};
 
 // --- Data loading (JSONP via gviz) ---
 function fetchSheet(sheetId, tabOrGid, isTab) {
@@ -102,7 +110,44 @@ function populateVarieties() {
   const sel = document.getElementById('varietySelect');
   const names = [...new Set(seedingData.map(r => r.variety || '').filter(Boolean))].sort();
   sel.innerHTML = '<option value="">— Select variety —</option>' + names.map(n => `<option value="${n}">${n}</option>`).join('');
-  sel.onchange = () => renderCharts(sel.value);
+  sel.onchange = () => onVarietyChange(sel.value);
+  document.getElementById('dateFrom').onchange = () => redraw();
+  document.getElementById('dateTo').onchange = () => redraw();
+  // Default to GA
+  if (names.includes('GA')) { sel.value = 'GA'; onVarietyChange('GA'); }
+}
+
+function onVarietyChange(variety) {
+  const btnContainer = document.getElementById('pondButtons');
+  btnContainer.innerHTML = '';
+  if (!variety) { activePonds.clear(); currentPondRanges = {}; redraw(); return; }
+  currentPondRanges = getPondDateRanges(variety);
+  const ponds = Object.keys(currentPondRanges).sort();
+  activePonds = new Set(ponds);
+  // Set date range to overall min/max
+  const dateRange = getOverallDateRange(currentPondRanges);
+  const toISO = d => d ? d.toISOString().slice(0, 10) : '';
+  document.getElementById('dateFrom').value = toISO(dateRange.min);
+  document.getElementById('dateTo').value = toISO(dateRange.max);
+  // Create pond toggle buttons
+  ponds.forEach(pond => {
+    const btn = document.createElement('span');
+    btn.className = 'pond-btn';
+    btn.textContent = pond;
+    btn.style.color = POND_COLORS[pond] || '#999';
+    btn.style.borderColor = POND_COLORS[pond] || '#999';
+    btn.onclick = () => {
+      if (activePonds.has(pond)) activePonds.delete(pond); else activePonds.add(pond);
+      btn.classList.toggle('off', !activePonds.has(pond));
+      redraw();
+    };
+    btnContainer.appendChild(btn);
+  });
+  redraw();
+}
+
+function redraw() {
+  renderCharts(document.getElementById('varietySelect').value);
 }
 
 function getPondDateRanges(variety) {
@@ -153,6 +198,32 @@ function fmtLabel(d) {
   return String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
+// Build a lookup: pond+date → {variety, boards} from seeding data
+function buildSeedingLookup(variety) {
+  const lookup = {};
+  for (const row of seedingData) {
+    if ((row.variety || '') !== variety) continue;
+    const pond = (row.pond || '').toUpperCase();
+    const start = parseDate(row.ponddate);
+    const end = parseDate(row.harvestdate) || parseDate(row.expectedharvestdate) || new Date();
+    const boards = row.boardsperpond || '';
+    const seedname = row.seedname || '';
+    if (!start) continue;
+    if (!lookup[pond]) lookup[pond] = [];
+    lookup[pond].push({ start, end, seedname, boards });
+  }
+  return lookup;
+}
+
+function getSeedingInfo(lookup, pond, dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const entries = lookup[pond] || [];
+  for (const e of entries) {
+    if (d >= e.start && d <= e.end) return e;
+  }
+  return null;
+}
+
 function renderCharts(variety) {
   const grid = document.getElementById('grid');
   const info = document.getElementById('info');
@@ -162,18 +233,28 @@ function renderCharts(variety) {
 
   if (!variety) { info.textContent = ''; return; }
 
-  const pondRanges = getPondDateRanges(variety);
-  const ponds = Object.keys(pondRanges).sort();
-  if (ponds.length === 0) { info.textContent = 'No pond data found for this variety.'; return; }
+  const ponds = [...activePonds].sort();
+  if (ponds.length === 0) { info.textContent = 'No ponds selected.'; return; }
 
-  const dateRange = getOverallDateRange(pondRanges);
-  const fmt = d => d ? `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}` : '?';
-  info.textContent = `Ponds: ${ponds.join(', ')}  |  ${fmt(dateRange.min)} – ${fmt(dateRange.max)}`;
+  // Filter pondRanges to only active ponds
+  const pondRanges = {};
+  ponds.forEach(p => { if (currentPondRanges[p]) pondRanges[p] = currentPondRanges[p]; });
 
-  const filtered = filterChemData(pondRanges);
-  if (filtered.length === 0) { info.textContent += '  |  No chemistry data in this range.'; return; }
+  // Apply date range filter
+  const fromVal = document.getElementById('dateFrom').value;
+  const toVal = document.getElementById('dateTo').value;
+  const fromDate = fromVal ? new Date(fromVal + 'T00:00:00') : null;
+  const toDate = toVal ? new Date(toVal + 'T00:00:00') : null;
 
-  // Collect all unique dates and elements from filtered data
+  let filtered = filterChemData(pondRanges);
+  if (fromDate) filtered = filtered.filter(r => r._date >= fromDate);
+  if (toDate) filtered = filtered.filter(r => r._date <= toDate);
+
+  if (filtered.length === 0) { info.textContent = 'No chemistry data for selection.'; return; }
+  info.textContent = '';
+
+  const seedingLookup = buildSeedingLookup(variety);
+
   const allDatesSet = new Set();
   const elementsSet = new Set();
   filtered.forEach(r => {
@@ -200,7 +281,6 @@ function renderCharts(variety) {
 
     const datasets = [];
     for (const pond of ponds) {
-      // Build a map of date→value for this pond+element
       const dateMap = {};
       elemRows
         .filter(r => r._pond === pond)
@@ -208,7 +288,6 @@ function renderCharts(variety) {
           const v = parseFloat(r.result);
           if (!isNaN(v)) dateMap[r._date.toISOString().slice(0, 10)] = v;
         });
-      // Only include pond if it has data for this element
       const hasData = allDateStrs.some(ds => dateMap[ds] !== undefined);
       if (!hasData) continue;
       datasets.push({
@@ -252,8 +331,21 @@ function renderCharts(variety) {
             callbacks: {
               title: function(items) {
                 if (!items.length) return '';
-                const idx = items[0].dataIndex;
-                return allDateStrs[idx] || '';
+                return allDateStrs[items[0].dataIndex] || '';
+              },
+              afterBody: function(items) {
+                if (!items.length) return '';
+                const dateStr = allDateStrs[items[0].dataIndex];
+                const lines = [];
+                const seen = new Set();
+                items.forEach(item => {
+                  const pond = item.dataset.label;
+                  if (seen.has(pond)) return;
+                  seen.add(pond);
+                  const si = getSeedingInfo(seedingLookup, pond, dateStr);
+                  if (si) lines.push(`${pond}: ${si.seedname} (${si.boards} boards)`);
+                });
+                return lines.length ? ['', '—', ...lines] : '';
               }
             }
           }
@@ -281,16 +373,6 @@ function renderCharts(variety) {
   }
 })();
 
-// Version stamp
-(function() {
-  const now = new Date();
-  const hst = new Date(now.getTime() - 10 * 60 * 60 * 1000);
-  const mm = String(hst.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(hst.getUTCDate()).padStart(2, '0');
-  const hh = String(hst.getUTCHours()).padStart(2, '0');
-  const min = String(hst.getUTCMinutes()).padStart(2, '0');
-  document.getElementById('version').textContent = `${mm}-${dd} ${hh}:${min}`;
-})();
 </script>
 </body>
 </html>
