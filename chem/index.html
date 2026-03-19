@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chemistry Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; }
+  #header { background: #16213e; padding: 12px 24px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid #0f3460; flex-wrap: wrap; }
+  #header h1 { font-size: 1.3rem; color: #4ecca3; }
+  #version { font-size: 0.8rem; color: #e0e0e0; }
+  #loading { display: flex; align-items: center; justify-content: center; height: 80vh; font-size: 1.2rem; color: #4ecca3; }
+  .controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .controls label { font-size: 0.85rem; color: #aaa; }
+  .controls select { background: #0f3460; color: #e0e0e0; border: 1px solid #4ecca3; border-radius: 4px; padding: 4px 8px; font-size: 0.85rem; }
+  .controls select:focus { outline: none; border-color: #4ecca3; }
+  #info { font-size: 0.8rem; color: #aaa; margin-left: 8px; }
+  #grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 12px; }
+  .chart-card { background: #16213e; border-radius: 8px; padding: 12px; }
+  .chart-card h3 { font-size: 0.95rem; color: #ccc; margin-bottom: 4px; }
+  .chart-card canvas { width: 100% !important; height: 220px !important; }
+  @media (max-width: 1000px) { #grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 600px) { #grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>Chemistry</h1>
+  <span id="version"></span>
+  <div class="controls">
+    <label>Variety: <select id="varietySelect"><option value="">Loading…</option></select></label>
+    <span id="info"></span>
+  </div>
+</div>
+<div id="loading">Loading data from Google Sheets…</div>
+<div id="grid" style="display:none;"></div>
+
+<script>
+const CHEM_SHEET = '1XwavjRPi3xMJClslOjuC_4ONrbdl8l_qw0_JallE2c0';
+const GROW_SHEET = '1VtEecYn-W1pbnIU1hRHfxIpkH2DtK7hj0CpcpiLoziM';
+const GROW_TAB = 'grow_L_seeding';
+
+const POND_COLORS = {
+  P1: '#e74c3c', P2: '#3498db', P3: '#27ae60', P4: '#f39c12',
+  P5: '#7f8c8d', P6: '#e84393', P7: '#00cec9'
+};
+
+let chemData = [], seedingData = [];
+let charts = {};
+
+// --- Data loading (JSONP via gviz) ---
+function fetchSheet(sheetId, tabOrGid, isTab) {
+  return new Promise((resolve, reject) => {
+    const cbName = '_cb_' + Math.random().toString(36).slice(2, 10);
+    let url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json;responseHandler:${cbName}`;
+    if (isTab) url += `&sheet=${encodeURIComponent(tabOrGid)}`;
+    else url += `&gid=${tabOrGid}`;
+    window[cbName] = function(resp) {
+      delete window[cbName];
+      if (resp.status === 'error') { reject(resp.errors); return; }
+      resolve(parseGviz(resp.table));
+    };
+    const s = document.createElement('script');
+    s.src = url;
+    s.onerror = () => { delete window[cbName]; s.remove(); reject('Network error'); };
+    document.head.appendChild(s);
+  });
+}
+
+function parseGviz(table) {
+  const cols = table.cols.map(c => c.label);
+  return table.rows.map(r => {
+    const obj = {};
+    r.c.forEach((cell, i) => {
+      const col = cols[i];
+      if (!col) return;
+      if (!cell || cell.v == null) { obj[col] = ''; return; }
+      if (typeof cell.v === 'string' && cell.v.startsWith('Date(')) {
+        const m = cell.v.match(/Date\((\d+),(\d+),(\d+)/);
+        if (m) obj[col] = new Date(+m[1], +m[2], +m[3]);
+        else obj[col] = cell.f || cell.v;
+      } else {
+        obj[col] = cell.v;
+      }
+    });
+    return obj;
+  });
+}
+
+function parseDate(v) {
+  if (v instanceof Date) return v;
+  if (!v) return null;
+  const d = new Date(v);
+  return isNaN(d) ? null : d;
+}
+
+// --- Build UI ---
+function populateVarieties() {
+  const sel = document.getElementById('varietySelect');
+  const names = [...new Set(seedingData.map(r => r.variety || '').filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">— Select variety —</option>' + names.map(n => `<option value="${n}">${n}</option>`).join('');
+  sel.onchange = () => renderCharts(sel.value);
+}
+
+function getPondDateRanges(variety) {
+  // For each pond, find all seeding cycles with this variety and their ponddate→harvestdate ranges
+  const ranges = {};
+  for (const row of seedingData) {
+    const v = row.variety || '';
+    if (v !== variety) continue;
+    const pond = (row.pond || '').toUpperCase();
+    if (!pond.startsWith('P')) continue;
+    const start = parseDate(row.ponddate);
+    const end = parseDate(row.harvestdate) || parseDate(row.expectedharvestdate);
+    if (!start) continue;
+    if (!ranges[pond]) ranges[pond] = [];
+    ranges[pond].push({ start, end: end || new Date() });
+  }
+  return ranges;
+}
+
+function filterChemData(pondRanges) {
+  // Filter chemistry data to only include rows for ponds in ranges and within date ranges
+  const filtered = [];
+  for (const row of chemData) {
+    const pond = (row.site_name || '').toUpperCase();
+    const ranges = pondRanges[pond];
+    if (!ranges) continue;
+    const date = parseDate(row.sample_date);
+    if (!date) continue;
+    const inRange = ranges.some(r => date >= r.start && date <= r.end);
+    if (inRange) filtered.push({ ...row, _date: date, _pond: pond });
+  }
+  return filtered;
+}
+
+function getOverallDateRange(pondRanges) {
+  let min = null, max = null;
+  for (const ranges of Object.values(pondRanges)) {
+    for (const r of ranges) {
+      if (!min || r.start < min) min = r.start;
+      const e = r.end || new Date();
+      if (!max || e > max) max = e;
+    }
+  }
+  return { min, max };
+}
+
+function fmtLabel(d) {
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return d.getDate() === 1 || d.getDate() <= 2 ? months[d.getMonth()] : String(d.getDate());
+}
+
+function renderCharts(variety) {
+  const grid = document.getElementById('grid');
+  const info = document.getElementById('info');
+  Object.values(charts).forEach(c => c.destroy());
+  charts = {};
+  grid.innerHTML = '';
+
+  if (!variety) { info.textContent = ''; return; }
+
+  const pondRanges = getPondDateRanges(variety);
+  const ponds = Object.keys(pondRanges).sort();
+  if (ponds.length === 0) { info.textContent = 'No pond data found for this variety.'; return; }
+
+  const dateRange = getOverallDateRange(pondRanges);
+  const fmt = d => d ? `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}` : '?';
+  info.textContent = `Ponds: ${ponds.join(', ')}  |  ${fmt(dateRange.min)} – ${fmt(dateRange.max)}`;
+
+  const filtered = filterChemData(pondRanges);
+  if (filtered.length === 0) { info.textContent += '  |  No chemistry data in this range.'; return; }
+
+  // Collect all unique dates and elements from filtered data
+  const allDatesSet = new Set();
+  const elementsSet = new Set();
+  filtered.forEach(r => {
+    if (r._date) allDatesSet.add(r._date.toISOString().slice(0, 10));
+    if (r.nutrient) elementsSet.add(r.nutrient);
+  });
+  const allDateStrs = [...allDatesSet].sort();
+  const labels = allDateStrs.map(s => { const d = new Date(s + 'T00:00:00'); return fmtLabel(d); });
+  const elements = [...elementsSet].sort();
+
+  for (const elem of elements) {
+    const card = document.createElement('div');
+    card.className = 'chart-card';
+    card.innerHTML = `<h3>${elem} Levels</h3><canvas id="chart-${elem}"></canvas>`;
+    grid.appendChild(card);
+
+    const elemRows = filtered.filter(r => (r.nutrient || '') === elem);
+
+    const datasets = [];
+    for (const pond of ponds) {
+      // Build a map of date→value for this pond+element
+      const dateMap = {};
+      elemRows
+        .filter(r => r._pond === pond)
+        .forEach(r => {
+          const v = parseFloat(r.result);
+          if (!isNaN(v)) dateMap[r._date.toISOString().slice(0, 10)] = v;
+        });
+      // Only include pond if it has data for this element
+      const hasData = allDateStrs.some(ds => dateMap[ds] !== undefined);
+      if (!hasData) continue;
+      datasets.push({
+        label: pond,
+        data: allDateStrs.map(ds => dateMap[ds] !== undefined ? dateMap[ds] : null),
+        borderColor: POND_COLORS[pond] || '#999',
+        backgroundColor: POND_COLORS[pond] || '#999',
+        borderWidth: 1.5,
+        pointRadius: 3,
+        pointStyle: 'circle',
+        tension: 0,
+        fill: false,
+        spanGaps: true
+      });
+    }
+
+    const ctx = document.getElementById(`chart-${elem}`).getContext('2d');
+    charts[elem] = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+          x: {
+            ticks: { color: '#888', maxTicksLimit: 10 },
+            grid: { display: false }
+          },
+          y: {
+            ticks: { color: '#888', maxTicksLimit: 5 },
+            grid: { color: 'rgba(255,255,255,0.05)' }
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: { color: '#aaa', usePointStyle: true, pointStyle: 'circle', padding: 12, font: { size: 11 } }
+          },
+          tooltip: {
+            callbacks: {
+              title: function(items) {
+                if (!items.length) return '';
+                const idx = items[0].dataIndex;
+                return allDateStrs[idx] || '';
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+}
+
+// --- Init ---
+(async function init() {
+  try {
+    const [chem, seeding] = await Promise.all([
+      fetchSheet(CHEM_SHEET, '0', false),
+      fetchSheet(GROW_SHEET, GROW_TAB, true)
+    ]);
+    chemData = chem;
+    seedingData = seeding;
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('grid').style.display = 'grid';
+    populateVarieties();
+  } catch (e) {
+    document.getElementById('loading').textContent = 'Error loading data: ' + e;
+    console.error(e);
+  }
+})();
+
+// Version stamp
+(function() {
+  const now = new Date();
+  const hst = new Date(now.getTime() - 10 * 60 * 60 * 1000);
+  const mm = String(hst.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(hst.getUTCDate()).padStart(2, '0');
+  const hh = String(hst.getUTCHours()).padStart(2, '0');
+  const min = String(hst.getUTCMinutes()).padStart(2, '0');
+  document.getElementById('version').textContent = `${mm}-${dd} ${hh}:${min}`;
+})();
+</script>
+</body>
+</html>
