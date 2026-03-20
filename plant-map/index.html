@@ -896,7 +896,7 @@ function showOverview() {
         const weekStart = new Date(today); weekStart.setDate(today.getDate() - today.getDay());
         const result = {};
         SIM_ORDER.forEach((entry, i) => {
-            const offset = ((i - ANCHOR_IDX) + CYCLE_WEEKS * 10) % CYCLE_WEEKS;
+            const offset = ((ANCHOR_IDX - i) + CYCLE_WEEKS * 10) % CYCLE_WEEKS;
             let seedDate = new Date(ANCHOR_SEED.getTime() + offset * 7 * 24 * 60 * 60 * 1000);
             // Include current week — only advance if before this week
             while (seedDate < weekStart) seedDate = new Date(seedDate.getTime() + CYCLE_WEEKS * 7 * 24 * 60 * 60 * 1000);
