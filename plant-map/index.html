@@ -891,13 +891,15 @@ function showOverview() {
         const GH1_SEED = new Date(2026, 2, 15); // 3/15/2026
         const GH1_IDX = 2; // GH1's index in SIM_ORDER
         const CYCLE_WEEKS = SIM_ORDER.length; // 12
+        // Start of current week (Sunday)
         const today = new Date(); today.setHours(0,0,0,0);
+        const weekStart = new Date(today); weekStart.setDate(today.getDate() - today.getDay());
         const result = {};
         SIM_ORDER.forEach((entry, i) => {
-            const offset = ((i - GH1_IDX) + CYCLE_WEEKS * 10) % CYCLE_WEEKS; // weeks after GH1
+            const offset = ((i - GH1_IDX) + CYCLE_WEEKS * 10) % CYCLE_WEEKS;
             let seedDate = new Date(GH1_SEED.getTime() + offset * 7 * 24 * 60 * 60 * 1000);
-            // If past, advance by one full cycle
-            while (seedDate < today) seedDate = new Date(seedDate.getTime() + CYCLE_WEEKS * 7 * 24 * 60 * 60 * 1000);
+            // Include current week — only advance if before this week
+            while (seedDate < weekStart) seedDate = new Date(seedDate.getTime() + CYCLE_WEEKS * 7 * 24 * 60 * 60 * 1000);
             const names = Array.isArray(entry) ? entry : [entry];
             names.forEach(n => { result[n] = seedDate; });
         });
@@ -906,10 +908,13 @@ function showOverview() {
 
     // Summary table HTML
     function renderSummaryTable() {
-        const TABLE_ORDER = ['Kona','GH3','GH1','Hamakua','Kohala','GH7','Waimea','GH4','GH2','GH6','Hilo','GH5','GH8'];
+        const TABLE_ORDER_BASE = ['Kona','GH3','GH1','Hamakua','Kohala','GH7','Waimea','GH4','GH2','GH6','Hilo','GH5','GH8'];
         const TABLE_COLS = ['Keiki','Japanese','English'];
         const TABLE_LABELS = { Keiki: 'K', Japanese: 'J', English: 'E' };
         const seedDates = getNextSeedingDates();
+        const today = new Date(); today.setHours(0,0,0,0);
+        const weekStart = new Date(today); weekStart.setDate(today.getDate() - today.getDay());
+        const TABLE_ORDER = [...TABLE_ORDER_BASE].sort((a, b) => (seedDates[a] || 0) - (seedDates[b] || 0));
         const fmtDate = d => `${d.getMonth()+1}/${d.getDate()}`;
         const getISOWeek = d => { const t = new Date(d); t.setHours(0,0,0,0); t.setDate(t.getDate()+3-(t.getDay()+6)%7); const w1 = new Date(t.getFullYear(),0,4); return 1+Math.round(((t-w1)/86400000-3+(w1.getDay()+6)%7)/7); };
         const thStyle = 'padding:4px 10px;border:1px solid var(--border)';
@@ -940,7 +945,9 @@ function showOverview() {
             }
             const label = name.replace('GH', '');
             const sd = seedDates[name];
-            t += `<tr><td style="${thStyle};font-weight:700">${label}</td>`;
+            const isThisWeek = sd && sd >= weekStart && sd < new Date(weekStart.getTime() + 7*24*60*60*1000);
+            const rowBg = isThisWeek ? 'background:rgba(78,204,163,0.15);' : '';
+            t += `<tr style="${rowBg}"><td style="${thStyle};font-weight:700">${label}</td>`;
             TABLE_COLS.forEach(v => {
                 totals[v] += counts[v];
                 t += `<td style="${thStyle};text-align:right">${counts[v] ? counts[v].toLocaleString() : ''}</td>`;
