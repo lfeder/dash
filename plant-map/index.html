@@ -888,16 +888,16 @@ function showOverview() {
     // Compute next seeding date for each GH
     // GH1 seeds the week of 3/15/2026, then follows SIM_ORDER sequence, 1 week apart, 12-week cycle
     function getNextSeedingDates() {
-        const GH1_SEED = new Date(2026, 2, 15); // 3/15/2026
-        const GH1_IDX = 2; // GH1's index in SIM_ORDER
+        const ANCHOR_SEED = new Date(2026, 2, 15); // 3/15/2026
+        const ANCHOR_IDX = 7; // GH2's index in SIM_ORDER — GH2 seeds this week
         const CYCLE_WEEKS = SIM_ORDER.length; // 12
         // Start of current week (Sunday)
         const today = new Date(); today.setHours(0,0,0,0);
         const weekStart = new Date(today); weekStart.setDate(today.getDate() - today.getDay());
         const result = {};
         SIM_ORDER.forEach((entry, i) => {
-            const offset = ((i - GH1_IDX) + CYCLE_WEEKS * 10) % CYCLE_WEEKS;
-            let seedDate = new Date(GH1_SEED.getTime() + offset * 7 * 24 * 60 * 60 * 1000);
+            const offset = ((i - ANCHOR_IDX) + CYCLE_WEEKS * 10) % CYCLE_WEEKS;
+            let seedDate = new Date(ANCHOR_SEED.getTime() + offset * 7 * 24 * 60 * 60 * 1000);
             // Include current week — only advance if before this week
             while (seedDate < weekStart) seedDate = new Date(seedDate.getTime() + CYCLE_WEEKS * 7 * 24 * 60 * 60 * 1000);
             const names = Array.isArray(entry) ? entry : [entry];
