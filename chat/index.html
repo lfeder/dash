@@ -65,8 +65,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <button class="example-btn" onclick="askExample(this)">List all columns in each table</button>
   </div>
   <div id="input-area">
-    <input type="text" id="question" placeholder="Ask a question about your farm data..." disabled />
-    <button class="btn-primary" id="ask-btn" onclick="ask()" disabled>Ask</button>
+    <input type="text" id="question" placeholder="Ask a question about your farm data..." />
+    <button class="btn-primary" id="ask-btn" onclick="ask()">Ask</button>
   </div>
 </div>
 
@@ -85,6 +85,8 @@ const API_KEY = atob(_k.join(''));
 const data = {};
 let totalCost = 0;
 let queryCount = 0;
+let dataReady = false;
+let pendingQuestion = null;
 
 // ── gviz data loading ───────────────────────────────────
 function parseGvizTable(table) {
@@ -155,9 +157,9 @@ async function loadAllData() {
   document.getElementById('messages').style.display = 'flex';
 
   if (Object.keys(data).length > 0) {
-    statusEl.disabled = false;
-    document.getElementById('ask-btn').disabled = false;
+    dataReady = true;
     addMessage('status', `Loaded ${Object.keys(data).length} tables, ${Object.values(data).reduce((s,r) => s + r.length, 0).toLocaleString()} rows` + (failed ? ` (${failed} failed)` : ''));
+    if (pendingQuestion) { const q = pendingQuestion; pendingQuestion = null; document.getElementById('question').value = q; ask(); }
   } else {
     addMessage('error', 'Failed to load any data. Errors: ' + errors.join('; '));
   }
@@ -293,7 +295,7 @@ async function ask() {
   const input = document.getElementById('question');
   const question = input.value.trim();
   if (!question) return;
-  if (Object.keys(data).length === 0) { addMessage('error', 'Data not loaded yet'); return; }
+  if (!dataReady) { pendingQuestion = question; input.value = ''; addMessage('user', question); addMessage('status', 'Waiting for data to load…'); return; }
 
   // Save to prompt history
   const history = JSON.parse(localStorage.getItem('farm_chat_history') || '[]');
@@ -330,6 +332,7 @@ async function ask() {
 
     thinking.remove();
     addMessage('ai', resultHtml, codeBlock + costLine);
+    saveChatHistory();
     updateStats();
   } catch (err) {
     thinking.remove();
@@ -368,7 +371,36 @@ document.getElementById('question').addEventListener('keydown', e => {
   }
 });
 
+// ── Chat history persistence (12h) ──────────────────────
+function saveChatHistory() {
+  const msgs = document.getElementById('messages');
+  const entries = [];
+  msgs.querySelectorAll('.msg').forEach(el => {
+    const role = el.classList.contains('msg-user') ? 'user' : el.classList.contains('msg-ai') ? 'ai' : el.classList.contains('msg-error') ? 'error' : 'status';
+    entries.push({ role, html: el.innerHTML });
+  });
+  localStorage.setItem('farm_chat_messages', JSON.stringify({ ts: Date.now(), entries }));
+}
+
+function restoreChatHistory() {
+  const raw = localStorage.getItem('farm_chat_messages');
+  if (!raw) return false;
+  const { ts, entries } = JSON.parse(raw);
+  if (Date.now() - ts > 12 * 60 * 60 * 1000) { localStorage.removeItem('farm_chat_messages'); return false; }
+  if (!entries || !entries.length) return false;
+  const msgs = document.getElementById('messages');
+  entries.forEach(e => {
+    const div = document.createElement('div');
+    div.className = 'msg msg-' + e.role;
+    div.innerHTML = e.html;
+    msgs.appendChild(div);
+  });
+  document.getElementById('examples').style.display = 'none';
+  return true;
+}
+
 // ── Auto-load on page open ──────────────────────────────
+restoreChatHistory();
 loadAllData();
 </script>
 </body>
