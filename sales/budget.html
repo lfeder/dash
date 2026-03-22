@@ -23,9 +23,8 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .chart-box { background:#16213e; border-radius:8px; padding:12px; height:260px; border:1px solid #2a3a5e; }
 .chart-box.split { height:250px; display:flex; flex-direction:column; padding-bottom:0; }
 .chart-title { text-align:center; font-size:0.85rem; font-weight:600; color:#ccc; padding:4px 0 0; }
-.chart-box.split .chart-top { flex:5; min-height:0; border-bottom:1px solid #2a3a5e; }
-.chart-box.split .chart-btm { flex:3; min-height:0; }
-.chart-box canvas { width:100%!important; }
+.chart-box.split .chart-top { flex:5; min-height:0; border-bottom:1px solid #2a3a5e; position:relative; }
+.chart-box.split .chart-btm { flex:3; min-height:0; position:relative; }
 @media(max-width:900px) { .cols-2,.cols-3 { grid-template-columns:1fr; } .chart-box { height:240px; } }
 </style>
 </head>
@@ -352,15 +351,19 @@ function createSplitBox(container, id, title) {
   const h = document.createElement('div');
   h.className = 'chart-title';
   h.textContent = title || '';
-  const top = document.createElement('canvas');
-  top.id = id + '_top';
-  top.className = 'chart-top';
-  const btm = document.createElement('canvas');
-  btm.id = id + '_btm';
-  btm.className = 'chart-btm';
+  const topWrap = document.createElement('div');
+  topWrap.className = 'chart-top';
+  const topCvs = document.createElement('canvas');
+  topCvs.id = id + '_top';
+  topWrap.appendChild(topCvs);
+  const btmWrap = document.createElement('div');
+  btmWrap.className = 'chart-btm';
+  const btmCvs = document.createElement('canvas');
+  btmCvs.id = id + '_btm';
+  btmWrap.appendChild(btmCvs);
   box.appendChild(h);
-  box.appendChild(top);
-  box.appendChild(btm);
+  box.appendChild(topWrap);
+  box.appendChild(btmWrap);
   container.appendChild(box);
 }
 
