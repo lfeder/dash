@@ -34,7 +34,14 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
   </div>
 </div>
 
-<div id="loading">Loading budget data...</div>
+<div id="loading">
+  <div style="text-align:center">
+    <div id="loadText">Loading budget data...</div>
+    <div style="width:300px;height:6px;background:#0f3460;border-radius:3px;margin:12px auto 0">
+      <div id="loadBar" style="width:0%;height:100%;background:#4ecca3;border-radius:3px;transition:width 0.3s"></div>
+    </div>
+  </div>
+</div>
 
 <div id="main">
   <div class="section-title">Cases by Product</div>
@@ -212,6 +219,12 @@ function processGrow(cukeRows, lettuceRows) {
   grownLbDay = {};
   Object.keys(CATEGORIES).forEach(c => { grownLbDay[c] = {}; });
 
+  function toDate(v) {
+    if (v instanceof Date) return v;
+    if (typeof v === 'string') { const d = new Date(v); return isNaN(d) ? null : d; }
+    return null;
+  }
+
   // Cucumber harvest: variety (K/J/E), grade 1 only, greenhousenetweight
   cukeRows.forEach(r => {
     const grade = String(r.grade || '');
@@ -219,8 +232,8 @@ function processGrow(cukeRows, lettuceRows) {
     const variety = (r.variety || '').charAt(0).toUpperCase();
     const cat = VARIETY_TO_CAT[variety];
     if (!cat || !CATEGORIES[cat]) return;
-    const hd = r.harvestdate;
-    if (!(hd instanceof Date) || isNaN(hd)) return;
+    const hd = toDate(r.harvestdate);
+    if (!hd) return;
     if (hd.getFullYear() !== 2026) return;
     const lb = parseFloat(r.greenhousenetweight) || 0;
     if (lb <= 0) return;
@@ -230,8 +243,8 @@ function processGrow(cukeRows, lettuceRows) {
 
   // Lettuce: variety GA=Arugula, WC=Watercress, else Lettuce, greenhousenetweight
   lettuceRows.forEach(r => {
-    const hd = r.harvestdate;
-    if (!(hd instanceof Date) || isNaN(hd)) return;
+    const hd = toDate(r.harvestdate);
+    if (!hd) return;
     if (hd.getFullYear() !== 2026) return;
     const lb = parseFloat(r.greenhousenetweight) || 0;
     if (lb <= 0) return;
@@ -399,30 +412,72 @@ function cycleRightAxis() {
   });
 }
 
+// --- Caching (localStorage, 24hr expiry) ---
+const CACHE_KEY = 'budget_data_cache';
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+function getCached() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const cached = JSON.parse(raw);
+    if (Date.now() - cached.ts > CACHE_TTL) { localStorage.removeItem(CACHE_KEY); return null; }
+    return cached;
+  } catch(e) { return null; }
+}
+function setCache(invoices, cukeGrow, lettuceGrow) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), invoices, cukeGrow, lettuceGrow }));
+  } catch(e) {}
+}
+
+function setProgress(pct, text) {
+  document.getElementById('loadBar').style.width = pct + '%';
+  if (text) document.getElementById('loadText').textContent = text;
+}
+
 // --- Init ---
 async function loadData() {
   try {
-    const [inv1, inv2] = await Promise.all(SALES_GIDS.map(g => fetchSalesTab(g)));
-    processInvoices([...inv1, ...inv2]);
+    const cached = getCached();
+    let invoiceRows, cukeRows, lettuceRows;
 
-    // Grow data (non-blocking)
-    try {
-      const [cukeRows, lettuceRows] = await Promise.all(GROW_TABS.map(t => fetchGrowTab(t)));
-      processGrow(cukeRows, lettuceRows);
-    } catch(e) { console.warn('Grow data unavailable:', e); }
+    if (cached) {
+      setProgress(80, 'Using cached data...');
+      invoiceRows = cached.invoices;
+      cukeRows = cached.cukeGrow || [];
+      lettuceRows = cached.lettuceGrow || [];
+    } else {
+      setProgress(10, 'Fetching invoice data...');
+      const [inv1, inv2] = await Promise.all(SALES_GIDS.map(g => fetchSalesTab(g)));
+      invoiceRows = [...inv1, ...inv2];
+      setProgress(50, 'Fetching grow data...');
+      try {
+        const [cuke, lett] = await Promise.all(GROW_TABS.map(t => fetchGrowTab(t)));
+        cukeRows = cuke; lettuceRows = lett;
+      } catch(e) { console.warn('Grow data unavailable:', e); cukeRows = []; lettuceRows = []; }
+      setProgress(70, 'Caching data...');
+      setCache(invoiceRows, cukeRows, lettuceRows);
+    }
+
+    setProgress(80, 'Processing...');
+    processInvoices(invoiceRows);
+    processGrow(cukeRows, lettuceRows);
 
     // Build DOM
     createChartBoxes('productGrid', PRODUCTS.map(c => ({id:'prod_'+c})));
     createChartBoxes('lbdayGrid', Object.keys(CATEGORIES).map(c => ({id:'lb_'+c})));
     createChartBoxes('summaryGrid', SUMMARY_CHARTS.map(s => ({id:'sum_'+s.codes[0]})));
 
-    renderAll();
+    setProgress(90, 'Rendering charts...');
+    document.getElementById('main').style.display = 'block';
+    await renderAll();
 
     document.getElementById('loading').style.display = 'none';
-    document.getElementById('main').style.display = 'block';
-    document.getElementById('status').textContent = `YTD through week ${MAX_WEEK}`;
+    const src = cached ? '(cached)' : '(live)';
+    document.getElementById('status').textContent = `YTD through week ${MAX_WEEK} ${src}`;
   } catch(e) {
-    document.getElementById('loading').textContent = 'Error loading data: ' + e;
+    document.getElementById('loadText').textContent = 'Error: ' + e;
     console.error(e);
   }
 }
