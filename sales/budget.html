@@ -34,7 +34,6 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 <div id="header">
   <h1>Weekly Budget</h1>
   <div style="display:flex;align-items:center;gap:12px;">
-    <button id="toggleAct25" onclick="toggle25()" style="padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer">Show '25</button>
     <span class="info" id="status">Loading...</span>
   </div>
 </div>
@@ -54,7 +53,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
   </div>
   <div id="lbdayGrid" class="grid cols-3"></div>
   <div class="section-header">Cases by Product
-    <div class="section-legend"><span><span class="dot" style="background:#ff0000"></span>Bdg26</span><span><span class="dot" style="background:#0066ff"></span>Act26</span><span><span class="dot" style="background:rgba(0,204,0,0.5)"></span>Act25</span><span style="color:#666">|</span><span><span class="dot" style="background:#888"></span>Unsold</span></div>
+    <div class="section-legend"><span><span class="dot" style="background:#ff0000"></span>Bdg26</span><span><span class="dot" style="background:#0066ff"></span>Act26</span><span id="act25Toggle" onclick="toggle25()" style="cursor:pointer;opacity:0.4"><span class="dot" style="background:rgba(0,204,0,0.5)"></span>Act25</span><span style="color:#666">|</span><span><span class="dot" style="background:#888"></span>Unsold</span></div>
   </div>
   <div id="productGrid"></div>
   <div id="summaryGrid" class="grid cols-3" style="margin-top:12px"></div>
@@ -229,6 +228,14 @@ const TOOLTIP_CFG = {
   bodyFont:{size:11}, titleFont:{size:12}
 };
 
+// Bottom sub-chart Y-axis: show only "0" label, zero line, match top chart width
+const btmYScale = {
+  ticks:{ color:'#888', font:{size:10}, callback: v => v === 0 ? '0' : '' },
+  grid:{ drawTicks:false, color: ctx => ctx.tick.value === 0 ? 'rgba(255,255,255,0.3)' : 'transparent' },
+  afterFit(axis) { axis.width = 50; }
+};
+const btmXScale = { ticks:{color:'#ccc',font:{size:12},maxTicksLimit:13,maxRotation:0}, grid:{display:false} };
+
 function getBdg(codes, w) { return codes.reduce((s,c) => s + (BUDGET[c]?.[w-1] || 0), 0); }
 function getAct(codes, yr, w) { return codes.reduce((s,c) => s + (actuals[c]?.[yr]?.[w] || 0), 0); }
 function cumulate(arr) { let s = 0; return arr.map(v => { s += (v||0); return s; }); }
@@ -243,7 +250,7 @@ function renderCasesChart(topCanvas, btmCanvas, title, codes) {
   const cumVar = cumA26.map((v,i) => WEEKS[i] <= MAX_WEEK ? v - cumBdg[i] : null);
 
   const aboveZero = ctx => (ctx.p0.parsed.y >= 0 && ctx.p1.parsed.y >= 0);
-  const yScale = { ticks:{color:'#888',font:{size:11},maxTicksLimit:5}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%' };
+  const yScale = { ticks:{color:'#888',font:{size:11},maxTicksLimit:5}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%', afterFit(axis){axis.width=50} };
 
   const top = new Chart(topCanvas, {
     type: 'line',
@@ -267,7 +274,7 @@ function renderCasesChart(topCanvas, btmCanvas, title, codes) {
   const btm = new Chart(btmCanvas, {
     type: 'line',
     data: { labels: LABELS, datasets: [
-      { label:'Unsold', data:cumVar, borderWidth:1.5, pointRadius:0,
+      { label:'± Budget', data:cumVar, borderWidth:1.5, pointRadius:0,
         fill:{ target:'origin', above:'rgba(78,204,163,0.25)', below:'rgba(231,76,60,0.25)' },
         spanGaps:false, borderColor:'rgba(78,204,163,0.4)', backgroundColor:'rgba(78,204,163,0.4)',
         segment:{ borderColor: ctx => (ctx.p0.parsed.y >= 0 && ctx.p1.parsed.y >= 0) ? 'rgba(78,204,163,0.4)' : 'rgba(231,76,60,0.4)' }
@@ -277,7 +284,7 @@ function renderCasesChart(topCanvas, btmCanvas, title, codes) {
       responsive:true, maintainAspectRatio:false, layout:{padding:{top:0}},
       interaction:{ mode:'index', intersect:false },
       plugins: { legend:{ display:false }, tooltip: TOOLTIP_CFG },
-      scales: { x:{ ticks:{color:'#ccc',font:{size:12},maxTicksLimit:13,maxRotation:0}, grid:{display:false} }, y:{ ticks:{color:'transparent',font:{size:11}}, grid:{drawTicks:false, color: ctx => ctx.tick.value === 0 ? 'rgba(255,255,255,0.2)' : 'transparent'} } }
+      scales: { x: btmXScale, y: btmYScale }
     }
   });
 
@@ -296,7 +303,7 @@ function renderLbDayChart(topCanvas, btmCanvas, title, catName) {
     return grown[i] - sold[i];
   });
 
-  const yScale = { ticks:{color:'#888',font:{size:11},maxTicksLimit:5}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%' };
+  const yScale = { ticks:{color:'#888',font:{size:11},maxTicksLimit:5}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%', afterFit(axis){axis.width=50} };
 
   const top = new Chart(topCanvas, {
     type: 'line',
@@ -328,7 +335,7 @@ function renderLbDayChart(topCanvas, btmCanvas, title, catName) {
       responsive:true, maintainAspectRatio:false, layout:{padding:{top:0}},
       interaction:{ mode:'index', intersect:false },
       plugins: { legend:{ display:false }, tooltip: TOOLTIP_CFG },
-      scales: { x:{ ticks:{color:'#ccc',font:{size:12},maxTicksLimit:13,maxRotation:0}, grid:{display:false} }, y:{ ticks:{color:'transparent',font:{size:11}}, grid:{drawTicks:false, color: ctx => ctx.tick.value === 0 ? 'rgba(255,255,255,0.2)' : 'transparent'} } }
+      scales: { x: btmXScale, y: btmYScale }
     }
   });
 
@@ -392,9 +399,7 @@ async function renderAll() {
 
 function toggle25() {
   show25 = !show25;
-  const btn = document.getElementById('toggleAct25');
-  btn.textContent = show25 ? "Hide '25" : "Show '25";
-  btn.style.borderColor = show25 ? '#4ecca3' : '#555';
+  document.getElementById('act25Toggle').style.opacity = show25 ? '1' : '0.4';
   allCharts.forEach(chart => {
     chart.data.datasets.forEach((ds, i) => {
       if (ds.year === 2025) chart.setDatasetVisibility(i, show25);
