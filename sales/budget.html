@@ -47,7 +47,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
   <div class="section-title">Pounds per Day</div>
   <div id="lbdayGrid" class="grid cols-3"></div>
   <div class="section-title">Cases by Product</div>
-  <div id="productGrid" class="grid cols-2"></div>
+  <div id="productGrid"></div>
   <div class="section-title">Cases On Grade</div>
   <div id="summaryGrid" class="grid cols-3"></div>
 </div>
@@ -368,6 +368,8 @@ function renderLbDayChart(canvas, title, catName) {
 }
 
 // --- DOM generation ---
+const PRODUCT_ROWS = [['KW','KR'],['JW','JR','EF'],['LW','LR','LF'],['WR','WF'],['AR','AF']];
+
 function createChartBoxes(containerId, items) {
   const el = document.getElementById(containerId);
   items.forEach(item => {
@@ -377,6 +379,24 @@ function createChartBoxes(containerId, items) {
     cvs.id = item.id;
     box.appendChild(cvs);
     el.appendChild(box);
+  });
+}
+
+function createProductRows() {
+  const el = document.getElementById('productGrid');
+  PRODUCT_ROWS.forEach(row => {
+    const grid = document.createElement('div');
+    grid.className = 'grid cols-3';
+    grid.style.marginBottom = '12px';
+    row.forEach(code => {
+      const box = document.createElement('div');
+      box.className = 'chart-box';
+      const cvs = document.createElement('canvas');
+      cvs.id = 'prod_' + code;
+      box.appendChild(cvs);
+      grid.appendChild(box);
+    });
+    el.appendChild(grid);
   });
 }
 
@@ -485,7 +505,7 @@ async function loadData() {
     processGrow(cukeRows, lettuceRows);
 
     // Build DOM
-    createChartBoxes('productGrid', PRODUCTS.map(c => ({id:'prod_'+c})));
+    createProductRows();
     createChartBoxes('lbdayGrid', Object.keys(CATEGORIES).map(c => ({id:'lb_'+c})));
     createChartBoxes('summaryGrid', SUMMARY_CHARTS.map(s => ({id:'sum_'+s.codes[0]})));
 
