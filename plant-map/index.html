@@ -326,6 +326,7 @@ body {
 </style>
 </head>
 <body>
+<div style="position:fixed;top:4px;left:8px;font-size:0.75rem;color:var(--text-primary);z-index:1000">v03-21 18:14</div>
 
 <div class="header" id="headerBar">
     <h1>Plant Map</h1>
@@ -886,17 +887,17 @@ function showOverview() {
     }
 
     // Compute next seeding date for each GH
-    // GH1 seeds the week of 3/15/2026, then follows SIM_ORDER sequence, 1 week apart, 12-week cycle
+    // GH6 seeds the week of 3/15/2026, forward through SIM_ORDER: GH6→Hilo→GH5→...
     function getNextSeedingDates() {
         const ANCHOR_SEED = new Date(2026, 2, 15); // 3/15/2026
-        const ANCHOR_IDX = 7; // GH2's index in SIM_ORDER — GH2 seeds this week
+        const ANCHOR_IDX = 7; // GH2's index in SIM_ORDER
         const CYCLE_WEEKS = SIM_ORDER.length; // 12
         // Start of current week (Sunday)
         const today = new Date(); today.setHours(0,0,0,0);
         const weekStart = new Date(today); weekStart.setDate(today.getDate() - today.getDay());
         const result = {};
         SIM_ORDER.forEach((entry, i) => {
-            const offset = ((ANCHOR_IDX - i) + CYCLE_WEEKS * 10) % CYCLE_WEEKS;
+            const offset = ((i - ANCHOR_IDX) + CYCLE_WEEKS * 10) % CYCLE_WEEKS;
             let seedDate = new Date(ANCHOR_SEED.getTime() + offset * 7 * 24 * 60 * 60 * 1000);
             // Include current week — only advance if before this week
             while (seedDate < weekStart) seedDate = new Date(seedDate.getTime() + CYCLE_WEEKS * 7 * 24 * 60 * 60 * 1000);
@@ -908,7 +909,7 @@ function showOverview() {
 
     // Summary table HTML
     function renderSummaryTable() {
-        const TABLE_ORDER_BASE = ['Kona','GH3','GH1','Hamakua','Kohala','GH7','Waimea','GH4','GH2','GH6','Hilo','GH5','GH8'];
+        const TABLE_ORDER_BASE = ['Kona','GH8','GH1','Hamakua','Kohala','GH7','Waimea','GH4','GH2','GH6','Hilo','GH5','GH3'];
         const TABLE_COLS = ['Keiki','Japanese','English'];
         const TABLE_LABELS = { Keiki: 'K', Japanese: 'J', English: 'E' };
         const seedDates = getNextSeedingDates();
@@ -1155,7 +1156,7 @@ function hideTooltip() {
 }
 
 // --- Sim ---
-const SIM_ORDER = ['Kona','GH3','GH1',['Hamakua','Kohala'],'GH7','Waimea','GH4','GH2','GH6','Hilo','GH5','GH8'];
+const SIM_ORDER = ['Kona','GH8','GH1',['Hamakua','Kohala'],'GH7','Waimea','GH4','GH2','GH6','Hilo','GH5','GH3'];
 let simTimer = null;
 let simTick = 0;
 let simPaused = false;
@@ -1176,7 +1177,7 @@ function simDateStr() {
 
 function applySimFilters() {
     SIM_ORDER.forEach((gh, i) => {
-        const week = ((simTick + i - SIM_WAIMEA_IDX + 120) % 12) + 1;
+        const week = ((SIM_WAIMEA_IDX - i + simTick + 120) % 12) + 1;
         const { brightness, saturate } = getSimBrightness(week);
         const filter = `brightness(${brightness}) saturate(${saturate})`;
         const names = Array.isArray(gh) ? gh : [gh];
@@ -1203,6 +1204,23 @@ function applySimFilters() {
                         overlay.style.left = oLeft;
                     }
                     overlay.textContent = week;
+                    // Week labels
+                    const SIM_LABELS = { 4: 'Start Production', 11: 'Seeding', 12: 'Tear Out' };
+                    let lbl = card.querySelector('.sim-week-label');
+                    if (SIM_LABELS[week]) {
+                        if (!lbl) {
+                            lbl = document.createElement('div');
+                            lbl.className = 'sim-week-label';
+                            lbl.style.cssText = 'position:absolute;top:calc(' + oTop + ' + 28px);left:' + oLeft + ';transform:translate(-50%,0);font-size:0.85rem;font-weight:700;color:rgba(0,0,0,0.6);pointer-events:none;z-index:10;white-space:nowrap';
+                            card.appendChild(lbl);
+                        } else {
+                            lbl.style.top = 'calc(' + oTop + ' + 28px)';
+                            lbl.style.left = oLeft;
+                        }
+                        lbl.textContent = SIM_LABELS[week];
+                    } else if (lbl) {
+                        lbl.remove();
+                    }
                 }
             });
         });
@@ -1215,6 +1233,7 @@ function clearSimFilters() {
         bar.style.filter = '';
     });
     document.querySelectorAll('.sim-week-overlay').forEach(el => el.remove());
+    document.querySelectorAll('.sim-week-label').forEach(el => el.remove());
 }
 
 function startSimInterval() {
