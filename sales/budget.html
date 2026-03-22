@@ -229,9 +229,14 @@ const TOOLTIP_CFG = {
 
 // Bottom sub-chart Y-axis: show only "0" label, zero line, match top chart width
 const btmYScale = {
-  ticks:{ color:'#888', font:{size:10}, callback: v => v === 0 ? '0' : '' },
+  ticks:{ color:'#888', font:{size:11}, callback: v => v === 0 ? '0' : '' },
   grid:{ drawTicks:false, color: ctx => ctx.tick.value === 0 ? 'rgba(255,255,255,0.3)' : 'transparent' },
-  afterFit(axis) { axis.width = 50; }
+  afterFit(axis) { axis.width = 50; },
+  afterBuildTicks(axis) {
+    // Ensure 0 is always a tick
+    if (!axis.ticks.some(t => t.value === 0)) axis.ticks.push({value:0});
+    axis.ticks.sort((a,b) => a.value - b.value);
+  }
 };
 const btmXScale = { ticks:{color:'#888',font:{size:11},maxTicksLimit:13,maxRotation:0}, grid:{display:false}, border:{display:true,color:'rgba(255,255,255,0.2)'} };
 
@@ -249,7 +254,7 @@ function renderCasesChart(topCanvas, btmCanvas, title, codes) {
   const cumVar = cumA26.map((v,i) => WEEKS[i] <= MAX_WEEK ? v - cumBdg[i] : null);
 
   const aboveZero = ctx => (ctx.p0.parsed.y >= 0 && ctx.p1.parsed.y >= 0);
-  const yScale = { ticks:{color:'#888',font:{size:11},maxTicksLimit:5}, grid:{color:'rgba(255,255,255,0.05)'}, beginAtZero:true, afterFit(axis){axis.width=50} };
+  const yScale = { ticks:{color:'#888',font:{size:11},maxTicksLimit:5}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%', afterFit(axis){axis.width=50} };
 
   const top = new Chart(topCanvas, {
     type: 'line',
@@ -302,7 +307,7 @@ function renderLbDayChart(topCanvas, btmCanvas, title, catName) {
     return grown[i] - sold[i];
   });
 
-  const yScale = { ticks:{color:'#888',font:{size:11},maxTicksLimit:5}, grid:{color:'rgba(255,255,255,0.05)'}, beginAtZero:true, afterFit(axis){axis.width=50} };
+  const yScale = { ticks:{color:'#888',font:{size:11},maxTicksLimit:5}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%', afterFit(axis){axis.width=50} };
 
   const top = new Chart(topCanvas, {
     type: 'line',
