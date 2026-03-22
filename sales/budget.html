@@ -266,11 +266,11 @@ function renderCasesChart(canvas, title, codes) {
   return new Chart(canvas, {
     type: 'line',
     data: { labels: LABELS, datasets: [
-      { label:'Bdg26', data:bdg, borderColor:'#ff0000', borderWidth:1.5, stepped:'before', pointRadius:0, yAxisID:'y' },
-      { label:'Act26', data:a26d, borderColor:'#0066ff', borderWidth:2, pointRadius:0, yAxisID:'y', spanGaps:false },
-      { label:'Act25', data:a25, borderColor:'rgba(0,204,0,0.5)', borderWidth:1.5, pointRadius:0, yAxisID:'y', hidden:!show25, year:2025 },
-      { label:'Cum Bdg', data:cumBdg, borderColor:'#ff0000', borderWidth:1.5, pointRadius:0, yAxisID:'y1' },
-      { label:'Cum Act26', data:cumA26d, borderColor:'#0066ff', borderWidth:1.5, pointRadius:0, yAxisID:'y1', spanGaps:false },
+      { label:'Bdg26', data:bdg, borderColor:'#ff0000', backgroundColor:'#ff0000', borderWidth:1.5, stepped:'before', pointRadius:0, yAxisID:'y' },
+      { label:'Act26', data:a26d, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:2, pointRadius:0, yAxisID:'y', spanGaps:false },
+      { label:'Act25', data:a25, borderColor:'rgba(0,204,0,0.5)', backgroundColor:'rgba(0,204,0,0.5)', borderWidth:1.5, pointRadius:0, yAxisID:'y', hidden:!show25, year:2025 },
+      { label:'Cum Bdg', data:cumBdg, borderColor:'#ff0000', backgroundColor:'#ff0000', borderWidth:1.5, pointRadius:0, yAxisID:'y1' },
+      { label:'Cum Act26', data:cumA26d, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:1.5, pointRadius:0, yAxisID:'y1', spanGaps:false },
     ]},
     options: {
       responsive:true, maintainAspectRatio:false,
@@ -299,8 +299,8 @@ function renderLbDayChart(canvas, title, catName) {
   return new Chart(canvas, {
     type: 'line',
     data: { labels: LABELS, datasets: [
-      { label:'Grown26', data:grown, borderColor:'#00cc00', borderWidth:2, pointRadius:0, spanGaps:false },
-      { label:'Sold26', data:sold, borderColor:'#0066ff', borderWidth:2, pointRadius:0, spanGaps:false },
+      { label:'Grown26', data:grown, borderColor:'#00cc00', backgroundColor:'#00cc00', borderWidth:2, pointRadius:0, spanGaps:false },
+      { label:'Sold26', data:sold, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:2, pointRadius:0, spanGaps:false },
     ]},
     options: {
       responsive:true, maintainAspectRatio:false,
