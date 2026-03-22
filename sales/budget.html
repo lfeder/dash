@@ -263,7 +263,8 @@ function processGrow(cukeRows, lettuceRows) {
 }
 
 // --- Chart rendering ---
-const WEEKS = Array.from({length:52}, (_,i) => i+1);
+// Skip week 1 (Jan 1-2, holiday short week) — start at week 2
+const WEEKS = Array.from({length:51}, (_,i) => i+2);
 const LABELS = WEEKS.map(w => w);
 
 // Shared legend config: fade hidden items instead of strikethrough
