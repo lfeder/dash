@@ -98,36 +98,38 @@ const BUDGET = {
   AF:[10,10,10,10,10,10,15,15,15,15,15,15,15,15,15,15,20,20,20,20,20,20,20,20,20,20,30,30,30,30,30,30,30,30,30,30,40,40,40,40,40,40,40,40,40,40,50,50,50,50,50,50]
 };
 
-// --- ISO week helpers ---
-function getISOWeek(d) {
-  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
-  const y = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
-  return Math.ceil(((t - y) / 86400000 + 1) / 7);
+// --- Week helpers (Saturday-to-Friday weeks) ---
+// Week 2 starts Sat Jan 3 2026, week 1 (Jan 1-2) excluded
+// Returns {year, week} for any date
+function satFriWeek(d) {
+  if (!(d instanceof Date)) d = new Date(d);
+  if (isNaN(d)) return { year: 0, week: 0 };
+  const yr = d.getFullYear();
+  // Jan 1 of that year — find first Saturday on or after Jan 1
+  const jan1 = new Date(yr, 0, 1);
+  const jan1Day = jan1.getDay(); // 0=Sun..6=Sat
+  // First Saturday: if Jan 1 is Sat(6) use it, else next Sat
+  const firstSat = new Date(yr, 0, 1 + (6 - jan1Day + 7) % 7);
+  // For 2026: Jan 1=Thu, firstSat = Jan 3
+  const diffMs = d - firstSat;
+  if (diffMs < 0) return { year: yr, week: 1 }; // before first Saturday = week 1
+  const week = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 2;
+  return { year: yr, week };
 }
-function getISOYear(d) {
-  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
-  return t.getUTCFullYear();
+
+function currentWeek() {
+  return satFriWeek(new Date()).week;
 }
-function currentISOWeek() {
-  const now = new Date();
-  return getISOWeek(now);
-}
+
 function maxWeek() {
   const now = new Date();
-  const hst = new Date(now.getTime() - 10*60*60*1000);
+  const hst = new Date(now.getTime() - 10 * 60 * 60 * 1000);
   const day = hst.getUTCDay(), hour = hst.getUTCHours();
-  return ((day===5 && hour>=15) || day===6 || day===0) ? currentISOWeek() : currentISOWeek()-1;
+  const cur = satFriWeek(hst).week;
+  // Include current week only after 3pm HST on Friday (day=5), or on Saturday/Sunday
+  return ((day === 5 && hour >= 15) || day === 6 || day === 0) ? cur : cur - 1;
 }
 const MAX_WEEK = maxWeek();
-
-// Friday-to-Friday ISO week: shift date so Friday starts new week
-function fridayISOWeek(d) {
-  const shifted = new Date(d);
-  shifted.setDate(shifted.getDate() + 3);
-  return { year: getISOYear(shifted), week: getISOWeek(shifted) };
-}
 
 // --- Data fetching ---
 function fetchSalesTab(gid) {
@@ -172,8 +174,10 @@ function parseSalesTable(table) {
       const col = cols[i];
       if (!col) return;
       if (!cell || cell.v == null) { obj[col] = ''; return; }
-      if (typeof cell.v === 'string' && cell.v.startsWith('Date(')) { obj[col] = cell.f || cell.v; }
-      else if (intCols.has(col) && typeof cell.v === 'number') { obj[col] = Math.round(cell.v); }
+      if (typeof cell.v === 'string' && cell.v.startsWith('Date(')) {
+        const m = cell.v.match(/Date\((\d+),(\d+),(\d+)/);
+        obj[col] = m ? new Date(+m[1], +m[2], +m[3]) : (cell.f || cell.v);
+      } else if (intCols.has(col) && typeof cell.v === 'number') { obj[col] = Math.round(cell.v); }
       else { obj[col] = cell.v; }
     });
     return obj;
@@ -208,8 +212,11 @@ let allCharts = [];
 function processInvoices(rows) {
   actuals = {};
   rows.forEach(r => {
-    const pc = r.ProductCode, yr = r.ISOYear, wk = r.ISOWeek, cases = r.Cases || 0;
-    if (!pc || !yr || !wk) return;
+    const pc = r.ProductCode, cases = r.Cases || 0;
+    const d = r.InvoiceDate;
+    if (!pc || !(d instanceof Date) || isNaN(d)) return;
+    const {year: yr, week: wk} = satFriWeek(d);
+    if (!yr || !wk) return;
     if (!actuals[pc]) actuals[pc] = {};
     if (!actuals[pc][yr]) actuals[pc][yr] = {};
     actuals[pc][yr][wk] = (actuals[pc][yr][wk] || 0) + cases;
@@ -238,7 +245,7 @@ function processGrow(cukeRows, lettuceRows) {
     if (hd.getFullYear() !== 2026) return;
     const lb = parseFloat(r.greenhousenetweight) || 0;
     if (lb <= 0) return;
-    const wk = fridayISOWeek(hd).week;
+    const wk = satFriWeek(hd).week;
     grownLbDay[cat][wk] = (grownLbDay[cat][wk] || 0) + lb;
   });
 
@@ -251,7 +258,7 @@ function processGrow(cukeRows, lettuceRows) {
     if (lb <= 0) return;
     const v = (r.variety || '').toUpperCase();
     const cat = v === 'GA' ? 'Arugula' : v === 'WC' ? 'Watercress' : 'Lettuce';
-    const wk = fridayISOWeek(hd).week;
+    const wk = satFriWeek(hd).week;
     grownLbDay[cat][wk] = (grownLbDay[cat][wk] || 0) + lb;
   });
 
