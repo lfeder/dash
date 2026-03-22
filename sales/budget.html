@@ -266,6 +266,20 @@ function processGrow(cukeRows, lettuceRows) {
 const WEEKS = Array.from({length:52}, (_,i) => i+1);
 const LABELS = WEEKS.map(w => w);
 
+// Shared legend config: fade hidden items instead of strikethrough
+const LEGEND_CFG = {
+  labels: {
+    color:'#888', font:{size:10}, usePointStyle:true, pointStyle:'circle', padding:8,
+    generateLabels(chart) {
+      return Chart.defaults.plugins.legend.labels.generateLabels(chart).map(label => {
+        if (label.hidden) label.fontColor = 'rgba(136,136,136,0.3)';
+        label.text = label.text; // no strikethrough
+        return label;
+      });
+    }
+  }
+};
+
 function getBdg(codes, w) { return codes.reduce((s,c) => s + (BUDGET[c]?.[w-1] || 0), 0); }
 function getAct(codes, yr, w) { return codes.reduce((s,c) => s + (actuals[c]?.[yr]?.[w] || 0), 0); }
 function cumulate(arr) { let s = 0; return arr.map(v => { s += (v||0); return s; }); }
@@ -307,7 +321,7 @@ function renderCasesChart(canvas, title, codes) {
       interaction:{ mode:'index', intersect:false },
       plugins: {
         title:{ display:true, text:title, color:'#aaa', font:{size:12} },
-        legend:{ labels:{ color:'#888', font:{size:10}, usePointStyle:true, pointStyle:'circle', padding:8 } }
+        legend: LEGEND_CFG
       },
       scales: {
         x:{ ticks:{color:'#888',font:{size:11},maxTicksLimit:13}, grid:{color:'rgba(255,255,255,0.05)'} },
@@ -342,7 +356,7 @@ function renderLbDayChart(canvas, title, catName) {
       interaction:{ mode:'index', intersect:false },
       plugins: {
         title:{ display:true, text:title, color:'#aaa', font:{size:12} },
-        legend:{ labels:{ color:'#888', font:{size:10}, usePointStyle:true, pointStyle:'circle', padding:8 } }
+        legend: LEGEND_CFG
       },
       scales: {
         x:{ ticks:{color:'#888',font:{size:11},maxTicksLimit:13}, grid:{color:'rgba(255,255,255,0.05)'} },
