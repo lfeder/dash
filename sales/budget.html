@@ -8,23 +8,25 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-dragdata@2.3.0/dist/chartjs-plugin-dragdata.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#1a1a2e; color:#e0e0e0; }
-#header { background:#16213e; padding:12px 24px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #0f3460; position:sticky; top:0; z-index:100; }
-#header h1 { font-size:1.3rem; color:#4ecca3; }
-#header .info { font-size:0.8rem; color:#888; }
-#loading { display:flex; align-items:center; justify-content:center; height:80vh; font-size:1.2rem; color:#4ecca3; }
+:root { --bg:#1a1a2e; --bg2:#16213e; --bg3:#0f3460; --border:#2a3a5e; --text:#e0e0e0; --text2:#888; --accent:#4ecca3; --grid:rgba(255,255,255,0.05); --xborder:rgba(255,255,255,0.2); }
+body.light { --bg:#f0f2f5; --bg2:#ffffff; --bg3:#e8ecf0; --border:#d0d5dd; --text:#1a1a2e; --text2:#666; --accent:#0a8a64; --grid:rgba(0,0,0,0.06); --xborder:rgba(0,0,0,0.15); }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--bg); color:var(--text); }
+#header { background:var(--bg2); padding:12px 24px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--bg3); position:sticky; top:0; z-index:100; }
+#header h1 { font-size:1.3rem; color:var(--accent); }
+#header .info { font-size:0.8rem; color:var(--text2); }
+#loading { display:flex; align-items:center; justify-content:center; height:80vh; font-size:1.2rem; color:var(--accent); }
 #main { padding:16px; display:none; }
-.section-header { font-size:1.05rem; color:#4ecca3; margin:24px 0 8px; padding-left:4px; display:flex; align-items:center; gap:16px; }
+.section-header { font-size:1.05rem; color:var(--accent); margin:24px 0 8px; padding-left:4px; display:flex; align-items:center; gap:16px; }
 .section-header:first-child { margin-top:0; }
-.section-legend { display:flex; gap:12px; font-size:0.8rem; color:#888; }
+.section-legend { display:flex; gap:12px; font-size:0.8rem; color:var(--text2); }
 .section-legend .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; vertical-align:middle; }
 .grid { display:grid; gap:12px; }
 .cols-2 { grid-template-columns:repeat(2,1fr); }
 .cols-3 { grid-template-columns:repeat(3,1fr); }
-.chart-box { background:#16213e; border-radius:8px; padding:12px; height:260px; border:1px solid #2a3a5e; }
+.chart-box { background:var(--bg2); border-radius:8px; padding:12px; height:260px; border:1px solid var(--border); }
 .chart-box.split { height:250px; display:flex; flex-direction:column; padding-bottom:0; }
-.chart-title { text-align:center; font-size:0.85rem; font-weight:600; color:#ccc; padding:4px 0 0; }
-.chart-box.split .chart-top { flex:5; min-height:0; border-bottom:1px solid #2a3a5e; position:relative; overflow:hidden; }
+.chart-title { text-align:center; font-size:0.85rem; font-weight:600; color:var(--text); padding:4px 0 0; }
+.chart-box.split .chart-top { flex:5; min-height:0; border-bottom:1px solid var(--border); position:relative; overflow:hidden; }
 .chart-box.split .chart-btm { flex:3; min-height:0; position:relative; overflow:hidden; }
 @media(max-width:900px) { .cols-2,.cols-3 { grid-template-columns:1fr; } .chart-box { height:240px; } }
 </style>
@@ -34,6 +36,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 <div id="header">
   <h1>Targets</h1>
   <div style="display:flex;align-items:center;gap:12px;">
+    <button onclick="toggleTheme()" style="padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer">☀/🌙</button>
     <button id="editBtn" onclick="toggleEdit()" style="padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer">Edit Budget</button>
     <button id="saveBtn" onclick="saveBudget()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#4ecca3;border:1px solid #4ecca3;border-radius:4px;cursor:pointer">Save Budget</button>
     <span class="info" id="status">Loading...</span>
@@ -266,6 +269,11 @@ function renderCasesChart(topCanvas, btmCanvas, title, codes) {
       { label:'Bdg26', data:bdg, borderColor:'#ff0000', backgroundColor:'#ff0000', borderWidth:1.5, stepped:'before', pointRadius:0 },
       { label:'Act26', data:a26d, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:2, pointRadius:0, spanGaps:false },
       { label:'Act25', data:a25, borderColor:'rgba(0,204,0,0.5)', backgroundColor:'rgba(0,204,0,0.5)', borderWidth:1.5, pointRadius:0, hidden:!show25, year:2025 },
+      { label:'± Budget', data:cumVar, borderWidth:1, pointRadius:0, yAxisID:'y1',
+        fill:{ target:'origin', above:'rgba(78,204,163,0.15)', below:'rgba(231,76,60,0.15)' },
+        spanGaps:false, borderColor:'rgba(78,204,163,0.3)', backgroundColor:'rgba(78,204,163,0.3)',
+        segment:{ borderColor: ctx => aboveZero(ctx) ? 'rgba(78,204,163,0.3)' : 'rgba(231,76,60,0.3)' }
+      },
     ]},
     options: {
       responsive:true, maintainAspectRatio:false, layout:{padding:{bottom:0}},
@@ -273,9 +281,14 @@ function renderCasesChart(topCanvas, btmCanvas, title, codes) {
       plugins: {
         title:{ display:false },
         legend:{ display:false },
-        tooltip: TOOLTIP_CFG
+        tooltip: TOOLTIP_CFG,
+        dragData: false
       },
-      scales: { x:{ ticks:{display:false}, grid:{display:false} }, y: yScale }
+      scales: {
+        x:{ ticks:{display:false}, grid:{display:false} },
+        y: yScale,
+        y1:{ position:'right', ticks:{display:false}, grid:{display:false}, afterFit(axis){axis.width=0} }
+      }
     }
   });
 
@@ -433,6 +446,25 @@ function toggle25() {
 }
 
 
+// --- Theme ---
+let lightMode = false;
+function toggleTheme() {
+  lightMode = !lightMode;
+  document.body.classList.toggle('light', lightMode);
+  // Re-render charts with new axis colors
+  const tc = lightMode ? '#333' : '#888';
+  const gc = lightMode ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
+  const xbc = lightMode ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.2)';
+  allCharts.forEach(chart => {
+    Object.values(chart.options.scales).forEach(s => {
+      if (s.ticks) s.ticks.color = tc;
+      if (s.grid && s.grid.color && typeof s.grid.color === 'string') s.grid.color = gc;
+      if (s.border) s.border.color = xbc;
+    });
+    chart.update();
+  });
+}
+
 // --- Editable Budget ---
 let editMode = false;
 let budgetDirty = false;
@@ -451,10 +483,13 @@ function toggleEdit() {
     ds.pointRadius = editMode ? 4 : 0;
     ds.pointHoverRadius = editMode ? 6 : 0;
     ds.pointBackgroundColor = '#ff0000';
+    // Mark which datasets are draggable
+    charts.top.data.datasets.forEach((d, i) => { d.dragData = i === 0 && editMode; });
     charts.top.options.plugins.dragData = editMode ? {
       round: 0,
       dragX: false,
       onDragEnd(e, datasetIndex, index, value) {
+        if (datasetIndex !== 0) return;
         BUDGET[code][WEEKS[index] - 1] = Math.round(value);
         budgetDirty = true;
         document.getElementById('saveBtn').style.display = '';
