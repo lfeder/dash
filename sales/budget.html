@@ -22,6 +22,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .cols-3 { grid-template-columns:repeat(3,1fr); }
 .chart-box { background:#16213e; border-radius:8px; padding:12px; height:260px; border:1px solid #2a3a5e; }
 .chart-box.split { height:240px; display:flex; flex-direction:column; padding-bottom:4px; }
+.chart-title { text-align:center; font-size:0.85rem; font-weight:600; color:#ccc; padding:4px 0 0; }
 .chart-box.split .chart-top { flex:3; min-height:0; border-bottom:1px solid #2a3a5e; }
 .chart-box.split .chart-btm { flex:1; min-height:0; }
 .chart-box canvas { width:100%!important; height:100%!important; }
@@ -255,7 +256,7 @@ function renderCasesChart(topCanvas, btmCanvas, title, codes) {
       responsive:true, maintainAspectRatio:false, layout:{padding:{bottom:0}},
       interaction:{ mode:'index', intersect:false },
       plugins: {
-        title:{ display:true, text:title, color:'#ccc', font:{size:14,weight:'600'} },
+        title:{ display:false },
         legend:{ display:false },
         tooltip: TOOLTIP_CFG
       },
@@ -306,7 +307,7 @@ function renderLbDayChart(topCanvas, btmCanvas, title, catName) {
       responsive:true, maintainAspectRatio:false, layout:{padding:{bottom:0}},
       interaction:{ mode:'index', intersect:false },
       plugins: {
-        title:{ display:true, text:title, color:'#ccc', font:{size:14,weight:'600'} },
+        title:{ display:false },
         legend:{ display:false },
         tooltip: TOOLTIP_CFG
       },
@@ -337,15 +338,19 @@ function renderLbDayChart(topCanvas, btmCanvas, title, catName) {
 const PRODUCT_ROWS = [['KW','KR'],['JW','JR','EF'],['LW','LR','LF'],['WR','WF'],['AR','AF']];
 
 
-function createSplitBox(container, id) {
+function createSplitBox(container, id, title) {
   const box = document.createElement('div');
   box.className = 'chart-box split';
+  const h = document.createElement('div');
+  h.className = 'chart-title';
+  h.textContent = title || '';
   const top = document.createElement('canvas');
   top.id = id + '_top';
   top.className = 'chart-top';
   const btm = document.createElement('canvas');
   btm.id = id + '_btm';
   btm.className = 'chart-btm';
+  box.appendChild(h);
   box.appendChild(top);
   box.appendChild(btm);
   container.appendChild(box);
@@ -357,7 +362,7 @@ function createProductRows() {
     const grid = document.createElement('div');
     grid.className = 'grid cols-3';
     grid.style.marginBottom = '12px';
-    row.forEach(code => createSplitBox(grid, 'prod_' + code));
+    row.forEach(code => createSplitBox(grid, 'prod_' + code, code));
     el.appendChild(grid);
   });
 }
@@ -418,9 +423,9 @@ async function loadData() {
     // Build DOM
     createProductRows();
     const lbGrid = document.getElementById('lbdayGrid');
-    Object.keys(CATEGORIES).forEach(c => createSplitBox(lbGrid, 'lb_'+c));
+    Object.keys(CATEGORIES).forEach(c => createSplitBox(lbGrid, 'lb_'+c, c));
     const sumGrid = document.getElementById('summaryGrid');
-    SUMMARY_CHARTS.forEach(s => createSplitBox(sumGrid, 'sum_'+s.codes[0]));
+    SUMMARY_CHARTS.forEach(s => createSplitBox(sumGrid, 'sum_'+s.codes[0], s.title));
 
     setProgress(90, 'Rendering charts...');
     document.getElementById('main').style.display = 'block';
