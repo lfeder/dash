@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekly Budget Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#1a1a2e; color:#e0e0e0; }
+#header { background:#16213e; padding:12px 24px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #0f3460; }
+#header h1 { font-size:1.3rem; color:#4ecca3; }
+#header .info { font-size:0.8rem; color:#888; }
+#loading { display:flex; align-items:center; justify-content:center; height:80vh; font-size:1.2rem; color:#4ecca3; }
+#main { padding:16px; display:none; }
+.section-title { font-size:1rem; color:#4ecca3; margin:20px 0 8px; padding-left:4px; }
+.section-title:first-child { margin-top:0; }
+.grid { display:grid; gap:12px; }
+.cols-2 { grid-template-columns:repeat(2,1fr); }
+.cols-3 { grid-template-columns:repeat(3,1fr); }
+.chart-box { background:#16213e; border-radius:8px; padding:12px; height:260px; }
+.chart-box canvas { width:100%!important; height:100%!important; }
+@media(max-width:900px) { .cols-2,.cols-3 { grid-template-columns:1fr; } .chart-box { height:240px; } }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>Weekly Budget</h1>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <button id="toggleAct25" onclick="toggle25()" style="padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer">Show '25</button>
+    <span class="info" id="status">Loading...</span>
+  </div>
+</div>
+
+<div id="loading">Loading budget data...</div>
+
+<div id="main">
+  <div class="section-title">Cases by Product</div>
+  <div id="productGrid" class="grid cols-2"></div>
+  <div class="section-title">Pounds per Day</div>
+  <div id="lbdayGrid" class="grid cols-3"></div>
+  <div class="section-title">Cases On Grade</div>
+  <div id="summaryGrid" class="grid cols-3"></div>
+</div>
+
+<script>
+// --- Constants ---
+const SALES_SHEET = '124y8JdWXmbf_hb1vfimHmGaKLVXrRHybw02w_ozCExE';
+const SALES_GIDS = ['1254110782','544460225'];
+const GROW_SHEET = '1VtEecYn-W1pbnIU1hRHfxIpkH2DtK7hj0CpcpiLoziM';
+const GROW_TABS = ['grow_C_harvest','grow_L_seeding'];
+
+const PRODUCTS = ['KW','KR','KF','JW','JR','JF','EF','LW','LR','LF','WR','WF','AR','AF'];
+const PRODUCT_NAMES = {KW:'KW Cases',KR:'KR Cases',KF:'KF Cases',JW:'JW Cases',JR:'JR Cases',JF:'JF Cases',EF:'EF Cases',LW:'LW Cases',LR:'LR Cases',LF:'LF Cases',WR:'WR Cases',WF:'WF Cases',AR:'AR Cases',AF:'AF Cases'};
+
+const LB_PER_CASE = {KW:16,KR:12,KF:12,JW:14,JR:14,JF:14,EF:15,LW:10.5,LR:2.25,LF:10,WR:2.25,WF:10,AR:2.25,AF:10};
+
+const CATEGORIES = {
+  Keiki:['KW','KR','KF'], Japanese:['JW','JR','JF'], English:['EF'],
+  Lettuce:['LW','LR','LF'], Watercress:['WR','WF'], Arugula:['AR','AF']
+};
+const VARIETY_TO_CAT = {K:'Keiki',J:'Japanese',E:'English',L:'Lettuce',W:'Watercress',A:'Arugula'};
+
+const SUMMARY_CHARTS = [
+  {title:'Keiki Cases On Grade', codes:['KW','KR','KF']},
+  {title:'Japanese Cases On Grade', codes:['JW','JR','JF']},
+  {title:'Lettuce Cases', codes:['LW','LR','LF']}
+];
+
+// --- Budget data (2026, weeks 1-52) ---
+const BUDGET = {
+  KW:[1300,1300,1300,1300,1400,1400,1400,1400,1400,1400,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1550,1300,1300,1300,1300,1300],
+  KR:[950,950,950,950,1050,1050,1050,1150,1150,1150,1150,1150,1150,1150,1150,1150,1150,1150,1150,1150,1150,1150,1150,1150,1150,1500,1500,1500,1500,1500,1150,1150,1150,1150,1150,1150,1150,1150,1150,1150,1150,1150,1150,1150,1150,1150,1150,950,950,950,950,950],
+  KF:[25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25,25],
+  JW:[550,550,550,550,550,550,550,550,550,550,550,550,550,550,550,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,550,550,550,550,550],
+  JR:[450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450],
+  JF:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  EF:[125,125,125,125,125,125,125,125,125,125,125,125,125,125,275,275,275,275,275,275,275,275,275,275,275,275,275,275,275,275,275,275,275,275,275,275,275,275,275,275,275,275,275,275,275,125,125,125,125,125,125,125],
+  LW:[550,550,550,550,550,550,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,600,510,510,510,510,510,510],
+  LR:[200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,225,225,225,225,225,225,225,225,225,225,250,250,250,250,250,250,250,250,250,250,275,275,275,275,275,275,275,275,275,275,300,300,300,300,300,300],
+  LF:[65,65,65,65,65,65,75,75,75,75,75,75,75,75,75,75,85,85,85,85,85,85,85,85,85,85,95,95,95,95,95,95,95,95,95,95,110,110,110,110,110,110,110,110,110,110,125,125,125,125,125,125],
+  WR:[125,125,125,125,125,125,150,150,150,150,150,150,150,150,150,150,175,175,175,175,175,175,175,175,175,175,200,200,200,200,200,200,200,200,200,200,210,210,210,210,210,210,210,210,210,210,225,225,225,225,225,225],
+  WF:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  AR:[25,25,25,25,25,25,50,50,50,50,50,50,50,50,50,50,100,100,100,100,100,100,100,100,100,100,150,150,150,150,150,150,150,150,150,150,200,200,200,200,200,200,200,200,200,200,225,225,225,225,225,225],
+  AF:[10,10,10,10,10,10,15,15,15,15,15,15,15,15,15,15,20,20,20,20,20,20,20,20,20,20,30,30,30,30,30,30,30,30,30,30,40,40,40,40,40,40,40,40,40,40,50,50,50,50,50,50]
+};
+
+// --- ISO week helpers ---
+function getISOWeek(d) {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
+  const y = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return Math.ceil(((t - y) / 86400000 + 1) / 7);
+}
+function getISOYear(d) {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
+  return t.getUTCFullYear();
+}
+function currentISOWeek() {
+  const now = new Date();
+  return getISOWeek(now);
+}
+function maxWeek() {
+  const now = new Date();
+  const hst = new Date(now.getTime() - 10*60*60*1000);
+  const day = hst.getUTCDay(), hour = hst.getUTCHours();
+  return ((day===5 && hour>=12) || day===6 || day===0) ? currentISOWeek() : currentISOWeek()-1;
+}
+const MAX_WEEK = maxWeek();
+
+// Friday-to-Friday ISO week: shift date so Friday starts new week
+function fridayISOWeek(d) {
+  const shifted = new Date(d);
+  shifted.setDate(shifted.getDate() + 3);
+  return { year: getISOYear(shifted), week: getISOWeek(shifted) };
+}
+
+// --- Data fetching ---
+function fetchSalesTab(gid) {
+  return new Promise((resolve, reject) => {
+    const cb = '_cb' + gid;
+    const url = `https://docs.google.com/spreadsheets/d/${SALES_SHEET}/gviz/tq?tqx=out:json;responseHandler:${cb}&gid=${gid}`;
+    window[cb] = function(resp) {
+      delete window[cb];
+      if (script.parentNode) script.parentNode.removeChild(script);
+      if (resp.status === 'error') { reject(resp.errors); return; }
+      resolve(parseSalesTable(resp.table));
+    };
+    const script = document.createElement('script');
+    script.src = url;
+    script.onerror = () => { delete window[cb]; reject('Network error'); };
+    document.head.appendChild(script);
+  });
+}
+
+function fetchGrowTab(tabName) {
+  return new Promise((resolve, reject) => {
+    const cb = '_cb_' + Math.random().toString(36).slice(2, 10);
+    const url = `https://docs.google.com/spreadsheets/d/${GROW_SHEET}/gviz/tq?tqx=out:json;responseHandler:${cb}&sheet=${encodeURIComponent(tabName)}`;
+    window[cb] = function(resp) {
+      delete window[cb];
+      if (resp.status === 'error') { reject(resp.errors); return; }
+      resolve(parseGrowTable(resp.table));
+    };
+    const s = document.createElement('script');
+    s.src = url;
+    s.onerror = () => { delete window[cb]; s.remove(); reject('Network error'); };
+    document.head.appendChild(s);
+  });
+}
+
+function parseSalesTable(table) {
+  const cols = table.cols.map(c => c.label);
+  const intCols = new Set(['Cases','Year','Month','ISOYear','ISOWeek','DOW','Grade']);
+  return table.rows.map(r => {
+    const obj = {};
+    r.c.forEach((cell, i) => {
+      const col = cols[i];
+      if (!col) return;
+      if (!cell || cell.v == null) { obj[col] = ''; return; }
+      if (typeof cell.v === 'string' && cell.v.startsWith('Date(')) { obj[col] = cell.f || cell.v; }
+      else if (intCols.has(col) && typeof cell.v === 'number') { obj[col] = Math.round(cell.v); }
+      else { obj[col] = cell.v; }
+    });
+    return obj;
+  }).filter(r => r.ProductCode && r.ProductCode !== 'Sales' && r.CustomerName !== 'Kaukau 4 Keiki');
+}
+
+function parseGrowTable(table) {
+  const cols = table.cols.map(c => c.label || c.id);
+  return table.rows.map(r => {
+    const obj = {};
+    r.c.forEach((cell, i) => {
+      const col = cols[i];
+      if (!col) return;
+      if (!cell || cell.v == null) { obj[col] = ''; return; }
+      if (typeof cell.v === 'string' && cell.v.startsWith('Date(')) {
+        const m = cell.v.match(/Date\((\d+),(\d+),(\d+)/);
+        obj[col] = m ? new Date(+m[1], +m[2], +m[3]) : (cell.f || cell.v);
+      } else {
+        obj[col] = cell.v;
+      }
+    });
+    return obj;
+  });
+}
+
+// --- Data processing ---
+let actuals = {}; // actuals[product][year][week] = cases
+let grownLbDay = {}; // grownLbDay[category][week] = lb/day (2026 only)
+let show25 = false;
+let allCharts = [];
+
+function processInvoices(rows) {
+  actuals = {};
+  rows.forEach(r => {
+    const pc = r.ProductCode, yr = r.ISOYear, wk = r.ISOWeek, cases = r.Cases || 0;
+    if (!pc || !yr || !wk) return;
+    if (!actuals[pc]) actuals[pc] = {};
+    if (!actuals[pc][yr]) actuals[pc][yr] = {};
+    actuals[pc][yr][wk] = (actuals[pc][yr][wk] || 0) + cases;
+  });
+}
+
+function processGrow(rows) {
+  grownLbDay = {};
+  Object.keys(CATEGORIES).forEach(c => { grownLbDay[c] = {}; });
+  rows.forEach(r => {
+    const variety = (r.variety || '').charAt(0).toUpperCase();
+    const cat = VARIETY_TO_CAT[variety];
+    if (!cat) return;
+    const hd = r.harvestdate;
+    if (!(hd instanceof Date) || isNaN(hd)) return;
+    const yr = hd.getFullYear();
+    if (yr !== 2026) return;
+    const ppb = parseFloat(r.poundsperboard) || 0;
+    const bpp = parseFloat(r.boardsperpond) || 0;
+    const totalLb = ppb * bpp;
+    if (totalLb <= 0) return;
+    const fw = fridayISOWeek(hd);
+    const wk = fw.week;
+    grownLbDay[cat][wk] = (grownLbDay[cat][wk] || 0) + totalLb;
+  });
+  // Convert weekly totals to lb/day (÷7)
+  Object.keys(grownLbDay).forEach(cat => {
+    Object.keys(grownLbDay[cat]).forEach(wk => {
+      grownLbDay[cat][wk] = Math.round(grownLbDay[cat][wk] / 7);
+    });
+  });
+}
+
+// --- Chart rendering ---
+const WEEKS = Array.from({length:52}, (_,i) => i+1);
+const LABELS = WEEKS.map(w => w);
+
+function getBdg(codes, w) { return codes.reduce((s,c) => s + (BUDGET[c]?.[w-1] || 0), 0); }
+function getAct(codes, yr, w) { return codes.reduce((s,c) => s + (actuals[c]?.[yr]?.[w] || 0), 0); }
+function cumulate(arr) { let s = 0; return arr.map(v => { s += (v||0); return s; }); }
+
+function renderCasesChart(canvas, title, codes) {
+  const bdg = WEEKS.map(w => getBdg(codes, w));
+  const a26 = WEEKS.map(w => getAct(codes, 2026, w));
+  const a25 = WEEKS.map(w => getAct(codes, 2025, w));
+  const cumBdg = cumulate(bdg);
+  const cumA26 = cumulate(a26);
+  const a26d = a26.map((v,i) => i < MAX_WEEK ? v : null);
+  const cumA26d = cumA26.map((v,i) => i < MAX_WEEK ? v : null);
+
+  return new Chart(canvas, {
+    type: 'line',
+    data: { labels: LABELS, datasets: [
+      { label:'Bdg26', data:bdg, borderColor:'#ff0000', borderWidth:1.5, stepped:'before', pointRadius:0, yAxisID:'y' },
+      { label:'Act26', data:a26d, borderColor:'#0066ff', borderWidth:2, pointRadius:0, yAxisID:'y', spanGaps:false },
+      { label:'Act25', data:a25, borderColor:'rgba(0,204,0,0.5)', borderWidth:1.5, pointRadius:0, yAxisID:'y', hidden:!show25, year:2025 },
+      { label:'Cum Bdg', data:cumBdg, borderColor:'rgba(255,0,0,0.4)', borderWidth:1, borderDash:[5,3], pointRadius:0, yAxisID:'y1' },
+      { label:'Cum Act26', data:cumA26d, borderColor:'rgba(0,102,255,0.4)', borderWidth:1, borderDash:[5,3], pointRadius:0, yAxisID:'y1', spanGaps:false },
+    ]},
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      plugins: {
+        title:{ display:true, text:title, color:'#aaa', font:{size:12} },
+        legend:{ labels:{ color:'#888', font:{size:9}, boxWidth:12, padding:6 } }
+      },
+      scales: {
+        x:{ ticks:{color:'#666',font:{size:9},maxTicksLimit:13}, grid:{color:'rgba(255,255,255,0.05)'} },
+        y:{ position:'left', ticks:{color:'#888',font:{size:9}}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%' },
+        y1:{ position:'right', ticks:{color:'#888',font:{size:9}}, grid:{drawOnChartArea:false}, grace:'10%' }
+      }
+    }
+  });
+}
+
+function renderLbDayChart(canvas, title, catName) {
+  const codes = CATEGORIES[catName];
+  const sold = WEEKS.map(w => {
+    const lb = codes.reduce((s,c) => s + (actuals[c]?.[2026]?.[w] || 0) * (LB_PER_CASE[c]||0), 0);
+    return w <= MAX_WEEK ? Math.round(lb / 7) : null;
+  });
+  const grown = WEEKS.map(w => w <= MAX_WEEK ? (grownLbDay[catName]?.[w] || 0) : null);
+
+  return new Chart(canvas, {
+    type: 'line',
+    data: { labels: LABELS, datasets: [
+      { label:'Grown26', data:grown, borderColor:'#00cc00', borderWidth:2, pointRadius:0, spanGaps:false },
+      { label:'Sold26', data:sold, borderColor:'#0066ff', borderWidth:2, pointRadius:0, spanGaps:false },
+    ]},
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      plugins: {
+        title:{ display:true, text:title, color:'#aaa', font:{size:12} },
+        legend:{ labels:{ color:'#888', font:{size:9}, boxWidth:12, padding:6 } }
+      },
+      scales: {
+        x:{ ticks:{color:'#666',font:{size:9},maxTicksLimit:13}, grid:{color:'rgba(255,255,255,0.05)'} },
+        y:{ ticks:{color:'#888',font:{size:9}}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%' }
+      }
+    }
+  });
+}
+
+// --- DOM generation ---
+function createChartBoxes(containerId, items) {
+  const el = document.getElementById(containerId);
+  items.forEach(item => {
+    const box = document.createElement('div');
+    box.className = 'chart-box';
+    const cvs = document.createElement('canvas');
+    cvs.id = item.id;
+    box.appendChild(cvs);
+    el.appendChild(box);
+  });
+}
+
+function renderAll() {
+  allCharts.forEach(c => c.destroy());
+  allCharts = [];
+
+  // Product charts
+  PRODUCTS.forEach(code => {
+    const cvs = document.getElementById('prod_' + code);
+    allCharts.push(renderCasesChart(cvs, code + ' Cases', [code]));
+  });
+
+  // lb/day charts
+  Object.keys(CATEGORIES).forEach(cat => {
+    const cvs = document.getElementById('lb_' + cat);
+    allCharts.push(renderLbDayChart(cvs, cat + ' lb/day', cat));
+  });
+
+  // Summary charts
+  SUMMARY_CHARTS.forEach(s => {
+    const cvs = document.getElementById('sum_' + s.codes[0]);
+    allCharts.push(renderCasesChart(cvs, s.title, s.codes));
+  });
+}
+
+function toggle25() {
+  show25 = !show25;
+  const btn = document.getElementById('toggleAct25');
+  btn.textContent = show25 ? "Hide '25" : "Show '25";
+  btn.style.borderColor = show25 ? '#4ecca3' : '#555';
+  allCharts.forEach(chart => {
+    chart.data.datasets.forEach((ds, i) => {
+      if (ds.year === 2025) chart.setDatasetVisibility(i, show25);
+    });
+    chart.update();
+  });
+}
+
+// --- Init ---
+async function loadData() {
+  try {
+    const [inv1, inv2] = await Promise.all(SALES_GIDS.map(g => fetchSalesTab(g)));
+    processInvoices([...inv1, ...inv2]);
+
+    // Grow data (non-blocking)
+    try {
+      const growResults = await Promise.all(GROW_TABS.map(t => fetchGrowTab(t)));
+      processGrow(growResults.flat());
+    } catch(e) { console.warn('Grow data unavailable:', e); }
+
+    // Build DOM
+    createChartBoxes('productGrid', PRODUCTS.map(c => ({id:'prod_'+c})));
+    createChartBoxes('lbdayGrid', Object.keys(CATEGORIES).map(c => ({id:'lb_'+c})));
+    createChartBoxes('summaryGrid', SUMMARY_CHARTS.map(s => ({id:'sum_'+s.codes[0]})));
+
+    renderAll();
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('main').style.display = 'block';
+    document.getElementById('status').textContent = `YTD through week ${MAX_WEEK}`;
+  } catch(e) {
+    document.getElementById('loading').textContent = 'Error loading data: ' + e;
+    console.error(e);
+  }
+}
+
+loadData();
+</script>
+</body>
+</html>
