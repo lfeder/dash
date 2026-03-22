@@ -117,7 +117,7 @@ function maxWeek() {
   const now = new Date();
   const hst = new Date(now.getTime() - 10*60*60*1000);
   const day = hst.getUTCDay(), hour = hst.getUTCHours();
-  return ((day===5 && hour>=12) || day===6 || day===0) ? currentISOWeek() : currentISOWeek()-1;
+  return ((day===5 && hour>=15) || day===6 || day===0) ? currentISOWeek() : currentISOWeek()-1;
 }
 const MAX_WEEK = maxWeek();
 
@@ -300,8 +300,8 @@ function renderCasesChart(canvas, title, codes) {
   const a25 = WEEKS.map(w => getAct(codes, 2025, w));
   const cumBdg = cumulate(bdg);
   const cumA26 = cumulate(a26);
-  const a26d = a26.map((v,i) => i < MAX_WEEK ? v : null);
-  const cumA26d = cumA26.map((v,i) => i < MAX_WEEK ? v : null);
+  const a26d = a26.map((v,i) => WEEKS[i] <= MAX_WEEK ? v : null);
+  const cumA26d = cumA26.map((v,i) => WEEKS[i] <= MAX_WEEK ? v : null);
   const soldLb = WEEKS.map(w => w <= MAX_WEEK ? getSoldLbDay(codes, w) : null);
   const grownLb = WEEKS.map(w => w <= MAX_WEEK ? getGrownLbDay(codes, w) : null);
   const showCum = rightMode === 'cum', showLb = rightMode === 'lb';
