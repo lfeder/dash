@@ -19,6 +19,9 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .cols-2 { grid-template-columns:repeat(2,1fr); }
 .cols-3 { grid-template-columns:repeat(3,1fr); }
 .chart-box { background:#16213e; border-radius:8px; padding:12px; height:260px; }
+.chart-box.split { height:320px; display:flex; flex-direction:column; }
+.chart-box.split .chart-top { flex:2; min-height:0; }
+.chart-box.split .chart-btm { flex:1; min-height:0; }
 .chart-box canvas { width:100%!important; height:100%!important; }
 @media(max-width:900px) { .cols-2,.cols-3 { grid-template-columns:1fr; } .chart-box { height:240px; } }
 </style>
@@ -29,8 +32,6 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
   <h1>Weekly Budget</h1>
   <div style="display:flex;align-items:center;gap:12px;">
     <button id="toggleAct25" onclick="toggle25()" style="padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer">Show '25</button>
-    <button id="toggleRight" onclick="cycleRightAxis()" style="padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer">Weekly</button>
-    <button id="toggleUndersold" onclick="toggleUndersold()" style="padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer">All lb</button>
     <span class="info" id="status">Loading...</span>
   </div>
 </div>
@@ -228,7 +229,7 @@ function getBdg(codes, w) { return codes.reduce((s,c) => s + (BUDGET[c]?.[w-1] |
 function getAct(codes, yr, w) { return codes.reduce((s,c) => s + (actuals[c]?.[yr]?.[w] || 0), 0); }
 function cumulate(arr) { let s = 0; return arr.map(v => { s += (v||0); return s; }); }
 
-function renderCasesChart(canvas, title, codes) {
+function renderCasesChart(topCanvas, btmCanvas, title, codes) {
   const bdg = WEEKS.map(w => getBdg(codes, w));
   const a26 = WEEKS.map(w => getAct(codes, 2026, w));
   const a25 = WEEKS.map(w => getAct(codes, 2025, w));
@@ -236,20 +237,17 @@ function renderCasesChart(canvas, title, codes) {
   const cumA26 = cumulate(a26);
   const a26d = a26.map((v,i) => WEEKS[i] <= MAX_WEEK ? v : null);
   const cumVar = cumA26.map((v,i) => WEEKS[i] <= MAX_WEEK ? v - cumBdg[i] : null);
-  const showCum = rightMode === 'cum', showWeekly = rightMode === 'weekly';
 
   const aboveZero = ctx => (ctx.p0.parsed.y >= 0 && ctx.p1.parsed.y >= 0);
+  const xScale = { ticks:{color:'#888',font:{size:11},maxTicksLimit:13}, grid:{color:'rgba(255,255,255,0.05)'} };
+  const yScale = { ticks:{color:'#888',font:{size:11}}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%' };
 
-  return new Chart(canvas, {
+  const top = new Chart(topCanvas, {
     type: 'line',
     data: { labels: LABELS, datasets: [
-      { label:'Bdg26', data:bdg, borderColor:'#ff0000', backgroundColor:'#ff0000', borderWidth:1.5, stepped:'before', pointRadius:0, rGroup:'weekly' },
-      { label:'Act26', data:a26d, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:2, pointRadius:0, spanGaps:false, rGroup:'weekly' },
-      { label:'Act25', data:a25, borderColor:'rgba(0,204,0,0.5)', backgroundColor:'rgba(0,204,0,0.5)', borderWidth:1.5, pointRadius:0, hidden:!show25, year:2025, rGroup:'weekly' },
-      { label:'Cum ± Bdg', data:cumVar, borderWidth:1.5, pointRadius:0, fill:{ target:'origin', above:'rgba(78,204,163,0.25)', below:'rgba(231,76,60,0.25)' }, spanGaps:false, hidden:!showCum, rGroup:'cum',
-        segment:{ borderColor: ctx => aboveZero(ctx) ? '#4ecca3' : '#e74c3c' },
-        borderColor:'#4ecca3', backgroundColor:'#4ecca3'
-      },
+      { label:'Bdg26', data:bdg, borderColor:'#ff0000', backgroundColor:'#ff0000', borderWidth:1.5, stepped:'before', pointRadius:0 },
+      { label:'Act26', data:a26d, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:2, pointRadius:0, spanGaps:false },
+      { label:'Act25', data:a25, borderColor:'rgba(0,204,0,0.5)', backgroundColor:'rgba(0,204,0,0.5)', borderWidth:1.5, pointRadius:0, hidden:!show25, year:2025 },
     ]},
     options: {
       responsive:true, maintainAspectRatio:false,
@@ -258,15 +256,31 @@ function renderCasesChart(canvas, title, codes) {
         title:{ display:true, text:title, color:'#aaa', font:{size:12} },
         legend: LEGEND_CFG
       },
-      scales: {
-        x:{ ticks:{color:'#888',font:{size:11},maxTicksLimit:13}, grid:{color:'rgba(255,255,255,0.05)'} },
-        y:{ ticks:{color:'#888',font:{size:11}}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%' }
-      }
+      scales: { x: xScale, y: yScale }
     }
   });
+
+  const btm = new Chart(btmCanvas, {
+    type: 'line',
+    data: { labels: LABELS, datasets: [
+      { label:'Cum ± Bdg', data:cumVar, borderWidth:1.5, pointRadius:0,
+        fill:{ target:'origin', above:'rgba(78,204,163,0.25)', below:'rgba(231,76,60,0.25)' },
+        spanGaps:false, segment:{ borderColor: ctx => aboveZero(ctx) ? '#4ecca3' : '#e74c3c' },
+        borderColor:'#4ecca3', backgroundColor:'#4ecca3'
+      },
+    ]},
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      plugins: { legend:{ display:false } },
+      scales: { x:{ display:false }, y: yScale }
+    }
+  });
+
+  return [top, btm];
 }
 
-function renderLbDayChart(canvas, title, catName) {
+function renderLbDayChart(topCanvas, btmCanvas, title, catName) {
   const codes = CATEGORIES[catName];
   const sold = WEEKS.map(w => {
     const lb = codes.reduce((s,c) => s + (actuals[c]?.[2026]?.[w] || 0) * (LB_PER_CASE[c]||0), 0);
@@ -278,12 +292,14 @@ function renderLbDayChart(canvas, title, catName) {
     return grown[i] - sold[i];
   });
 
-  return new Chart(canvas, {
+  const xScale = { ticks:{color:'#888',font:{size:11},maxTicksLimit:13}, grid:{color:'rgba(255,255,255,0.05)'} };
+  const yScale = { ticks:{color:'#888',font:{size:11}}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%' };
+
+  const top = new Chart(topCanvas, {
     type: 'line',
     data: { labels: LABELS, datasets: [
-      { label:'Grown26', data:grown, borderColor:'#00cc00', backgroundColor:'#00cc00', borderWidth:2, pointRadius:0, spanGaps:false, rGroup:'growsold' },
-      { label:'Sold26', data:sold, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:2, pointRadius:0, spanGaps:false, rGroup:'growsold' },
-      { label:'Undersold', type:'bar', data:diff, backgroundColor:'rgba(255,204,0,0.4)', borderWidth:0, yAxisID:'y1', order:1, rGroup:'undersold' },
+      { label:'Grown26', data:grown, borderColor:'#00cc00', backgroundColor:'#00cc00', borderWidth:2, pointRadius:0, spanGaps:false },
+      { label:'Sold26', data:sold, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:2, pointRadius:0, spanGaps:false },
     ]},
     options: {
       responsive:true, maintainAspectRatio:false,
@@ -292,28 +308,47 @@ function renderLbDayChart(canvas, title, catName) {
         title:{ display:true, text:title, color:'#aaa', font:{size:12} },
         legend: LEGEND_CFG
       },
-      scales: {
-        x:{ ticks:{color:'#888',font:{size:11},maxTicksLimit:13}, grid:{color:'rgba(255,255,255,0.05)'} },
-        y:{ position:'left', ticks:{color:'#888',font:{size:11}}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%' },
-        y1:{ position:'right', ticks:{color:'#888',font:{size:11}}, grid:{drawOnChartArea:false}, title:{display:true, text:'Diff', color:'#666', font:{size:10}} }
-      }
+      scales: { x: xScale, y: yScale }
     }
   });
+
+  const aboveZero = ctx => (ctx.p0.parsed.y >= 0 && ctx.p1.parsed.y >= 0);
+  const btm = new Chart(btmCanvas, {
+    type: 'line',
+    data: { labels: LABELS, datasets: [
+      { label:'Undersold', data:diff, borderWidth:1.5, pointRadius:0,
+        fill:{ target:'origin', above:'rgba(255,204,0,0.3)', below:'rgba(231,76,60,0.3)' },
+        spanGaps:false, segment:{ borderColor: ctx => aboveZero(ctx) ? '#ffcc00' : '#e74c3c' },
+        borderColor:'#ffcc00', backgroundColor:'#ffcc00'
+      },
+    ]},
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      plugins: { legend:{ display:false } },
+      scales: { x:{ display:false }, y: yScale }
+    }
+  });
+
+  return [top, btm];
 }
 
 // --- DOM generation ---
 const PRODUCT_ROWS = [['KW','KR'],['JW','JR','EF'],['LW','LR','LF'],['WR','WF'],['AR','AF']];
 
-function createChartBoxes(containerId, items) {
-  const el = document.getElementById(containerId);
-  items.forEach(item => {
-    const box = document.createElement('div');
-    box.className = 'chart-box';
-    const cvs = document.createElement('canvas');
-    cvs.id = item.id;
-    box.appendChild(cvs);
-    el.appendChild(box);
-  });
+
+function createSplitBox(container, id) {
+  const box = document.createElement('div');
+  box.className = 'chart-box split';
+  const top = document.createElement('canvas');
+  top.id = id + '_top';
+  top.className = 'chart-top';
+  const btm = document.createElement('canvas');
+  btm.id = id + '_btm';
+  btm.className = 'chart-btm';
+  box.appendChild(top);
+  box.appendChild(btm);
+  container.appendChild(box);
 }
 
 function createProductRows() {
@@ -322,14 +357,7 @@ function createProductRows() {
     const grid = document.createElement('div');
     grid.className = 'grid cols-3';
     grid.style.marginBottom = '12px';
-    row.forEach(code => {
-      const box = document.createElement('div');
-      box.className = 'chart-box';
-      const cvs = document.createElement('canvas');
-      cvs.id = 'prod_' + code;
-      box.appendChild(cvs);
-      grid.appendChild(box);
-    });
+    row.forEach(code => createSplitBox(grid, 'prod_' + code));
     el.appendChild(grid);
   });
 }
@@ -340,13 +368,13 @@ async function renderAll() {
 
   const tasks = [];
   PRODUCTS.forEach(code => tasks.push(() => {
-    allCharts.push(renderCasesChart(document.getElementById('prod_'+code), code+' Cases', [code]));
+    allCharts.push(...renderCasesChart(document.getElementById('prod_'+code+'_top'), document.getElementById('prod_'+code+'_btm'), code+' Cases', [code]));
   }));
   Object.keys(CATEGORIES).forEach(cat => tasks.push(() => {
-    allCharts.push(renderLbDayChart(document.getElementById('lb_'+cat), cat+' lb/day', cat));
+    allCharts.push(...renderLbDayChart(document.getElementById('lb_'+cat+'_top'), document.getElementById('lb_'+cat+'_btm'), cat+' lb/day', cat));
   }));
   SUMMARY_CHARTS.forEach(s => tasks.push(() => {
-    allCharts.push(renderCasesChart(document.getElementById('sum_'+s.codes[0]), s.title, s.codes));
+    allCharts.push(...renderCasesChart(document.getElementById('sum_'+s.codes[0]+'_top'), document.getElementById('sum_'+s.codes[0]+'_btm'), s.title, s.codes));
   }));
 
   // Render in batches to avoid blocking UI
@@ -369,44 +397,6 @@ function toggle25() {
   });
 }
 
-let rightMode = 'weekly'; // 'weekly', 'cum', 'both'
-function cycleRightAxis() {
-  const modes = ['weekly','cum','both'];
-  const labels = { weekly:'Weekly', cum:'Cumulative', both:'Both' };
-  rightMode = modes[(modes.indexOf(rightMode) + 1) % 3];
-  const btn = document.getElementById('toggleRight');
-  btn.textContent = labels[rightMode];
-  allCharts.forEach(chart => {
-    const hasCases = chart.data.datasets.some(ds => ds.rGroup === 'weekly' || ds.rGroup === 'cum');
-    if (!hasCases) return;
-    chart.data.datasets.forEach((ds, i) => {
-      if (ds.rGroup === 'weekly') chart.setDatasetVisibility(i, (rightMode === 'weekly' || rightMode === 'both') && (ds.year !== 2025 || show25));
-      if (ds.rGroup === 'cum') chart.setDatasetVisibility(i, rightMode === 'cum' || rightMode === 'both');
-    });
-    chart.update();
-  });
-}
-
-let lbMode = 'all'; // 'all', 'noUndersold', 'noGrowSold'
-function toggleUndersold() {
-  const modes = ['all','noUndersold','noGrowSold'];
-  const labels = { all:'All lb', noUndersold:'Hide Undersold', noGrowSold:'Undersold Only' };
-  lbMode = modes[(modes.indexOf(lbMode) + 1) % 3];
-  const btn = document.getElementById('toggleUndersold');
-  btn.textContent = labels[lbMode];
-  btn.style.borderColor = lbMode === 'all' ? '#555' : '#4ecca3';
-  allCharts.forEach(chart => {
-    const hasLbData = chart.data.datasets.some(ds => ds.rGroup === 'growsold' || ds.rGroup === 'undersold');
-    if (!hasLbData) return;
-    chart.data.datasets.forEach((ds, i) => {
-      if (ds.rGroup === 'undersold') chart.setDatasetVisibility(i, lbMode !== 'noUndersold');
-      if (ds.rGroup === 'growsold') chart.setDatasetVisibility(i, lbMode !== 'noGrowSold');
-    });
-    if (chart.options.scales.y) chart.options.scales.y.display = lbMode !== 'noGrowSold';
-    if (chart.options.scales.y1) chart.options.scales.y1.display = lbMode !== 'noUndersold';
-    chart.update();
-  });
-}
 
 function setProgress(pct, text) {
   document.getElementById('loadBar').style.width = pct + '%';
@@ -427,8 +417,10 @@ async function loadData() {
 
     // Build DOM
     createProductRows();
-    createChartBoxes('lbdayGrid', Object.keys(CATEGORIES).map(c => ({id:'lb_'+c})));
-    createChartBoxes('summaryGrid', SUMMARY_CHARTS.map(s => ({id:'sum_'+s.codes[0]})));
+    const lbGrid = document.getElementById('lbdayGrid');
+    Object.keys(CATEGORIES).forEach(c => createSplitBox(lbGrid, 'lb_'+c));
+    const sumGrid = document.getElementById('summaryGrid');
+    SUMMARY_CHARTS.forEach(s => createSplitBox(sumGrid, 'sum_'+s.codes[0]));
 
     setProgress(90, 'Rendering charts...');
     document.getElementById('main').style.display = 'block';
