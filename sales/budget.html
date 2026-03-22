@@ -207,11 +207,23 @@ const LEGEND_CFG = {
     color:'#888', font:{size:10}, usePointStyle:true, pointStyle:'circle', padding:8,
     generateLabels(chart) {
       return Chart.defaults.plugins.legend.labels.generateLabels(chart).map(label => {
-        if (label.hidden) label.fontColor = 'rgba(136,136,136,0.3)';
-        label.text = label.text; // no strikethrough
+        if (label.hidden) {
+          label.fontColor = 'rgba(136,136,136,0.3)';
+          label.fillStyle = 'rgba(136,136,136,0.2)';
+          label.strokeStyle = 'rgba(136,136,136,0.2)';
+          label.hidden = false; // prevents strikethrough
+          label._actuallyHidden = true;
+        }
         return label;
       });
     }
+  },
+  onClick(e, item, legend) {
+    const chart = legend.chart;
+    const idx = item.datasetIndex;
+    const meta = chart.getDatasetMeta(idx);
+    meta.hidden = meta.hidden === null ? !chart.data.datasets[idx].hidden : null;
+    chart.update();
   }
 };
 
