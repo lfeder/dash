@@ -65,9 +65,6 @@ const CATEGORIES = {
   Lettuce:['LW','LR','LF'], Watercress:['WR','WF'], Arugula:['AR','AF']
 };
 const VARIETY_TO_CAT = {K:'Keiki',J:'Japanese',E:'English',L:'Lettuce',W:'Watercress',A:'Arugula'};
-// Reverse lookup: product code -> category
-const CODE_TO_CAT = {};
-Object.entries(CATEGORIES).forEach(([cat, codes]) => codes.forEach(c => CODE_TO_CAT[c] = cat));
 
 const SUMMARY_CHARTS = [
   {title:'Keiki Cases On Grade', codes:['KW','KR','KF']},
@@ -231,15 +228,6 @@ function getBdg(codes, w) { return codes.reduce((s,c) => s + (BUDGET[c]?.[w-1] |
 function getAct(codes, yr, w) { return codes.reduce((s,c) => s + (actuals[c]?.[yr]?.[w] || 0), 0); }
 function cumulate(arr) { let s = 0; return arr.map(v => { s += (v||0); return s; }); }
 
-function getSoldLbDay(codes, w) {
-  return Math.round(codes.reduce((s,c) => s + (actuals[c]?.[2026]?.[w] || 0) * (LB_PER_CASE[c]||0), 0) / 7);
-}
-function getGrownLbDay(codes, w) {
-  // Aggregate grow data for all categories that these codes belong to
-  const cats = [...new Set(codes.map(c => CODE_TO_CAT[c]).filter(Boolean))];
-  return cats.reduce((s, cat) => s + (grownLbDay[cat]?.[w] || 0), 0);
-}
-
 function renderCasesChart(canvas, title, codes) {
   const bdg = WEEKS.map(w => getBdg(codes, w));
   const a26 = WEEKS.map(w => getAct(codes, 2026, w));
@@ -250,17 +238,17 @@ function renderCasesChart(canvas, title, codes) {
   const cumVar = cumA26.map((v,i) => WEEKS[i] <= MAX_WEEK ? v - cumBdg[i] : null);
   const showCum = rightMode === 'cum', showWeekly = rightMode === 'weekly';
 
-  // Segment coloring for cumulative variance: green when >= 0, red when < 0
   const aboveZero = ctx => (ctx.p0.parsed.y >= 0 && ctx.p1.parsed.y >= 0);
 
   return new Chart(canvas, {
     type: 'line',
     data: { labels: LABELS, datasets: [
-      { label:'Bdg26', data:bdg, borderColor:'#ff0000', backgroundColor:'#ff0000', borderWidth:1.5, stepped:'before', pointRadius:0, yAxisID:'y', rGroup:'weekly' },
-      { label:'Act26', data:a26d, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:2, pointRadius:0, yAxisID:'y', spanGaps:false, rGroup:'weekly' },
-      { label:'Act25', data:a25, borderColor:'rgba(0,204,0,0.5)', backgroundColor:'rgba(0,204,0,0.5)', borderWidth:1.5, pointRadius:0, yAxisID:'y', hidden:!show25, year:2025, rGroup:'weekly' },
-      { label:'Cum ± Bdg', data:cumVar, borderColor: ctx => (ctx.p0 && ctx.p0.parsed.y >= 0) ? '#4ecca3' : '#e74c3c', borderWidth:1.5, pointRadius:0, yAxisID:'y', fill:{ target:'origin', above:'rgba(78,204,163,0.25)', below:'rgba(231,76,60,0.25)' }, spanGaps:false, hidden:!showCum, rGroup:'cum',
-        segment:{ borderColor: ctx => aboveZero(ctx) ? '#4ecca3' : '#e74c3c' }
+      { label:'Bdg26', data:bdg, borderColor:'#ff0000', backgroundColor:'#ff0000', borderWidth:1.5, stepped:'before', pointRadius:0, rGroup:'weekly' },
+      { label:'Act26', data:a26d, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:2, pointRadius:0, spanGaps:false, rGroup:'weekly' },
+      { label:'Act25', data:a25, borderColor:'rgba(0,204,0,0.5)', backgroundColor:'rgba(0,204,0,0.5)', borderWidth:1.5, pointRadius:0, hidden:!show25, year:2025, rGroup:'weekly' },
+      { label:'Cum ± Bdg', data:cumVar, borderWidth:1.5, pointRadius:0, fill:{ target:'origin', above:'rgba(78,204,163,0.25)', below:'rgba(231,76,60,0.25)' }, spanGaps:false, hidden:!showCum, rGroup:'cum',
+        segment:{ borderColor: ctx => aboveZero(ctx) ? '#4ecca3' : '#e74c3c' },
+        borderColor:'#4ecca3', backgroundColor:'#4ecca3'
       },
     ]},
     options: {
@@ -381,16 +369,19 @@ function toggle25() {
   });
 }
 
-let rightMode = 'weekly'; // 'weekly' or 'cum'
+let rightMode = 'weekly'; // 'weekly', 'cum', 'both'
 function cycleRightAxis() {
-  const modes = ['weekly','cum'];
-  rightMode = modes[(modes.indexOf(rightMode) + 1) % 2];
+  const modes = ['weekly','cum','both'];
+  const labels = { weekly:'Weekly', cum:'Cumulative', both:'Both' };
+  rightMode = modes[(modes.indexOf(rightMode) + 1) % 3];
   const btn = document.getElementById('toggleRight');
-  btn.textContent = rightMode === 'weekly' ? 'Weekly' : 'Cumulative';
+  btn.textContent = labels[rightMode];
   allCharts.forEach(chart => {
+    const hasCases = chart.data.datasets.some(ds => ds.rGroup === 'weekly' || ds.rGroup === 'cum');
+    if (!hasCases) return;
     chart.data.datasets.forEach((ds, i) => {
-      if (ds.rGroup === 'weekly') chart.setDatasetVisibility(i, rightMode === 'weekly' && (ds.year !== 2025 || show25));
-      if (ds.rGroup === 'cum') chart.setDatasetVisibility(i, rightMode === 'cum');
+      if (ds.rGroup === 'weekly') chart.setDatasetVisibility(i, (rightMode === 'weekly' || rightMode === 'both') && (ds.year !== 2025 || show25));
+      if (ds.rGroup === 'cum') chart.setDatasetVisibility(i, rightMode === 'cum' || rightMode === 'both');
     });
     chart.update();
   });
@@ -405,10 +396,14 @@ function toggleUndersold() {
   btn.textContent = labels[lbMode];
   btn.style.borderColor = lbMode === 'all' ? '#555' : '#4ecca3';
   allCharts.forEach(chart => {
+    const hasLbData = chart.data.datasets.some(ds => ds.rGroup === 'growsold' || ds.rGroup === 'undersold');
+    if (!hasLbData) return;
     chart.data.datasets.forEach((ds, i) => {
       if (ds.rGroup === 'undersold') chart.setDatasetVisibility(i, lbMode !== 'noUndersold');
       if (ds.rGroup === 'growsold') chart.setDatasetVisibility(i, lbMode !== 'noGrowSold');
     });
+    if (chart.options.scales.y) chart.options.scales.y.display = lbMode !== 'noGrowSold';
+    if (chart.options.scales.y1) chart.options.scales.y1.display = lbMode !== 'noUndersold';
     chart.update();
   });
 }
