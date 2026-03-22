@@ -29,6 +29,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
   <h1>Weekly Budget</h1>
   <div style="display:flex;align-items:center;gap:12px;">
     <button id="toggleAct25" onclick="toggle25()" style="padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer">Show '25</button>
+    <button id="toggleCum" onclick="toggleCum()" style="padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer">Hide Cum</button>
     <span class="info" id="status">Loading...</span>
   </div>
 </div>
@@ -51,7 +52,7 @@ const SALES_GIDS = ['1254110782','544460225'];
 const GROW_SHEET = '1VtEecYn-W1pbnIU1hRHfxIpkH2DtK7hj0CpcpiLoziM';
 const GROW_TABS = ['grow_C_harvest','grow_L_seeding'];
 
-const PRODUCTS = ['KW','KR','KF','JW','JR','JF','EF','LW','LR','LF','WR','WF','AR','AF'];
+const PRODUCTS = ['KW','KR','JW','JR','EF','LW','LR','LF','WR','WF','AR','AF'];
 const PRODUCT_NAMES = {KW:'KW Cases',KR:'KR Cases',KF:'KF Cases',JW:'JW Cases',JR:'JR Cases',JF:'JF Cases',EF:'EF Cases',LW:'LW Cases',LR:'LR Cases',LF:'LF Cases',WR:'WR Cases',WF:'WF Cases',AR:'AR Cases',AF:'AF Cases'};
 
 const LB_PER_CASE = {KW:16,KR:12,KF:12,JW:14,JR:14,JF:14,EF:15,LW:10.5,LR:2.25,LF:10,WR:2.25,WF:10,AR:2.25,AF:10};
@@ -268,20 +269,20 @@ function renderCasesChart(canvas, title, codes) {
       { label:'Bdg26', data:bdg, borderColor:'#ff0000', borderWidth:1.5, stepped:'before', pointRadius:0, yAxisID:'y' },
       { label:'Act26', data:a26d, borderColor:'#0066ff', borderWidth:2, pointRadius:0, yAxisID:'y', spanGaps:false },
       { label:'Act25', data:a25, borderColor:'rgba(0,204,0,0.5)', borderWidth:1.5, pointRadius:0, yAxisID:'y', hidden:!show25, year:2025 },
-      { label:'Cum Bdg', data:cumBdg, borderColor:'rgba(255,0,0,0.4)', borderWidth:1, borderDash:[5,3], pointRadius:0, yAxisID:'y1' },
-      { label:'Cum Act26', data:cumA26d, borderColor:'rgba(0,102,255,0.4)', borderWidth:1, borderDash:[5,3], pointRadius:0, yAxisID:'y1', spanGaps:false },
+      { label:'Cum Bdg', data:cumBdg, borderColor:'#ff0000', borderWidth:1.5, pointRadius:0, yAxisID:'y1' },
+      { label:'Cum Act26', data:cumA26d, borderColor:'#0066ff', borderWidth:1.5, pointRadius:0, yAxisID:'y1', spanGaps:false },
     ]},
     options: {
       responsive:true, maintainAspectRatio:false,
       interaction:{ mode:'index', intersect:false },
       plugins: {
         title:{ display:true, text:title, color:'#aaa', font:{size:12} },
-        legend:{ labels:{ color:'#888', font:{size:9}, boxWidth:12, padding:6 } }
+        legend:{ labels:{ color:'#888', font:{size:10}, usePointStyle:true, pointStyle:'circle', padding:8 } }
       },
       scales: {
-        x:{ ticks:{color:'#666',font:{size:9},maxTicksLimit:13}, grid:{color:'rgba(255,255,255,0.05)'} },
-        y:{ position:'left', ticks:{color:'#888',font:{size:9}}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%' },
-        y1:{ position:'right', ticks:{color:'#888',font:{size:9}}, grid:{drawOnChartArea:false}, grace:'10%' }
+        x:{ ticks:{color:'#888',font:{size:11},maxTicksLimit:13}, grid:{color:'rgba(255,255,255,0.05)'} },
+        y:{ position:'left', ticks:{color:'#888',font:{size:11}}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%' },
+        y1:{ position:'right', ticks:{color:'#888',font:{size:11}}, grid:{drawOnChartArea:false}, grace:'10%' }
       }
     }
   });
@@ -306,11 +307,11 @@ function renderLbDayChart(canvas, title, catName) {
       interaction:{ mode:'index', intersect:false },
       plugins: {
         title:{ display:true, text:title, color:'#aaa', font:{size:12} },
-        legend:{ labels:{ color:'#888', font:{size:9}, boxWidth:12, padding:6 } }
+        legend:{ labels:{ color:'#888', font:{size:10}, usePointStyle:true, pointStyle:'circle', padding:8 } }
       },
       scales: {
-        x:{ ticks:{color:'#666',font:{size:9},maxTicksLimit:13}, grid:{color:'rgba(255,255,255,0.05)'} },
-        y:{ ticks:{color:'#888',font:{size:9}}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%' }
+        x:{ ticks:{color:'#888',font:{size:11},maxTicksLimit:13}, grid:{color:'rgba(255,255,255,0.05)'} },
+        y:{ ticks:{color:'#888',font:{size:11}}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%' }
       }
     }
   });
@@ -360,6 +361,20 @@ function toggle25() {
   allCharts.forEach(chart => {
     chart.data.datasets.forEach((ds, i) => {
       if (ds.year === 2025) chart.setDatasetVisibility(i, show25);
+    });
+    chart.update();
+  });
+}
+
+let showCum = true;
+function toggleCum() {
+  showCum = !showCum;
+  const btn = document.getElementById('toggleCum');
+  btn.textContent = showCum ? 'Hide Cum' : 'Show Cum';
+  btn.style.borderColor = showCum ? '#4ecca3' : '#555';
+  allCharts.forEach(chart => {
+    chart.data.datasets.forEach((ds, i) => {
+      if (ds.label && ds.label.startsWith('Cum')) chart.setDatasetVisibility(i, showCum);
     });
     chart.update();
   });

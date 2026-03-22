@@ -22,7 +22,7 @@
 <nav>
   <span class="brand">Dash</span>
   <div class="tabs" id="tabs"></div>
-  <span style="margin-left:auto;font-size:0.7rem;color:#e0e0e0">03-21 19:30</span>
+  <span id="version" style="margin-left:auto;font-size:0.7rem;color:#e0e0e0"></span>
 </nav>
 <div class="frame-container" id="frames"></div>
 <script>
@@ -68,6 +68,12 @@ DASHBOARDS.forEach(d => {
 
 navigate(location.hash.slice(1) || DASHBOARDS[0].id);
 window.addEventListener('hashchange', () => navigate(location.hash.slice(1)));
+
+fetch('index.html',{method:'HEAD'}).then(r => {
+  const d = new Date(r.headers.get('last-modified'));
+  const pad = n => String(n).padStart(2,'0');
+  document.getElementById('version').textContent = `${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}).catch(() => {});
 
 </script>
 </body>
