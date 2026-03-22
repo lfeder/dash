@@ -30,7 +30,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
   <div style="display:flex;align-items:center;gap:12px;">
     <button id="toggleAct25" onclick="toggle25()" style="padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer">Show '25</button>
     <button id="toggleRight" onclick="cycleRightAxis()" style="padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer">Right: Cum</button>
-    <button id="toggleUndersold" onclick="toggleUndersold()" style="padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer">Hide Undersold</button>
+    <button id="toggleUndersold" onclick="toggleUndersold()" style="padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer">All lb</button>
     <span class="info" id="status">Loading...</span>
   </div>
 </div>
@@ -294,8 +294,8 @@ function renderLbDayChart(canvas, title, catName) {
   return new Chart(canvas, {
     type: 'line',
     data: { labels: LABELS, datasets: [
-      { label:'Grown26', data:grown, borderColor:'#00cc00', backgroundColor:'#00cc00', borderWidth:2, pointRadius:0, spanGaps:false },
-      { label:'Sold26', data:sold, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:2, pointRadius:0, spanGaps:false },
+      { label:'Grown26', data:grown, borderColor:'#00cc00', backgroundColor:'#00cc00', borderWidth:2, pointRadius:0, spanGaps:false, rGroup:'growsold' },
+      { label:'Sold26', data:sold, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:2, pointRadius:0, spanGaps:false, rGroup:'growsold' },
       { label:'Undersold', type:'bar', data:diff, backgroundColor:'rgba(255,204,0,0.4)', borderWidth:0, yAxisID:'y1', order:1, rGroup:'undersold' },
     ]},
     options: {
@@ -399,15 +399,18 @@ function cycleRightAxis() {
   });
 }
 
-let showUndersold = true;
+let lbMode = 'all'; // 'all', 'noUndersold', 'noGrowSold'
 function toggleUndersold() {
-  showUndersold = !showUndersold;
+  const modes = ['all','noUndersold','noGrowSold'];
+  const labels = { all:'All lb', noUndersold:'Hide Undersold', noGrowSold:'Undersold Only' };
+  lbMode = modes[(modes.indexOf(lbMode) + 1) % 3];
   const btn = document.getElementById('toggleUndersold');
-  btn.textContent = showUndersold ? 'Hide Undersold' : 'Show Undersold';
-  btn.style.borderColor = showUndersold ? '#4ecca3' : '#555';
+  btn.textContent = labels[lbMode];
+  btn.style.borderColor = lbMode === 'all' ? '#555' : '#4ecca3';
   allCharts.forEach(chart => {
     chart.data.datasets.forEach((ds, i) => {
-      if (ds.rGroup === 'undersold') chart.setDatasetVisibility(i, showUndersold);
+      if (ds.rGroup === 'undersold') chart.setDatasetVisibility(i, lbMode !== 'noUndersold');
+      if (ds.rGroup === 'growsold') chart.setDatasetVisibility(i, lbMode !== 'noGrowSold');
     });
     chart.update();
   });
