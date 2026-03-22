@@ -44,10 +44,10 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 </div>
 
 <div id="main">
-  <div class="section-title">Cases by Product</div>
-  <div id="productGrid" class="grid cols-2"></div>
   <div class="section-title">Pounds per Day</div>
   <div id="lbdayGrid" class="grid cols-3"></div>
+  <div class="section-title">Cases by Product</div>
+  <div id="productGrid" class="grid cols-2"></div>
   <div class="section-title">Cases On Grade</div>
   <div id="summaryGrid" class="grid cols-3"></div>
 </div>
@@ -297,10 +297,10 @@ function renderCasesChart(canvas, title, codes) {
       { label:'Bdg26', data:bdg, borderColor:'#ff0000', backgroundColor:'#ff0000', borderWidth:1.5, stepped:'before', pointRadius:0, yAxisID:'y' },
       { label:'Act26', data:a26d, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:2, pointRadius:0, yAxisID:'y', spanGaps:false },
       { label:'Act25', data:a25, borderColor:'rgba(0,204,0,0.5)', backgroundColor:'rgba(0,204,0,0.5)', borderWidth:1.5, pointRadius:0, yAxisID:'y', hidden:!show25, year:2025 },
-      { label:'Cum Bdg', data:cumBdg, borderColor:'#ff0000', backgroundColor:'#ff0000', borderWidth:1.5, pointRadius:0, yAxisID:'y1', hidden:!showCum, rGroup:'cum' },
-      { label:'Cum Act26', data:cumA26d, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:1.5, pointRadius:0, yAxisID:'y1', spanGaps:false, hidden:!showCum, rGroup:'cum' },
-      { label:'Grown lb/d', data:grownLb, borderColor:'#00cc00', backgroundColor:'#00cc00', borderWidth:1.5, pointRadius:0, yAxisID:'y1', spanGaps:false, hidden:!showLb, rGroup:'lb' },
-      { label:'Sold lb/d', data:soldLb, borderColor:'#ff9900', backgroundColor:'#ff9900', borderWidth:1.5, pointRadius:0, yAxisID:'y1', spanGaps:false, hidden:!showLb, rGroup:'lb' },
+      { label:'Cum Bdg', data:cumBdg, borderColor:'#cc4444', backgroundColor:'#cc4444', borderWidth:1.5, pointRadius:0, yAxisID:'y1', hidden:!showCum, rGroup:'cum' },
+      { label:'Cum Act26', data:cumA26d, borderColor:'#4488cc', backgroundColor:'#4488cc', borderWidth:1.5, pointRadius:0, yAxisID:'y1', spanGaps:false, hidden:!showCum, rGroup:'cum' },
+      // { label:'Grown lb/d', data:grownLb, borderColor:'#00cc00', backgroundColor:'#00cc00', borderWidth:1.5, pointRadius:0, yAxisID:'y1', spanGaps:false, hidden:!showLb, rGroup:'lb' },
+      // { label:'Sold lb/d', data:soldLb, borderColor:'#ff9900', backgroundColor:'#ff9900', borderWidth:1.5, pointRadius:0, yAxisID:'y1', spanGaps:false, hidden:!showLb, rGroup:'lb' },
     ]},
     options: {
       responsive:true, maintainAspectRatio:false,
@@ -325,12 +325,17 @@ function renderLbDayChart(canvas, title, catName) {
     return w <= MAX_WEEK ? Math.round(lb / 7) : null;
   });
   const grown = WEEKS.map(w => w <= MAX_WEEK ? (grownLbDay[catName]?.[w] || 0) : null);
+  const diff = WEEKS.map((w,i) => {
+    if (grown[i] == null || sold[i] == null) return null;
+    return grown[i] - sold[i];
+  });
 
   return new Chart(canvas, {
     type: 'line',
     data: { labels: LABELS, datasets: [
       { label:'Grown26', data:grown, borderColor:'#00cc00', backgroundColor:'#00cc00', borderWidth:2, pointRadius:0, spanGaps:false },
       { label:'Sold26', data:sold, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:2, pointRadius:0, spanGaps:false },
+      { label:'Diff (G-S)', type:'bar', data:diff, backgroundColor: diff.map(v => v != null && v >= 0 ? 'rgba(76,204,163,0.4)' : 'rgba(231,76,60,0.4)'), borderWidth:0, yAxisID:'y1', order:1 },
     ]},
     options: {
       responsive:true, maintainAspectRatio:false,
@@ -341,7 +346,8 @@ function renderLbDayChart(canvas, title, catName) {
       },
       scales: {
         x:{ ticks:{color:'#888',font:{size:11},maxTicksLimit:13}, grid:{color:'rgba(255,255,255,0.05)'} },
-        y:{ ticks:{color:'#888',font:{size:11}}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%' }
+        y:{ position:'left', ticks:{color:'#888',font:{size:11}}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%' },
+        y1:{ position:'right', ticks:{color:'#888',font:{size:11}}, grid:{drawOnChartArea:false}, title:{display:true, text:'Diff', color:'#666', font:{size:10}} }
       }
     }
   });
