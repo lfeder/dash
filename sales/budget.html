@@ -13,14 +13,16 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 #header .info { font-size:0.8rem; color:#888; }
 #loading { display:flex; align-items:center; justify-content:center; height:80vh; font-size:1.2rem; color:#4ecca3; }
 #main { padding:16px; display:none; }
-.section-title { font-size:1rem; color:#4ecca3; margin:20px 0 8px; padding-left:4px; }
-.section-title:first-child { margin-top:0; }
+.section-header { font-size:1.05rem; color:#4ecca3; margin:24px 0 8px; padding-left:4px; display:flex; align-items:center; gap:16px; }
+.section-header:first-child { margin-top:0; }
+.section-legend { display:flex; gap:12px; font-size:0.8rem; color:#888; }
+.section-legend .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; vertical-align:middle; }
 .grid { display:grid; gap:12px; }
 .cols-2 { grid-template-columns:repeat(2,1fr); }
 .cols-3 { grid-template-columns:repeat(3,1fr); }
 .chart-box { background:#16213e; border-radius:8px; padding:12px; height:260px; }
-.chart-box.split { height:320px; display:flex; flex-direction:column; }
-.chart-box.split .chart-top { flex:2; min-height:0; }
+.chart-box.split { height:300px; display:flex; flex-direction:column; padding-bottom:4px; }
+.chart-box.split .chart-top { flex:3; min-height:0; }
 .chart-box.split .chart-btm { flex:1; min-height:0; }
 .chart-box canvas { width:100%!important; height:100%!important; }
 @media(max-width:900px) { .cols-2,.cols-3 { grid-template-columns:1fr; } .chart-box { height:240px; } }
@@ -46,18 +48,20 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 </div>
 
 <div id="main">
-  <div class="section-title">Pounds per Day</div>
+  <div class="section-header">Pounds per Day
+    <div class="section-legend"><span><span class="dot" style="background:#00cc00"></span>Grown26</span><span><span class="dot" style="background:#0066ff"></span>Sold26</span></div>
+  </div>
   <div id="lbdayGrid" class="grid cols-3"></div>
-  <div class="section-title">Cases by Product</div>
+  <div class="section-header">Cases by Product
+    <div class="section-legend"><span><span class="dot" style="background:#ff0000"></span>Bdg26</span><span><span class="dot" style="background:#0066ff"></span>Act26</span><span><span class="dot" style="background:rgba(0,204,0,0.5)"></span>Act25</span></div>
+  </div>
   <div id="productGrid"></div>
-  <div class="section-title">Cases On Grade</div>
-  <div id="summaryGrid" class="grid cols-3"></div>
+  <div id="summaryGrid" class="grid cols-3" style="margin-top:12px"></div>
 </div>
 
 <script>
 // --- Constants ---
 const PRODUCTS = ['KW','KR','JW','JR','EF','LW','LR','LF','WR','WF','AR','AF'];
-const PRODUCT_NAMES = {KW:'KW Cases',KR:'KR Cases',KF:'KF Cases',JW:'JW Cases',JR:'JR Cases',JF:'JF Cases',EF:'EF Cases',LW:'LW Cases',LR:'LR Cases',LF:'LF Cases',WR:'WR Cases',WF:'WF Cases',AR:'AR Cases',AF:'AF Cases'};
 
 const LB_PER_CASE = {KW:16,KR:12,KF:12,JW:14,JR:14,JF:14,EF:15,LW:10.5,LR:2.25,LF:10,WR:2.25,WF:10,AR:2.25,AF:10};
 
@@ -68,9 +72,9 @@ const CATEGORIES = {
 const VARIETY_TO_CAT = {K:'Keiki',J:'Japanese',E:'English',L:'Lettuce',W:'Watercress',A:'Arugula'};
 
 const SUMMARY_CHARTS = [
-  {title:'Keiki Cases On Grade', codes:['KW','KR','KF']},
-  {title:'Japanese Cases On Grade', codes:['JW','JR','JF']},
-  {title:'Lettuce Cases', codes:['LW','LR','LF']}
+  {title:'Keikis', codes:['KW','KR','KF']},
+  {title:'Japanese', codes:['JW','JR','JF']},
+  {title:'Greens', codes:['LW','LR','LF']}
 ];
 
 // --- Budget data (2026, weeks 1-52) ---
@@ -199,31 +203,6 @@ function processGrow(cukeRows, lettuceRows) {
 const WEEKS = Array.from({length:51}, (_,i) => i+2);
 const LABELS = WEEKS.map(w => w);
 
-// Shared legend config: fade hidden items instead of strikethrough
-const LEGEND_CFG = {
-  labels: {
-    color:'#888', font:{size:10}, usePointStyle:true, pointStyle:'circle', padding:8,
-    generateLabels(chart) {
-      return Chart.defaults.plugins.legend.labels.generateLabels(chart).map(label => {
-        if (label.hidden) {
-          label.fontColor = 'rgba(136,136,136,0.3)';
-          label.fillStyle = 'rgba(136,136,136,0.2)';
-          label.strokeStyle = 'rgba(136,136,136,0.2)';
-          label.hidden = false; // prevents strikethrough
-          label._actuallyHidden = true;
-        }
-        return label;
-      });
-    }
-  },
-  onClick(e, item, legend) {
-    const chart = legend.chart;
-    const idx = item.datasetIndex;
-    const meta = chart.getDatasetMeta(idx);
-    meta.hidden = meta.hidden === null ? !chart.data.datasets[idx].hidden : null;
-    chart.update();
-  }
-};
 
 function getBdg(codes, w) { return codes.reduce((s,c) => s + (BUDGET[c]?.[w-1] || 0), 0); }
 function getAct(codes, yr, w) { return codes.reduce((s,c) => s + (actuals[c]?.[yr]?.[w] || 0), 0); }
@@ -239,7 +218,6 @@ function renderCasesChart(topCanvas, btmCanvas, title, codes) {
   const cumVar = cumA26.map((v,i) => WEEKS[i] <= MAX_WEEK ? v - cumBdg[i] : null);
 
   const aboveZero = ctx => (ctx.p0.parsed.y >= 0 && ctx.p1.parsed.y >= 0);
-  const xScale = { ticks:{color:'#888',font:{size:11},maxTicksLimit:13}, grid:{color:'rgba(255,255,255,0.05)'} };
   const yScale = { ticks:{color:'#888',font:{size:11}}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%' };
 
   const top = new Chart(topCanvas, {
@@ -250,13 +228,13 @@ function renderCasesChart(topCanvas, btmCanvas, title, codes) {
       { label:'Act25', data:a25, borderColor:'rgba(0,204,0,0.5)', backgroundColor:'rgba(0,204,0,0.5)', borderWidth:1.5, pointRadius:0, hidden:!show25, year:2025 },
     ]},
     options: {
-      responsive:true, maintainAspectRatio:false,
+      responsive:true, maintainAspectRatio:false, layout:{padding:{bottom:0}},
       interaction:{ mode:'index', intersect:false },
       plugins: {
-        title:{ display:true, text:title, color:'#aaa', font:{size:12} },
-        legend: LEGEND_CFG
+        title:{ display:true, text:title, color:'#ccc', font:{size:14,weight:'600'} },
+        legend:{ display:false }
       },
-      scales: { x: xScale, y: yScale }
+      scales: { x:{ ticks:{display:false}, grid:{color:'rgba(255,255,255,0.05)'} }, y: yScale }
     }
   });
 
@@ -270,10 +248,10 @@ function renderCasesChart(topCanvas, btmCanvas, title, codes) {
       },
     ]},
     options: {
-      responsive:true, maintainAspectRatio:false,
+      responsive:true, maintainAspectRatio:false, layout:{padding:{top:0}},
       interaction:{ mode:'index', intersect:false },
       plugins: { legend:{ display:false } },
-      scales: { x:{ display:false }, y: yScale }
+      scales: { x:{ ticks:{color:'#888',font:{size:11},maxTicksLimit:13}, grid:{color:'rgba(255,255,255,0.05)'} }, y:{ ticks:{color:'#888',font:{size:10},maxTicksLimit:4}, grid:{color:'rgba(255,255,255,0.05)'} } }
     }
   });
 
@@ -292,7 +270,6 @@ function renderLbDayChart(topCanvas, btmCanvas, title, catName) {
     return grown[i] - sold[i];
   });
 
-  const xScale = { ticks:{color:'#888',font:{size:11},maxTicksLimit:13}, grid:{color:'rgba(255,255,255,0.05)'} };
   const yScale = { ticks:{color:'#888',font:{size:11}}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%' };
 
   const top = new Chart(topCanvas, {
@@ -302,13 +279,13 @@ function renderLbDayChart(topCanvas, btmCanvas, title, catName) {
       { label:'Sold26', data:sold, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:2, pointRadius:0, spanGaps:false },
     ]},
     options: {
-      responsive:true, maintainAspectRatio:false,
+      responsive:true, maintainAspectRatio:false, layout:{padding:{bottom:0}},
       interaction:{ mode:'index', intersect:false },
       plugins: {
-        title:{ display:true, text:title, color:'#aaa', font:{size:12} },
-        legend: LEGEND_CFG
+        title:{ display:true, text:title, color:'#ccc', font:{size:14,weight:'600'} },
+        legend:{ display:false }
       },
-      scales: { x: xScale, y: yScale }
+      scales: { x:{ ticks:{display:false}, grid:{color:'rgba(255,255,255,0.05)'} }, y: yScale }
     }
   });
 
@@ -323,10 +300,10 @@ function renderLbDayChart(topCanvas, btmCanvas, title, catName) {
       },
     ]},
     options: {
-      responsive:true, maintainAspectRatio:false,
+      responsive:true, maintainAspectRatio:false, layout:{padding:{top:0}},
       interaction:{ mode:'index', intersect:false },
       plugins: { legend:{ display:false } },
-      scales: { x:{ display:false }, y: yScale }
+      scales: { x:{ ticks:{color:'#888',font:{size:11},maxTicksLimit:13}, grid:{color:'rgba(255,255,255,0.05)'} }, y:{ ticks:{color:'#888',font:{size:10},maxTicksLimit:4}, grid:{color:'rgba(255,255,255,0.05)'} } }
     }
   });
 
@@ -368,10 +345,10 @@ async function renderAll() {
 
   const tasks = [];
   PRODUCTS.forEach(code => tasks.push(() => {
-    allCharts.push(...renderCasesChart(document.getElementById('prod_'+code+'_top'), document.getElementById('prod_'+code+'_btm'), code+' Cases', [code]));
+    allCharts.push(...renderCasesChart(document.getElementById('prod_'+code+'_top'), document.getElementById('prod_'+code+'_btm'), code, [code]));
   }));
   Object.keys(CATEGORIES).forEach(cat => tasks.push(() => {
-    allCharts.push(...renderLbDayChart(document.getElementById('lb_'+cat+'_top'), document.getElementById('lb_'+cat+'_btm'), cat+' lb/day', cat));
+    allCharts.push(...renderLbDayChart(document.getElementById('lb_'+cat+'_top'), document.getElementById('lb_'+cat+'_btm'), cat, cat));
   }));
   SUMMARY_CHARTS.forEach(s => tasks.push(() => {
     allCharts.push(...renderCasesChart(document.getElementById('sum_'+s.codes[0]+'_top'), document.getElementById('sum_'+s.codes[0]+'_btm'), s.title, s.codes));
