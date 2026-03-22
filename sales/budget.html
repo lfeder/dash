@@ -349,7 +349,7 @@ function renderLbDayChart(canvas, title, catName) {
     data: { labels: LABELS, datasets: [
       { label:'Grown26', data:grown, borderColor:'#00cc00', backgroundColor:'#00cc00', borderWidth:2, pointRadius:0, spanGaps:false },
       { label:'Sold26', data:sold, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:2, pointRadius:0, spanGaps:false },
-      { label:'Diff (G-S)', type:'bar', data:diff, backgroundColor: diff.map(v => v != null && v >= 0 ? 'rgba(76,204,163,0.4)' : 'rgba(231,76,60,0.4)'), borderWidth:0, yAxisID:'y1', order:1 },
+      { label:'Diff (G-S)', type:'bar', data:diff, backgroundColor:'rgba(255,204,0,0.4)', borderWidth:0, yAxisID:'y1', order:1 },
     ]},
     options: {
       responsive:true, maintainAspectRatio:false,
