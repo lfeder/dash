@@ -268,7 +268,7 @@ function renderCasesChart(topCanvas, btmCanvas, title, codes) {
     data: { labels: LABELS, datasets: [
       { label:'Unsold', data:cumVar, borderWidth:1.5, pointRadius:0,
         fill:{ target:'origin', above:'rgba(136,136,136,0.2)', below:'rgba(136,136,136,0.2)' },
-        spanGaps:false, borderColor:'#888', backgroundColor:'#888'
+        spanGaps:false, borderColor:'rgba(136,136,136,0.3)', backgroundColor:'rgba(136,136,136,0.3)'
       },
     ]},
     options: {
@@ -319,7 +319,7 @@ function renderLbDayChart(topCanvas, btmCanvas, title, catName) {
     data: { labels: LABELS, datasets: [
       { label:'Unsold', data:diff, borderWidth:1.5, pointRadius:0,
         fill:{ target:'origin', above:'rgba(136,136,136,0.2)', below:'rgba(136,136,136,0.2)' },
-        spanGaps:false, borderColor:'#888', backgroundColor:'#888'
+        spanGaps:false, borderColor:'rgba(136,136,136,0.3)', backgroundColor:'rgba(136,136,136,0.3)'
       },
     ]},
     options: {
