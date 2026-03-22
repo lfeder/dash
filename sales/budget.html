@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Targets</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-dragdata@2.3.0/dist/chartjs-plugin-dragdata.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#1a1a2e; color:#e0e0e0; }
@@ -33,6 +34,8 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 <div id="header">
   <h1>Targets</h1>
   <div style="display:flex;align-items:center;gap:12px;">
+    <button id="editBtn" onclick="toggleEdit()" style="padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer">Edit Budget</button>
+    <button id="saveBtn" onclick="saveBudget()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#4ecca3;border:1px solid #4ecca3;border-radius:4px;cursor:pointer">Save Budget</button>
     <span class="info" id="status">Loading...</span>
   </div>
 </div>
@@ -48,7 +51,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 
 <div id="main">
   <div class="section-header">Pounds per Day
-    <div class="section-legend"><span><span class="dot" style="background:#00cc00"></span>Grown</span><span><span class="dot" style="background:#0066ff"></span>Sold</span><span style="color:#666">|</span><span><span class="dot" style="background:#888"></span>Unsold</span></div>
+    <div class="section-legend"><span><span class="dot" style="background:#00cc00"></span>Grown</span><span><span class="dot" style="background:#0066ff"></span>Sold</span><span><span class="dot" style="background:#ff0000;opacity:0.6"></span>Bdg lb</span><span style="color:#666">|</span><span><span class="dot" style="background:#888"></span>Unsold</span></div>
   </div>
   <div id="lbdayGrid" class="grid cols-3"></div>
   <div class="section-header">Cases by Product
@@ -293,6 +296,11 @@ function renderCasesChart(topCanvas, btmCanvas, title, codes) {
     }
   });
 
+  // Register product charts for drag editing (single-code charts only)
+  if (codes.length === 1 && PRODUCTS.includes(codes[0])) {
+    productChartMap[codes[0]] = { top, btm };
+  }
+
   return [top, btm];
 }
 
@@ -310,11 +318,18 @@ function renderLbDayChart(topCanvas, btmCanvas, title, catName) {
 
   const yScale = { ticks:{color:'#888',font:{size:11},maxTicksLimit:5}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%', afterFit(axis){axis.width=50} };
 
+  // Budget lb/day = sum of budget cases * lb_per_case / 7 for this category
+  const bdgLb = WEEKS.map(w => {
+    const lb = codes.reduce((s,c) => s + (BUDGET[c]?.[w-1] || 0) * (LB_PER_CASE[c]||0), 0);
+    return Math.round(lb / 7);
+  });
+
   const top = new Chart(topCanvas, {
     type: 'line',
     data: { labels: LABELS, datasets: [
       { label:'Grown26', data:grown, borderColor:'#00cc00', backgroundColor:'#00cc00', borderWidth:2, pointRadius:0, spanGaps:false },
       { label:'Sold26', data:sold, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:2, pointRadius:0, spanGaps:false },
+      { label:'Bdg lb', data:bdgLb, borderColor:'#ff0000', backgroundColor:'#ff0000', borderWidth:1, pointRadius:0, borderDash:[4,3], stepped:'before' },
     ]},
     options: {
       responsive:true, maintainAspectRatio:false, layout:{padding:{bottom:0}},
@@ -417,6 +432,77 @@ function toggle25() {
   });
 }
 
+
+// --- Editable Budget ---
+let editMode = false;
+let budgetDirty = false;
+// Track which product charts map to which chart objects
+const productChartMap = {}; // productChartMap[code] = { top, btm }
+
+function toggleEdit() {
+  editMode = !editMode;
+  const btn = document.getElementById('editBtn');
+  btn.textContent = editMode ? 'Stop Editing' : 'Edit Budget';
+  btn.style.borderColor = editMode ? '#4ecca3' : '#555';
+  document.getElementById('saveBtn').style.display = editMode || budgetDirty ? '' : 'none';
+  // Toggle drag and point visibility on product budget lines
+  Object.entries(productChartMap).forEach(([code, charts]) => {
+    const ds = charts.top.data.datasets[0]; // Bdg26
+    ds.pointRadius = editMode ? 4 : 0;
+    ds.pointHoverRadius = editMode ? 6 : 0;
+    ds.pointBackgroundColor = '#ff0000';
+    charts.top.options.plugins.dragData = editMode ? {
+      round: 0,
+      dragX: false,
+      onDragEnd(e, datasetIndex, index, value) {
+        BUDGET[code][WEEKS[index] - 1] = Math.round(value);
+        budgetDirty = true;
+        document.getElementById('saveBtn').style.display = '';
+        refreshSummaryAndLb();
+      }
+    } : false;
+    charts.top.update();
+  });
+}
+
+function refreshSummaryAndLb() {
+  // Re-render summary and lb charts with updated budget
+  SUMMARY_CHARTS.forEach(s => {
+    const key = 'sum_' + s.codes[0];
+    const topCvs = document.getElementById(key + '_top');
+    const btmCvs = document.getElementById(key + '_btm');
+    // Find and destroy old charts
+    allCharts = allCharts.filter(c => {
+      if (c.canvas === topCvs || c.canvas === btmCvs) { c.destroy(); return false; }
+      return true;
+    });
+    allCharts.push(...renderCasesChart(topCvs, btmCvs, s.title, s.codes));
+  });
+  // Update lb charts with budget lb line
+  Object.keys(CATEGORIES).forEach(cat => {
+    const key = 'lb_' + cat;
+    const topCvs = document.getElementById(key + '_top');
+    const btmCvs = document.getElementById(key + '_btm');
+    allCharts = allCharts.filter(c => {
+      if (c.canvas === topCvs || c.canvas === btmCvs) { c.destroy(); return false; }
+      return true;
+    });
+    allCharts.push(...renderLbDayChart(topCvs, btmCvs, cat, cat));
+  });
+}
+
+function saveBudget() {
+  // Download updated budget as JSON to commit to repo
+  const output = JSON.stringify(BUDGET, null, 2);
+  const blob = new Blob([output], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'budget-updated.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  budgetDirty = false;
+}
 
 function setProgress(pct, text) {
   document.getElementById('loadBar').style.width = pct + '%';
