@@ -169,7 +169,7 @@ function parseSalesTable(table) {
 }
 
 function parseGrowTable(table) {
-  const cols = table.cols.map(c => c.label || c.id);
+  const cols = table.cols.map(c => (c.label || c.id).toLowerCase());
   return table.rows.map(r => {
     const obj = {};
     r.c.forEach((cell, i) => {
@@ -204,25 +204,39 @@ function processInvoices(rows) {
   });
 }
 
-function processGrow(rows) {
+function processGrow(cukeRows, lettuceRows) {
   grownLbDay = {};
   Object.keys(CATEGORIES).forEach(c => { grownLbDay[c] = {}; });
-  rows.forEach(r => {
+
+  // Cucumber harvest: variety (K/J/E), grade 1 only, greenhousenetweight
+  cukeRows.forEach(r => {
+    const grade = String(r.grade || '');
+    if (grade !== '1') return;
     const variety = (r.variety || '').charAt(0).toUpperCase();
     const cat = VARIETY_TO_CAT[variety];
-    if (!cat) return;
+    if (!cat || !CATEGORIES[cat]) return;
     const hd = r.harvestdate;
     if (!(hd instanceof Date) || isNaN(hd)) return;
-    const yr = hd.getFullYear();
-    if (yr !== 2026) return;
-    const ppb = parseFloat(r.poundsperboard) || 0;
-    const bpp = parseFloat(r.boardsperpond) || 0;
-    const totalLb = ppb * bpp;
-    if (totalLb <= 0) return;
-    const fw = fridayISOWeek(hd);
-    const wk = fw.week;
-    grownLbDay[cat][wk] = (grownLbDay[cat][wk] || 0) + totalLb;
+    if (hd.getFullYear() !== 2026) return;
+    const lb = parseFloat(r.greenhousenetweight) || 0;
+    if (lb <= 0) return;
+    const wk = fridayISOWeek(hd).week;
+    grownLbDay[cat][wk] = (grownLbDay[cat][wk] || 0) + lb;
   });
+
+  // Lettuce: variety GA=Arugula, WC=Watercress, else Lettuce, greenhousenetweight
+  lettuceRows.forEach(r => {
+    const hd = r.harvestdate;
+    if (!(hd instanceof Date) || isNaN(hd)) return;
+    if (hd.getFullYear() !== 2026) return;
+    const lb = parseFloat(r.greenhousenetweight) || 0;
+    if (lb <= 0) return;
+    const v = (r.variety || '').toUpperCase();
+    const cat = v === 'GA' ? 'Arugula' : v === 'WC' ? 'Watercress' : 'Lettuce';
+    const wk = fridayISOWeek(hd).week;
+    grownLbDay[cat][wk] = (grownLbDay[cat][wk] || 0) + lb;
+  });
+
   // Convert weekly totals to lb/day (÷7)
   Object.keys(grownLbDay).forEach(cat => {
     Object.keys(grownLbDay[cat]).forEach(wk => {
@@ -359,8 +373,8 @@ async function loadData() {
 
     // Grow data (non-blocking)
     try {
-      const growResults = await Promise.all(GROW_TABS.map(t => fetchGrowTab(t)));
-      processGrow(growResults.flat());
+      const [cukeRows, lettuceRows] = await Promise.all(GROW_TABS.map(t => fetchGrowTab(t)));
+      processGrow(cukeRows, lettuceRows);
     } catch(e) { console.warn('Grow data unavailable:', e); }
 
     // Build DOM
