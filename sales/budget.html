@@ -29,7 +29,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
   <h1>Weekly Budget</h1>
   <div style="display:flex;align-items:center;gap:12px;">
     <button id="toggleAct25" onclick="toggle25()" style="padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer">Show '25</button>
-    <button id="toggleRight" onclick="cycleRightAxis()" style="padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer">Right: Cum</button>
+    <button id="toggleRight" onclick="cycleRightAxis()" style="padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer">Weekly</button>
     <button id="toggleUndersold" onclick="toggleUndersold()" style="padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer">All lb</button>
     <span class="info" id="status">Loading...</span>
   </div>
@@ -250,14 +250,14 @@ function renderCasesChart(canvas, title, codes) {
   const cumA26d = cumA26.map((v,i) => WEEKS[i] <= MAX_WEEK ? v : null);
   const soldLb = WEEKS.map(w => w <= MAX_WEEK ? getSoldLbDay(codes, w) : null);
   const grownLb = WEEKS.map(w => w <= MAX_WEEK ? getGrownLbDay(codes, w) : null);
-  const showCum = rightMode === 'cum', showLb = rightMode === 'lb';
+  const showCum = rightMode === 'cum', showWeekly = rightMode === 'weekly';
 
   return new Chart(canvas, {
     type: 'line',
     data: { labels: LABELS, datasets: [
-      { label:'Bdg26', data:bdg, borderColor:'#ff0000', backgroundColor:'#ff0000', borderWidth:1.5, stepped:'before', pointRadius:0, yAxisID:'y' },
-      { label:'Act26', data:a26d, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:2, pointRadius:0, yAxisID:'y', spanGaps:false },
-      { label:'Act25', data:a25, borderColor:'rgba(0,204,0,0.5)', backgroundColor:'rgba(0,204,0,0.5)', borderWidth:1.5, pointRadius:0, yAxisID:'y', hidden:!show25, year:2025 },
+      { label:'Bdg26', data:bdg, borderColor:'#ff0000', backgroundColor:'#ff0000', borderWidth:1.5, stepped:'before', pointRadius:0, yAxisID:'y', rGroup:'weekly' },
+      { label:'Act26', data:a26d, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:2, pointRadius:0, yAxisID:'y', spanGaps:false, rGroup:'weekly' },
+      { label:'Act25', data:a25, borderColor:'rgba(0,204,0,0.5)', backgroundColor:'rgba(0,204,0,0.5)', borderWidth:1.5, pointRadius:0, yAxisID:'y', hidden:!show25, year:2025, rGroup:'weekly' },
       { label:'Cum Bdg', data:cumBdg, borderColor:'#cc4444', backgroundColor:'#cc4444', borderWidth:1.5, pointRadius:0, yAxisID:'y1', hidden:!showCum, rGroup:'cum' },
       { label:'Cum Act26', data:cumA26d, borderColor:'#4488cc', backgroundColor:'#4488cc', borderWidth:1.5, pointRadius:0, yAxisID:'y1', spanGaps:false, hidden:!showCum, rGroup:'cum' },
       // { label:'Grown lb/d', data:grownLb, borderColor:'#00cc00', backgroundColor:'#00cc00', borderWidth:1.5, pointRadius:0, yAxisID:'y1', spanGaps:false, hidden:!showLb, rGroup:'lb' },
@@ -382,18 +382,16 @@ function toggle25() {
   });
 }
 
-let rightMode = 'cum'; // 'off', 'cum', 'lb'
+let rightMode = 'weekly'; // 'weekly' or 'cum'
 function cycleRightAxis() {
-  const modes = ['off','cum','lb'];
-  rightMode = modes[(modes.indexOf(rightMode) + 1) % 3];
+  const modes = ['weekly','cum'];
+  rightMode = modes[(modes.indexOf(rightMode) + 1) % 2];
   const btn = document.getElementById('toggleRight');
-  const labels = { off:'Right: Off', cum:'Right: Cum', lb:'Right: lb/d' };
-  btn.textContent = labels[rightMode];
-  btn.style.borderColor = rightMode === 'off' ? '#555' : '#4ecca3';
+  btn.textContent = rightMode === 'weekly' ? 'Weekly' : 'Cumulative';
   allCharts.forEach(chart => {
     chart.data.datasets.forEach((ds, i) => {
+      if (ds.rGroup === 'weekly') chart.setDatasetVisibility(i, rightMode === 'weekly' && (ds.year !== 2025 || show25));
       if (ds.rGroup === 'cum') chart.setDatasetVisibility(i, rightMode === 'cum');
-      if (ds.rGroup === 'lb') chart.setDatasetVisibility(i, rightMode === 'lb');
     });
     chart.update();
   });
