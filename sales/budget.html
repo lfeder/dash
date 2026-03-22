@@ -29,7 +29,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
   <h1>Weekly Budget</h1>
   <div style="display:flex;align-items:center;gap:12px;">
     <button id="toggleAct25" onclick="toggle25()" style="padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer">Show '25</button>
-    <button id="toggleCum" onclick="toggleCum()" style="padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer">Hide Cum</button>
+    <button id="toggleRight" onclick="cycleRightAxis()" style="padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer">Right: Cum</button>
     <span class="info" id="status">Loading...</span>
   </div>
 </div>
@@ -62,6 +62,9 @@ const CATEGORIES = {
   Lettuce:['LW','LR','LF'], Watercress:['WR','WF'], Arugula:['AR','AF']
 };
 const VARIETY_TO_CAT = {K:'Keiki',J:'Japanese',E:'English',L:'Lettuce',W:'Watercress',A:'Arugula'};
+// Reverse lookup: product code -> category
+const CODE_TO_CAT = {};
+Object.entries(CATEGORIES).forEach(([cat, codes]) => codes.forEach(c => CODE_TO_CAT[c] = cat));
 
 const SUMMARY_CHARTS = [
   {title:'Keiki Cases On Grade', codes:['KW','KR','KF']},
@@ -254,6 +257,15 @@ function getBdg(codes, w) { return codes.reduce((s,c) => s + (BUDGET[c]?.[w-1] |
 function getAct(codes, yr, w) { return codes.reduce((s,c) => s + (actuals[c]?.[yr]?.[w] || 0), 0); }
 function cumulate(arr) { let s = 0; return arr.map(v => { s += (v||0); return s; }); }
 
+function getSoldLbDay(codes, w) {
+  return Math.round(codes.reduce((s,c) => s + (actuals[c]?.[2026]?.[w] || 0) * (LB_PER_CASE[c]||0), 0) / 7);
+}
+function getGrownLbDay(codes, w) {
+  // Aggregate grow data for all categories that these codes belong to
+  const cats = [...new Set(codes.map(c => CODE_TO_CAT[c]).filter(Boolean))];
+  return cats.reduce((s, cat) => s + (grownLbDay[cat]?.[w] || 0), 0);
+}
+
 function renderCasesChart(canvas, title, codes) {
   const bdg = WEEKS.map(w => getBdg(codes, w));
   const a26 = WEEKS.map(w => getAct(codes, 2026, w));
@@ -262,6 +274,9 @@ function renderCasesChart(canvas, title, codes) {
   const cumA26 = cumulate(a26);
   const a26d = a26.map((v,i) => i < MAX_WEEK ? v : null);
   const cumA26d = cumA26.map((v,i) => i < MAX_WEEK ? v : null);
+  const soldLb = WEEKS.map(w => w <= MAX_WEEK ? getSoldLbDay(codes, w) : null);
+  const grownLb = WEEKS.map(w => w <= MAX_WEEK ? getGrownLbDay(codes, w) : null);
+  const showCum = rightMode === 'cum', showLb = rightMode === 'lb';
 
   return new Chart(canvas, {
     type: 'line',
@@ -269,8 +284,10 @@ function renderCasesChart(canvas, title, codes) {
       { label:'Bdg26', data:bdg, borderColor:'#ff0000', backgroundColor:'#ff0000', borderWidth:1.5, stepped:'before', pointRadius:0, yAxisID:'y' },
       { label:'Act26', data:a26d, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:2, pointRadius:0, yAxisID:'y', spanGaps:false },
       { label:'Act25', data:a25, borderColor:'rgba(0,204,0,0.5)', backgroundColor:'rgba(0,204,0,0.5)', borderWidth:1.5, pointRadius:0, yAxisID:'y', hidden:!show25, year:2025 },
-      { label:'Cum Bdg', data:cumBdg, borderColor:'#ff0000', backgroundColor:'#ff0000', borderWidth:1.5, pointRadius:0, yAxisID:'y1' },
-      { label:'Cum Act26', data:cumA26d, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:1.5, pointRadius:0, yAxisID:'y1', spanGaps:false },
+      { label:'Cum Bdg', data:cumBdg, borderColor:'#ff0000', backgroundColor:'#ff0000', borderWidth:1.5, pointRadius:0, yAxisID:'y1', hidden:!showCum, rGroup:'cum' },
+      { label:'Cum Act26', data:cumA26d, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:1.5, pointRadius:0, yAxisID:'y1', spanGaps:false, hidden:!showCum, rGroup:'cum' },
+      { label:'Grown lb/d', data:grownLb, borderColor:'#00cc00', backgroundColor:'#00cc00', borderWidth:1.5, pointRadius:0, yAxisID:'y1', spanGaps:false, hidden:!showLb, rGroup:'lb' },
+      { label:'Sold lb/d', data:soldLb, borderColor:'#ff9900', backgroundColor:'#ff9900', borderWidth:1.5, pointRadius:0, yAxisID:'y1', spanGaps:false, hidden:!showLb, rGroup:'lb' },
     ]},
     options: {
       responsive:true, maintainAspectRatio:false,
@@ -330,27 +347,26 @@ function createChartBoxes(containerId, items) {
   });
 }
 
-function renderAll() {
+async function renderAll() {
   allCharts.forEach(c => c.destroy());
   allCharts = [];
 
-  // Product charts
-  PRODUCTS.forEach(code => {
-    const cvs = document.getElementById('prod_' + code);
-    allCharts.push(renderCasesChart(cvs, code + ' Cases', [code]));
-  });
+  const tasks = [];
+  PRODUCTS.forEach(code => tasks.push(() => {
+    allCharts.push(renderCasesChart(document.getElementById('prod_'+code), code+' Cases', [code]));
+  }));
+  Object.keys(CATEGORIES).forEach(cat => tasks.push(() => {
+    allCharts.push(renderLbDayChart(document.getElementById('lb_'+cat), cat+' lb/day', cat));
+  }));
+  SUMMARY_CHARTS.forEach(s => tasks.push(() => {
+    allCharts.push(renderCasesChart(document.getElementById('sum_'+s.codes[0]), s.title, s.codes));
+  }));
 
-  // lb/day charts
-  Object.keys(CATEGORIES).forEach(cat => {
-    const cvs = document.getElementById('lb_' + cat);
-    allCharts.push(renderLbDayChart(cvs, cat + ' lb/day', cat));
-  });
-
-  // Summary charts
-  SUMMARY_CHARTS.forEach(s => {
-    const cvs = document.getElementById('sum_' + s.codes[0]);
-    allCharts.push(renderCasesChart(cvs, s.title, s.codes));
-  });
+  // Render in batches to avoid blocking UI
+  for (let i = 0; i < tasks.length; i++) {
+    tasks[i]();
+    if (i % 4 === 3) await new Promise(r => setTimeout(r, 0));
+  }
 }
 
 function toggle25() {
@@ -366,15 +382,18 @@ function toggle25() {
   });
 }
 
-let showCum = true;
-function toggleCum() {
-  showCum = !showCum;
-  const btn = document.getElementById('toggleCum');
-  btn.textContent = showCum ? 'Hide Cum' : 'Show Cum';
-  btn.style.borderColor = showCum ? '#4ecca3' : '#555';
+let rightMode = 'cum'; // 'off', 'cum', 'lb'
+function cycleRightAxis() {
+  const modes = ['off','cum','lb'];
+  rightMode = modes[(modes.indexOf(rightMode) + 1) % 3];
+  const btn = document.getElementById('toggleRight');
+  const labels = { off:'Right: Off', cum:'Right: Cum', lb:'Right: lb/d' };
+  btn.textContent = labels[rightMode];
+  btn.style.borderColor = rightMode === 'off' ? '#555' : '#4ecca3';
   allCharts.forEach(chart => {
     chart.data.datasets.forEach((ds, i) => {
-      if (ds.label && ds.label.startsWith('Cum')) chart.setDatasetVisibility(i, showCum);
+      if (ds.rGroup === 'cum') chart.setDatasetVisibility(i, rightMode === 'cum');
+      if (ds.rGroup === 'lb') chart.setDatasetVisibility(i, rightMode === 'lb');
     });
     chart.update();
   });
