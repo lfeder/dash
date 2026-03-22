@@ -55,11 +55,6 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 
 <script>
 // --- Constants ---
-const SALES_SHEET = '124y8JdWXmbf_hb1vfimHmGaKLVXrRHybw02w_ozCExE';
-const SALES_GIDS = ['1254110782','544460225'];
-const GROW_SHEET = '1VtEecYn-W1pbnIU1hRHfxIpkH2DtK7hj0CpcpiLoziM';
-const GROW_TABS = ['grow_C_harvest','grow_L_seeding'];
-
 const PRODUCTS = ['KW','KR','JW','JR','EF','LW','LR','LF','WR','WF','AR','AF'];
 const PRODUCT_NAMES = {KW:'KW Cases',KR:'KR Cases',KF:'KF Cases',JW:'JW Cases',JR:'JR Cases',JF:'JF Cases',EF:'EF Cases',LW:'LW Cases',LR:'LR Cases',LF:'LF Cases',WR:'WR Cases',WF:'WF Cases',AR:'AR Cases',AF:'AF Cases'};
 
@@ -126,82 +121,17 @@ function maxWeek() {
   const hst = new Date(now.getTime() - 10 * 60 * 60 * 1000);
   const day = hst.getUTCDay(), hour = hst.getUTCHours();
   const cur = satFriWeek(hst).week;
-  // Include current week only after 3pm HST on Friday (day=5), or on Saturday/Sunday
-  return ((day === 5 && hour >= 15) || day === 6 || day === 0) ? cur : cur - 1;
+  // Week runs Sat-Fri. Show a week only after it ends (Fri 3pm HST).
+  // On Fri after 3pm: cur = this week (ends today) → show it
+  // On Sat/Sun: cur = new week (just started) → show cur-1 (last completed week)
+  // Mon-Thu: cur = this week (in progress) → show cur-1
+  // Fri before 3pm: cur = this week (in progress) → show cur-1
+  return (day === 5 && hour >= 15) ? cur : cur - 1;
 }
 const MAX_WEEK = maxWeek();
 
-// --- Data fetching ---
-function fetchSalesTab(gid) {
-  return new Promise((resolve, reject) => {
-    const cb = '_cb' + gid;
-    const url = `https://docs.google.com/spreadsheets/d/${SALES_SHEET}/gviz/tq?tqx=out:json;responseHandler:${cb}&gid=${gid}`;
-    window[cb] = function(resp) {
-      delete window[cb];
-      if (script.parentNode) script.parentNode.removeChild(script);
-      if (resp.status === 'error') { reject(resp.errors); return; }
-      resolve(parseSalesTable(resp.table));
-    };
-    const script = document.createElement('script');
-    script.src = url;
-    script.onerror = () => { delete window[cb]; reject('Network error'); };
-    document.head.appendChild(script);
-  });
-}
-
-function fetchGrowTab(tabName) {
-  return new Promise((resolve, reject) => {
-    const cb = '_cb_' + Math.random().toString(36).slice(2, 10);
-    const url = `https://docs.google.com/spreadsheets/d/${GROW_SHEET}/gviz/tq?tqx=out:json;responseHandler:${cb}&sheet=${encodeURIComponent(tabName)}`;
-    window[cb] = function(resp) {
-      delete window[cb];
-      if (resp.status === 'error') { reject(resp.errors); return; }
-      resolve(parseGrowTable(resp.table));
-    };
-    const s = document.createElement('script');
-    s.src = url;
-    s.onerror = () => { delete window[cb]; s.remove(); reject('Network error'); };
-    document.head.appendChild(s);
-  });
-}
-
-function parseSalesTable(table) {
-  const cols = table.cols.map(c => c.label);
-  const intCols = new Set(['Cases','Year','Month','ISOYear','ISOWeek','DOW','Grade']);
-  return table.rows.map(r => {
-    const obj = {};
-    r.c.forEach((cell, i) => {
-      const col = cols[i];
-      if (!col) return;
-      if (!cell || cell.v == null) { obj[col] = ''; return; }
-      if (typeof cell.v === 'string' && cell.v.startsWith('Date(')) {
-        const m = cell.v.match(/Date\((\d+),(\d+),(\d+)/);
-        obj[col] = m ? new Date(+m[1], +m[2], +m[3]) : (cell.f || cell.v);
-      } else if (intCols.has(col) && typeof cell.v === 'number') { obj[col] = Math.round(cell.v); }
-      else { obj[col] = cell.v; }
-    });
-    return obj;
-  }).filter(r => r.ProductCode && r.ProductCode !== 'Sales' && r.CustomerName !== 'Kaukau 4 Keiki');
-}
-
-function parseGrowTable(table) {
-  const cols = table.cols.map(c => (c.label || c.id).toLowerCase());
-  return table.rows.map(r => {
-    const obj = {};
-    r.c.forEach((cell, i) => {
-      const col = cols[i];
-      if (!col) return;
-      if (!cell || cell.v == null) { obj[col] = ''; return; }
-      if (typeof cell.v === 'string' && cell.v.startsWith('Date(')) {
-        const m = cell.v.match(/Date\((\d+),(\d+),(\d+)/);
-        obj[col] = m ? new Date(+m[1], +m[2], +m[3]) : (cell.f || cell.v);
-      } else {
-        obj[col] = cell.v;
-      }
-    });
-    return obj;
-  });
-}
+// --- Data loading (from pre-fetched budget-data.json) ---
+// Run: node sales/fetch-budget-data.js to refresh
 
 // --- Data processing ---
 let actuals = {}; // actuals[product][year][week] = cases
@@ -212,9 +142,9 @@ let allCharts = [];
 function processInvoices(rows) {
   actuals = {};
   rows.forEach(r => {
-    const pc = r.ProductCode, cases = r.Cases || 0;
-    const d = r.InvoiceDate;
-    if (!pc || !(d instanceof Date) || isNaN(d)) return;
+    const pc = r.p, cases = r.c || 0;
+    const d = new Date(r.d);
+    if (!pc || isNaN(d)) return;
     const {year: yr, week: wk} = satFriWeek(d);
     if (!yr || !wk) return;
     if (!actuals[pc]) actuals[pc] = {};
@@ -233,30 +163,26 @@ function processGrow(cukeRows, lettuceRows) {
     return null;
   }
 
-  // Cucumber harvest: variety (K/J/E), grade 1 only, greenhousenetweight
+  // Cucumber: {d, v, g, lb} — grade 1 only
   cukeRows.forEach(r => {
-    const grade = String(r.grade || '');
-    if (grade !== '1') return;
-    const variety = (r.variety || '').charAt(0).toUpperCase();
-    const cat = VARIETY_TO_CAT[variety];
-    if (!cat || !CATEGORIES[cat]) return;
-    const hd = toDate(r.harvestdate);
+    if (String(r.g) !== '1') return;
+    const cat = VARIETY_TO_CAT[(r.v || '').charAt(0).toUpperCase()];
+    if (!cat) return;
+    const hd = toDate(r.d);
     if (!hd) return;
-    if (hd.getFullYear() !== 2026) return;
-    const lb = parseFloat(r.greenhousenetweight) || 0;
+    const lb = parseFloat(r.lb) || 0;
     if (lb <= 0) return;
     const wk = satFriWeek(hd).week;
     grownLbDay[cat][wk] = (grownLbDay[cat][wk] || 0) + lb;
   });
 
-  // Lettuce: variety GA=Arugula, WC=Watercress, else Lettuce, greenhousenetweight
+  // Lettuce: {d, v, lb} — GA=Arugula, WC=Watercress, else Lettuce
   lettuceRows.forEach(r => {
-    const hd = toDate(r.harvestdate);
+    const hd = toDate(r.d);
     if (!hd) return;
-    if (hd.getFullYear() !== 2026) return;
-    const lb = parseFloat(r.greenhousenetweight) || 0;
+    const lb = parseFloat(r.lb) || 0;
     if (lb <= 0) return;
-    const v = (r.variety || '').toUpperCase();
+    const v = (r.v || '').toUpperCase();
     const cat = v === 'GA' ? 'Arugula' : v === 'WC' ? 'Watercress' : 'Lettuce';
     const wk = satFriWeek(hd).week;
     grownLbDay[cat][wk] = (grownLbDay[cat][wk] || 0) + lb;
@@ -475,25 +401,6 @@ function toggleUndersold() {
   });
 }
 
-// --- Caching (localStorage, 24hr expiry) ---
-const CACHE_KEY = 'budget_data_cache';
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
-
-function getCached() {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (!raw) return null;
-    const cached = JSON.parse(raw);
-    if (Date.now() - cached.ts > CACHE_TTL) { localStorage.removeItem(CACHE_KEY); return null; }
-    return cached;
-  } catch(e) { return null; }
-}
-function setCache(invoices, cukeGrow, lettuceGrow) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), invoices, cukeGrow, lettuceGrow }));
-  } catch(e) {}
-}
-
 function setProgress(pct, text) {
   document.getElementById('loadBar').style.width = pct + '%';
   if (text) document.getElementById('loadText').textContent = text;
@@ -502,30 +409,14 @@ function setProgress(pct, text) {
 // --- Init ---
 async function loadData() {
   try {
-    const cached = getCached();
-    let invoiceRows, cukeRows, lettuceRows;
+    setProgress(30, 'Loading data...');
+    const resp = await fetch('budget-data.json');
+    if (!resp.ok) throw new Error('budget-data.json not found — run: node sales/fetch-budget-data.js');
+    const data = await resp.json();
 
-    if (cached) {
-      setProgress(80, 'Using cached data...');
-      invoiceRows = cached.invoices;
-      cukeRows = cached.cukeGrow || [];
-      lettuceRows = cached.lettuceGrow || [];
-    } else {
-      setProgress(10, 'Fetching invoice data...');
-      const [inv1, inv2] = await Promise.all(SALES_GIDS.map(g => fetchSalesTab(g)));
-      invoiceRows = [...inv1, ...inv2];
-      setProgress(50, 'Fetching grow data...');
-      try {
-        const [cuke, lett] = await Promise.all(GROW_TABS.map(t => fetchGrowTab(t)));
-        cukeRows = cuke; lettuceRows = lett;
-      } catch(e) { console.warn('Grow data unavailable:', e); cukeRows = []; lettuceRows = []; }
-      setProgress(70, 'Caching data...');
-      setCache(invoiceRows, cukeRows, lettuceRows);
-    }
-
-    setProgress(80, 'Processing...');
-    processInvoices(invoiceRows);
-    processGrow(cukeRows, lettuceRows);
+    setProgress(60, 'Processing...');
+    processInvoices(data.invoices);
+    processGrow(data.cukeGrow || [], data.lettuceGrow || []);
 
     // Build DOM
     createProductRows();
@@ -537,8 +428,10 @@ async function loadData() {
     await renderAll();
 
     document.getElementById('loading').style.display = 'none';
-    const src = cached ? '(cached)' : '(live)';
-    document.getElementById('status').textContent = `YTD through week ${MAX_WEEK} ${src}`;
+    const dataDate = new Date(data.ts);
+    const pad = n => String(n).padStart(2,'0');
+    const dataAge = `data: ${pad(dataDate.getMonth()+1)}/${pad(dataDate.getDate())} ${pad(dataDate.getHours())}:${pad(dataDate.getMinutes())}`;
+    document.getElementById('status').textContent = `YTD through week ${MAX_WEEK} | ${dataAge}`;
   } catch(e) {
     document.getElementById('loadText').textContent = 'Error: ' + e;
     console.error(e);
