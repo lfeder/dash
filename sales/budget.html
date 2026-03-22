@@ -49,11 +49,11 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 
 <div id="main">
   <div class="section-header">Pounds per Day
-    <div class="section-legend"><span><span class="dot" style="background:#00cc00"></span>Grown</span><span><span class="dot" style="background:#0066ff"></span>Sold</span><span style="color:#666">|</span><span><span class="dot" style="background:#ffcc00"></span>Undersold</span><span><span class="dot" style="background:#888"></span>Oversold</span></div>
+    <div class="section-legend"><span><span class="dot" style="background:#00cc00"></span>Grown</span><span><span class="dot" style="background:#0066ff"></span>Sold</span><span style="color:#666">|</span><span><span class="dot" style="background:#888"></span>Unsold</span></div>
   </div>
   <div id="lbdayGrid" class="grid cols-3"></div>
   <div class="section-header">Cases by Product
-    <div class="section-legend"><span><span class="dot" style="background:#ff0000"></span>Bdg26</span><span><span class="dot" style="background:#0066ff"></span>Act26</span><span><span class="dot" style="background:rgba(0,204,0,0.5)"></span>Act25</span><span style="color:#666">|</span><span><span class="dot" style="background:#4ecca3"></span>Ahead</span><span><span class="dot" style="background:#888"></span>Behind</span></div>
+    <div class="section-legend"><span><span class="dot" style="background:#ff0000"></span>Bdg26</span><span><span class="dot" style="background:#0066ff"></span>Act26</span><span><span class="dot" style="background:rgba(0,204,0,0.5)"></span>Act25</span><span style="color:#666">|</span><span><span class="dot" style="background:#888"></span>Unsold</span></div>
   </div>
   <div id="productGrid"></div>
   <div id="summaryGrid" class="grid cols-3" style="margin-top:12px"></div>
@@ -201,8 +201,32 @@ function processGrow(cukeRows, lettuceRows) {
 // --- Chart rendering ---
 // Skip week 1 (Jan 1-2, holiday short week) — start at week 2
 const WEEKS = Array.from({length:51}, (_,i) => i+2);
-const LABELS = WEEKS.map(w => w);
 
+// Compute Sat-Fri date range for each week
+function weekDateRange(wk) {
+  // Week 2 starts Sat Jan 3 2026
+  const jan1 = new Date(2026, 0, 1);
+  const firstSat = new Date(2026, 0, 1 + (6 - jan1.getDay() + 7) % 7);
+  const sat = new Date(firstSat.getTime() + (wk - 2) * 7 * 24 * 60 * 60 * 1000);
+  const fri = new Date(sat.getTime() + 6 * 24 * 60 * 60 * 1000);
+  const fmt = d => `${d.getMonth()+1}/${d.getDate()}`;
+  return `${fmt(sat)}-${fmt(fri)}`;
+}
+const LABELS = WEEKS.map(w => w);
+const WEEK_RANGES = {};
+WEEKS.forEach(w => WEEK_RANGES[w] = weekDateRange(w));
+
+
+// Shared tooltip config: show week range, prevent clipping
+const TOOLTIP_CFG = {
+  callbacks: {
+    title: items => {
+      const wk = WEEKS[items[0].dataIndex];
+      return `Wk ${wk}  (${WEEK_RANGES[wk]})`;
+    }
+  },
+  bodyFont:{size:11}, titleFont:{size:12}
+};
 
 function getBdg(codes, w) { return codes.reduce((s,c) => s + (BUDGET[c]?.[w-1] || 0), 0); }
 function getAct(codes, yr, w) { return codes.reduce((s,c) => s + (actuals[c]?.[yr]?.[w] || 0), 0); }
@@ -218,7 +242,7 @@ function renderCasesChart(topCanvas, btmCanvas, title, codes) {
   const cumVar = cumA26.map((v,i) => WEEKS[i] <= MAX_WEEK ? v - cumBdg[i] : null);
 
   const aboveZero = ctx => (ctx.p0.parsed.y >= 0 && ctx.p1.parsed.y >= 0);
-  const yScale = { ticks:{color:'#888',font:{size:11}}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%' };
+  const yScale = { ticks:{color:'#888',font:{size:11},maxTicksLimit:5}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%' };
 
   const top = new Chart(topCanvas, {
     type: 'line',
@@ -232,7 +256,8 @@ function renderCasesChart(topCanvas, btmCanvas, title, codes) {
       interaction:{ mode:'index', intersect:false },
       plugins: {
         title:{ display:true, text:title, color:'#ccc', font:{size:14,weight:'600'} },
-        legend:{ display:false }
+        legend:{ display:false },
+        tooltip: TOOLTIP_CFG
       },
       scales: { x:{ ticks:{display:false}, grid:{display:false} }, y: yScale }
     }
@@ -241,17 +266,16 @@ function renderCasesChart(topCanvas, btmCanvas, title, codes) {
   const btm = new Chart(btmCanvas, {
     type: 'line',
     data: { labels: LABELS, datasets: [
-      { label:'Cum ± Bdg', data:cumVar, borderWidth:1.5, pointRadius:0,
-        fill:{ target:'origin', above:'rgba(78,204,163,0.25)', below:'rgba(231,76,60,0.25)' },
-        spanGaps:false, segment:{ borderColor: ctx => aboveZero(ctx) ? '#4ecca3' : '#888' },
-        borderColor:'#4ecca3', backgroundColor:'#4ecca3'
+      { label:'Unsold', data:cumVar, borderWidth:1.5, pointRadius:0,
+        fill:{ target:'origin', above:'rgba(136,136,136,0.2)', below:'rgba(136,136,136,0.2)' },
+        spanGaps:false, borderColor:'#888', backgroundColor:'#888'
       },
     ]},
     options: {
       responsive:true, maintainAspectRatio:false, layout:{padding:{top:0}},
       interaction:{ mode:'index', intersect:false },
-      plugins: { legend:{ display:false } },
-      scales: { x:{ ticks:{color:'#888',font:{size:11},maxTicksLimit:13}, grid:{display:false} }, y:{ display:false } }
+      plugins: { legend:{ display:false }, tooltip: TOOLTIP_CFG },
+      scales: { x:{ ticks:{color:'#888',font:{size:10},maxTicksLimit:26,maxRotation:0}, grid:{display:false} }, y:{ ticks:{display:false}, grid:{display:false} } }
     }
   });
 
@@ -270,7 +294,7 @@ function renderLbDayChart(topCanvas, btmCanvas, title, catName) {
     return grown[i] - sold[i];
   });
 
-  const yScale = { ticks:{color:'#888',font:{size:11}}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%' };
+  const yScale = { ticks:{color:'#888',font:{size:11},maxTicksLimit:5}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%' };
 
   const top = new Chart(topCanvas, {
     type: 'line',
@@ -283,27 +307,26 @@ function renderLbDayChart(topCanvas, btmCanvas, title, catName) {
       interaction:{ mode:'index', intersect:false },
       plugins: {
         title:{ display:true, text:title, color:'#ccc', font:{size:14,weight:'600'} },
-        legend:{ display:false }
+        legend:{ display:false },
+        tooltip: TOOLTIP_CFG
       },
       scales: { x:{ ticks:{display:false}, grid:{display:false} }, y: yScale }
     }
   });
 
-  const aboveZero = ctx => (ctx.p0.parsed.y >= 0 && ctx.p1.parsed.y >= 0);
   const btm = new Chart(btmCanvas, {
     type: 'line',
     data: { labels: LABELS, datasets: [
-      { label:'Undersold', data:diff, borderWidth:1.5, pointRadius:0,
-        fill:{ target:'origin', above:'rgba(255,204,0,0.3)', below:'rgba(231,76,60,0.3)' },
-        spanGaps:false, segment:{ borderColor: ctx => aboveZero(ctx) ? '#ffcc00' : '#888' },
-        borderColor:'#ffcc00', backgroundColor:'#ffcc00'
+      { label:'Unsold', data:diff, borderWidth:1.5, pointRadius:0,
+        fill:{ target:'origin', above:'rgba(136,136,136,0.2)', below:'rgba(136,136,136,0.2)' },
+        spanGaps:false, borderColor:'#888', backgroundColor:'#888'
       },
     ]},
     options: {
       responsive:true, maintainAspectRatio:false, layout:{padding:{top:0}},
       interaction:{ mode:'index', intersect:false },
-      plugins: { legend:{ display:false } },
-      scales: { x:{ ticks:{color:'#888',font:{size:11},maxTicksLimit:13}, grid:{display:false} }, y:{ display:false } }
+      plugins: { legend:{ display:false }, tooltip: TOOLTIP_CFG },
+      scales: { x:{ ticks:{color:'#888',font:{size:10},maxTicksLimit:26,maxRotation:0}, grid:{display:false} }, y:{ ticks:{display:false}, grid:{display:false} } }
     }
   });
 
