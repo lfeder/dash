@@ -247,10 +247,11 @@ function renderCasesChart(canvas, title, codes) {
   const cumBdg = cumulate(bdg);
   const cumA26 = cumulate(a26);
   const a26d = a26.map((v,i) => WEEKS[i] <= MAX_WEEK ? v : null);
-  const cumA26d = cumA26.map((v,i) => WEEKS[i] <= MAX_WEEK ? v : null);
-  const soldLb = WEEKS.map(w => w <= MAX_WEEK ? getSoldLbDay(codes, w) : null);
-  const grownLb = WEEKS.map(w => w <= MAX_WEEK ? getGrownLbDay(codes, w) : null);
+  const cumVar = cumA26.map((v,i) => WEEKS[i] <= MAX_WEEK ? v - cumBdg[i] : null);
   const showCum = rightMode === 'cum', showWeekly = rightMode === 'weekly';
+
+  // Segment coloring for cumulative variance: green when >= 0, red when < 0
+  const aboveZero = ctx => (ctx.p0.parsed.y >= 0 && ctx.p1.parsed.y >= 0);
 
   return new Chart(canvas, {
     type: 'line',
@@ -258,10 +259,9 @@ function renderCasesChart(canvas, title, codes) {
       { label:'Bdg26', data:bdg, borderColor:'#ff0000', backgroundColor:'#ff0000', borderWidth:1.5, stepped:'before', pointRadius:0, yAxisID:'y', rGroup:'weekly' },
       { label:'Act26', data:a26d, borderColor:'#0066ff', backgroundColor:'#0066ff', borderWidth:2, pointRadius:0, yAxisID:'y', spanGaps:false, rGroup:'weekly' },
       { label:'Act25', data:a25, borderColor:'rgba(0,204,0,0.5)', backgroundColor:'rgba(0,204,0,0.5)', borderWidth:1.5, pointRadius:0, yAxisID:'y', hidden:!show25, year:2025, rGroup:'weekly' },
-      { label:'Cum Bdg', data:cumBdg, borderColor:'#cc4444', backgroundColor:'#cc4444', borderWidth:1.5, pointRadius:0, yAxisID:'y1', hidden:!showCum, rGroup:'cum' },
-      { label:'Cum Act26', data:cumA26d, borderColor:'#4488cc', backgroundColor:'#4488cc', borderWidth:1.5, pointRadius:0, yAxisID:'y1', spanGaps:false, hidden:!showCum, rGroup:'cum' },
-      // { label:'Grown lb/d', data:grownLb, borderColor:'#00cc00', backgroundColor:'#00cc00', borderWidth:1.5, pointRadius:0, yAxisID:'y1', spanGaps:false, hidden:!showLb, rGroup:'lb' },
-      // { label:'Sold lb/d', data:soldLb, borderColor:'#ff9900', backgroundColor:'#ff9900', borderWidth:1.5, pointRadius:0, yAxisID:'y1', spanGaps:false, hidden:!showLb, rGroup:'lb' },
+      { label:'Cum ± Bdg', data:cumVar, borderColor: ctx => (ctx.p0 && ctx.p0.parsed.y >= 0) ? '#4ecca3' : '#e74c3c', borderWidth:1.5, pointRadius:0, yAxisID:'y', fill:{ target:'origin', above:'rgba(78,204,163,0.25)', below:'rgba(231,76,60,0.25)' }, spanGaps:false, hidden:!showCum, rGroup:'cum',
+        segment:{ borderColor: ctx => aboveZero(ctx) ? '#4ecca3' : '#e74c3c' }
+      },
     ]},
     options: {
       responsive:true, maintainAspectRatio:false,
@@ -272,8 +272,7 @@ function renderCasesChart(canvas, title, codes) {
       },
       scales: {
         x:{ ticks:{color:'#888',font:{size:11},maxTicksLimit:13}, grid:{color:'rgba(255,255,255,0.05)'} },
-        y:{ position:'left', ticks:{color:'#888',font:{size:11}}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%' },
-        y1:{ position:'right', ticks:{color:'#888',font:{size:11}}, grid:{drawOnChartArea:false}, grace:'10%' }
+        y:{ ticks:{color:'#888',font:{size:11}}, grid:{color:'rgba(255,255,255,0.05)'}, grace:'10%' }
       }
     }
   });
