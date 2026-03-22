@@ -1189,7 +1189,7 @@ function applySimFilters() {
                         bar.style.filter = filter;
                     });
                     // Week number overlay
-                    const oTop = name === 'Kona' ? '40%' : '45%';
+                    const oTop = name === 'Kona' ? '40%' : ['GH1','GH2','GH3'].includes(name) ? '35%' : '45%';
                     const oLeft = name === 'GH4' ? '40%' : '50%';
                     card.style.position = 'relative';
                     let overlay = card.querySelector('.sim-week-overlay');
