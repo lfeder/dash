@@ -66,7 +66,7 @@
     </div>
     <button id="toggleAll" onclick="toggleAllLines()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer;">Clear All</button>
     <div class="info" id="status">Loading data...</div>
-    <span style="font-size:0.7rem;color:#888;">03-27 12:00</span>
+    <span style="font-size:0.7rem;color:#888;">03-27 12:05</span>
   </div>
 </div>
 
@@ -179,7 +179,7 @@ function toggleProductFilter(code) {
   if (productFilter.has(code)) productFilter.delete(code); else productFilter.add(code);
   updateProductFilterUI();
   buildTable();
-  if (lastGroup || lastCust) updateCharts(lastGroup, lastCust);
+  updateCharts(lastGroup, lastCust);
 }
 function updateProductFilterUI() {
   const btn = document.getElementById('productFilterBtn');
