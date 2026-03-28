@@ -59,6 +59,7 @@
   <h1>Sales Dashboard</h1>
   <div style="display:flex;align-items:center;gap:12px;">
     <button id="toggle25" onclick="toggle25Lines()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer;">Show '25</button>
+    <button id="toggleUnit" onclick="toggleUnit()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer;">Show $</button>
     <button id="toggleByCust" onclick="toggleByCust()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer;">By Customer</button>
     <div id="productFilterWrap" style="display:none;position:relative;">
       <button id="productFilterBtn" onclick="toggleProductDropdown()" style="padding:4px 8px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer;white-space:nowrap;">All Products ▾</button>
@@ -66,7 +67,7 @@
     </div>
     <button id="toggleAll" onclick="toggleAllLines()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer;">Clear All</button>
     <div class="info" id="status">Loading data...</div>
-    <span style="font-size:0.7rem;color:#888;">03-27 12:05</span>
+    <span style="font-size:0.7rem;color:#888;">03-27 12:15</span>
   </div>
 </div>
 
@@ -133,6 +134,7 @@ let show25 = false;
 let byCust = false;
 let lastGroup = null, lastCust = null;
 let productFilter = new Set();
+let useDollars = false;
 
 // Virtual customers: combine multiple CustomerNames into one
 const VIRTUAL_CUSTOMERS = {
@@ -157,6 +159,15 @@ function toggle25Lines() {
     });
     chart.update();
   });
+}
+
+function toggleUnit() {
+  useDollars = !useDollars;
+  const btn = document.getElementById('toggleUnit');
+  btn.textContent = useDollars ? 'Show Cases' : 'Show $';
+  btn.style.borderColor = useDollars ? '#4ecca3' : '#555';
+  buildTable();
+  updateCharts(lastGroup, lastCust);
 }
 
 function toggleByCust() {
@@ -196,6 +207,7 @@ function parseGvizTable(table) {
   const cols = table.cols.map(c => c.label);
   // Identify numeric columns we need as integers
   const intCols = new Set(['Cases','Year','Month','ISOYear','ISOWeek','DOW','Grade']);
+  const numCols = new Set(['Dollars']);
   return table.rows.map(r => {
     const obj = {};
     r.c.forEach((cell, i) => {
@@ -207,6 +219,8 @@ function parseGvizTable(table) {
         obj[col] = cell.f || cell.v;
       } else if (intCols.has(col) && typeof cell.v === 'number') {
         obj[col] = Math.round(cell.v);
+      } else if (numCols.has(col) && typeof cell.v === 'number') {
+        obj[col] = cell.v;
       } else {
         obj[col] = cell.v;
       }
@@ -261,6 +275,7 @@ async function loadData() {
   document.getElementById('loading').style.display = 'none';
   document.getElementById('main').style.display = 'flex';
   document.getElementById('toggle25').style.display = 'inline-block';
+  document.getElementById('toggleUnit').style.display = 'inline-block';
   document.getElementById('toggleByCust').style.display = 'inline-block';
   document.getElementById('productFilterWrap').style.display = 'inline-block';
   document.getElementById('toggleAll').style.display = 'inline-block';
@@ -288,17 +303,24 @@ function getFilteredRows() {
   return allRows.filter(r => productFilter.has(r.ProductCode));
 }
 
-// Group data for the left table (YTD cases)
+// Group data for the left table (YTD cases or dollars)
+function valField(r) { return Number(useDollars ? r.Dollars : r.Cases) || 0; }
+
 function ytdCases(rows, year) {
   return rows
     .filter(r => r.ISOYear === year && r.ISOWeek <= MAX_WEEK)
-    .reduce((sum, r) => sum + (Number(r.Cases) || 0), 0);
+    .reduce((sum, r) => sum + valField(r), 0);
 }
 
 function ytdCasesByFarm(rows, year, farm) {
   return rows
     .filter(r => r.ISOYear === year && r.ISOWeek <= MAX_WEEK && r.Farm === farm)
-    .reduce((sum, r) => sum + (Number(r.Cases) || 0), 0);
+    .reduce((sum, r) => sum + valField(r), 0);
+}
+
+function fmtVal(v) {
+  if (useDollars) return '$' + Math.round(v).toLocaleString();
+  return v.toLocaleString();
 }
 
 function fmtPct(cur, prev) {
@@ -352,8 +374,8 @@ function buildTable() {
       tr.dataset.group = groupName;
       tr.innerHTML = `
         <td><span class="arrow">&#9654;</span>${groupName}</td>
-        <td class="num">${y25.toLocaleString()}</td>
-        <td class="num">${y26.toLocaleString()}</td>
+        <td class="num">${fmtVal(y25)}</td>
+        <td class="num">${fmtVal(y26)}</td>
         <td class="num ${diff >= 0 ? 'pos' : 'neg'}">${fmtPct(y26, y25)}</td>
         <td class="num ${cuke26 - cuke25 >= 0 ? 'pos' : 'neg'}">${fmtPct(cuke26, cuke25)}</td>
         <td class="num ${lett26 - lett25 >= 0 ? 'pos' : 'neg'}">${fmtPct(lett26, lett25)}</td>
@@ -378,8 +400,8 @@ function buildTable() {
         ctr.dataset.customer = custName;
       ctr.innerHTML = `
         <td>${custName}</td>
-        <td class="num">${c25.toLocaleString()}</td>
-        <td class="num">${c26.toLocaleString()}</td>
+        <td class="num">${fmtVal(c25)}</td>
+        <td class="num">${fmtVal(c26)}</td>
         <td class="num ${cd >= 0 ? 'pos' : 'neg'}">${fmtPct(c26, c25)}</td>
         <td class="num ${cc26 - cc25 >= 0 ? 'pos' : 'neg'}">${fmtPct(cc26, cc25)}</td>
         <td class="num ${cl26 - cl25 >= 0 ? 'pos' : 'neg'}">${fmtPct(cl26, cl25)}</td>
@@ -404,8 +426,8 @@ function buildTable() {
         tr.dataset.customer = custName;
         tr.innerHTML = `
           <td>${custName}</td>
-          <td class="num">${c25.toLocaleString()}</td>
-          <td class="num">${c26.toLocaleString()}</td>
+          <td class="num">${fmtVal(c25)}</td>
+          <td class="num">${fmtVal(c26)}</td>
           <td class="num ${cd >= 0 ? 'pos' : 'neg'}">${fmtPct(c26, c25)}</td>
           <td class="num ${cc26 - cc25 >= 0 ? 'pos' : 'neg'}">${fmtPct(cc26, cc25)}</td>
           <td class="num ${cl26 - cl25 >= 0 ? 'pos' : 'neg'}">${fmtPct(cl26, cl25)}</td>
@@ -434,8 +456,8 @@ function buildTable() {
   totTr.style.borderTop = '2px solid #4ecca3';
   totTr.innerHTML = `
     <td style="color:#4ecca3; font-weight:700;">TOTAL</td>
-    <td class="num" style="color:#4ecca3; font-weight:700;">${totY25.toLocaleString()}</td>
-    <td class="num" style="color:#4ecca3; font-weight:700;">${totY26.toLocaleString()}</td>
+    <td class="num" style="color:#4ecca3; font-weight:700;">${fmtVal(totY25)}</td>
+    <td class="num" style="color:#4ecca3; font-weight:700;">${fmtVal(totY26)}</td>
     <td class="num ${totDiff >= 0 ? 'pos' : 'neg'}" style="font-weight:700;">${fmtPct(totY26, totY25)}</td>
     <td class="num ${totCuke26 - totCuke25 >= 0 ? 'pos' : 'neg'}" style="font-weight:700;">${fmtPct(totCuke26, totCuke25)}</td>
     <td class="num ${totLett26 - totLett25 >= 0 ? 'pos' : 'neg'}" style="font-weight:700;">${fmtPct(totLett26, totLett25)}</td>
@@ -538,7 +560,7 @@ function renderChart(type, rows, label, useByCust) {
       const key = `${r.CustomerName}|${r.ProductCode}`;
       if (!data[key]) data[key] = { 2025: {}, 2026: {} };
       if (!data[key][y][r.ISOWeek]) data[key][y][r.ISOWeek] = 0;
-      data[key][y][r.ISOWeek] += Number(r.Cases) || 0;
+      data[key][y][r.ISOWeek] += valField(r);
     });
 
     let maxW = MAX_WEEK;
@@ -595,7 +617,7 @@ function renderChart(type, rows, label, useByCust) {
       const p = r.ProductCode;
       if (!data[p]) data[p] = { 2025: {}, 2026: {} };
       if (!data[p][y][r.ISOWeek]) data[p][y][r.ISOWeek] = 0;
-      data[p][y][r.ISOWeek] += Number(r.Cases) || 0;
+      data[p][y][r.ISOWeek] += valField(r);
     });
 
     let maxW = MAX_WEEK;
@@ -692,7 +714,8 @@ function renderChart(type, rows, label, useByCust) {
             label: ctx => {
               const ds = ctx.dataset;
               const name = ds.label.replace(/ '\d+$/, '');
-              return ` ${name} '${ds.year % 100}: ${Math.round(ctx.parsed.y)}`;
+              const v = Math.round(ctx.parsed.y);
+              return ` ${name} '${ds.year % 100}: ${useDollars ? '$' + v.toLocaleString() : v}`;
             }
           }
         }
@@ -701,8 +724,8 @@ function renderChart(type, rows, label, useByCust) {
         x: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } },
         y: {
           grace: '10%',
-          title: { display: true, text: 'Cases', color: '#888' },
-          ticks: { color: '#888', precision: 0 },
+          title: { display: true, text: useDollars ? 'Dollars' : 'Cases', color: '#888' },
+          ticks: { color: '#888', precision: 0, callback: v => useDollars ? '$' + v.toLocaleString() : v },
           grid: { color: 'rgba(255,255,255,0.05)' }
         }
       }
