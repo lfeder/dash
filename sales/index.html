@@ -67,7 +67,7 @@
     </div>
     <button id="toggleAll" onclick="toggleAllLines()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer;">Clear All</button>
     <div class="info" id="status">Loading data...</div>
-    <span style="font-size:0.7rem;color:#888;">03-27 12:15</span>
+    <span style="font-size:0.7rem;color:#888;">03-27 12:20</span>
   </div>
 </div>
 
@@ -442,8 +442,8 @@ function buildTable() {
     }
   });
 
-  // Total row at bottom — exclude virtual groups to avoid double-counting
-  const totRows = rows.filter(r => !VIRTUAL_GROUPS.has(r.CustomerGroup));
+  // Total row at bottom — exclude virtual groups and their source rows to avoid double-counting
+  const totRows = rows.filter(r => !VIRTUAL_GROUPS.has(r.CustomerGroup) && !CUSTOMER_REMAP[r.CustomerName]);
   const totY25 = ytdCases(totRows, 2025);
   const totY26 = ytdCases(totRows, 2026);
   const totDiff = totY26 - totY25;
