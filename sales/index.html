@@ -67,7 +67,7 @@
     </div>
     <button id="toggleAll" onclick="toggleAllLines()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer;">Clear All</button>
     <div class="info" id="status">Loading data...</div>
-    <span style="font-size:0.7rem;color:#888;">03-27 21:04</span>
+    <span style="font-size:0.7rem;color:#888;">03-27 21:40</span>
   </div>
 </div>
 
@@ -127,6 +127,8 @@ function maxWeek() {
   return includeCurrentWeek ? currentISOWeek() : currentISOWeek() - 1;
 }
 const MAX_WEEK = maxWeek();
+const _hst = new Date(new Date().getTime() - 10 * 3600000);
+const MAX_MD = (_hst.getUTCMonth() + 1) * 100 + _hst.getUTCDate(); // e.g. 327 for March 27
 
 let allRows = [];
 let cukeChart, lettuceChart;
@@ -214,8 +216,10 @@ function parseGvizTable(table) {
       const col = cols[i];
       if (!col) return;
       if (!cell || cell.v === null || cell.v === undefined) { obj[col] = ''; return; }
-      // Date cells: store formatted string
+      // Date cells: parse month/day for YTD cutoff, store formatted string
       if (typeof cell.v === 'string' && cell.v.startsWith('Date(')) {
+        const dm = cell.v.match(/Date\((\d+),(\d+),(\d+)\)/);
+        if (dm && col === 'InvoiceDate') obj._md = (parseInt(dm[2]) + 1) * 100 + parseInt(dm[3]); // 1-indexed month * 100 + day
         obj[col] = cell.f || cell.v;
       } else if (intCols.has(col) && typeof cell.v === 'number') {
         obj[col] = Math.round(cell.v);
@@ -270,7 +274,7 @@ async function loadData() {
     dd.appendChild(lbl);
   });
   document.getElementById('status').textContent =
-    `${allRows.length.toLocaleString()} invoices | YTD through week ${MAX_WEEK}`;
+    `${allRows.length.toLocaleString()} invoices | YTD through ${Math.floor(MAX_MD/100)}/${MAX_MD%100}`;
   buildTable();
   document.getElementById('loading').style.display = 'none';
   document.getElementById('main').style.display = 'flex';
@@ -308,13 +312,13 @@ function valField(r) { return Number(useDollars ? r.Dollars : r.Cases) || 0; }
 
 function ytdCases(rows, year) {
   return rows
-    .filter(r => r.Year === year && r.ISOWeek <= MAX_WEEK)
+    .filter(r => r.Year === year && r._md <= MAX_MD)
     .reduce((sum, r) => sum + valField(r), 0);
 }
 
 function ytdCasesByFarm(rows, year, farm) {
   return rows
-    .filter(r => r.Year === year && r.ISOWeek <= MAX_WEEK && r.Farm === farm)
+    .filter(r => r.Year === year && r._md <= MAX_MD && r.Farm === farm)
     .reduce((sum, r) => sum + valField(r), 0);
 }
 
