@@ -67,7 +67,7 @@
     </div>
     <button id="toggleAll" onclick="toggleAllLines()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer;">Clear All</button>
     <div class="info" id="status">Loading data...</div>
-    <span style="font-size:0.7rem;color:#888;">03-27 21:45</span>
+    <span style="font-size:0.7rem;color:#888;">03-27 21:50</span>
   </div>
 </div>
 
@@ -263,7 +263,7 @@ async function loadData() {
   });
   allRows = allRows.concat(virtualRows);
   // Populate product filter dropdown
-  const allProducts = [...new Set(allRows.map(r => r.ProductCode))].sort();
+  const allProducts = [...new Set(allRows.filter(r => r.Year === 2025 || r.Year === 2026).map(r => r.ProductCode))].filter(p => p !== 'KWC').sort();
   const dd = document.getElementById('productDropdown');
   allProducts.forEach(p => {
     const lbl = document.createElement('label');
