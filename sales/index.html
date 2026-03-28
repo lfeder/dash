@@ -67,7 +67,7 @@
     </div>
     <button id="toggleAll" onclick="toggleAllLines()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer;">Clear All</button>
     <div class="info" id="status">Loading data...</div>
-    <span style="font-size:0.7rem;color:#888;">03-27 21:40</span>
+    <span style="font-size:0.7rem;color:#888;">03-27 21:45</span>
   </div>
 </div>
 
@@ -230,7 +230,7 @@ function parseGvizTable(table) {
       }
     });
     return obj;
-  }).filter(r => r.CustomerGroup && r.ProductCode !== 'JF' && r.ProductCode !== 'Sales' && r.CustomerName !== 'Kaukau 4 Keiki');
+  }).filter(r => r.CustomerGroup && r.ProductCode !== 'Sales' && r.CustomerName !== 'Kaukau 4 Keiki');
 }
 
 // Fetch a tab via JSONP (works from file:// and avoids CORS)
@@ -505,8 +505,9 @@ function updateCharts(groupName, custName) {
   // Use by-customer mode only when a group (not individual customer) is selected
   const useByCust = byCust && groupName && !custName;
 
-  renderChart('cuke', filtered.filter(r => r.Farm === 'Cuke'), label, useByCust);
-  renderChart('lettuce', filtered.filter(r => r.Farm === 'Lettuce'), label, useByCust);
+  const chartRows = filtered.filter(r => r.ProductCode !== 'JF');
+  renderChart('cuke', chartRows.filter(r => r.Farm === 'Cuke'), label, useByCust);
+  renderChart('lettuce', chartRows.filter(r => r.Farm === 'Lettuce'), label, useByCust);
 }
 
 // Product color palette
