@@ -67,7 +67,7 @@
     </div>
     <button id="toggleAll" onclick="toggleAllLines()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer;">Clear All</button>
     <div class="info" id="status">Loading data...</div>
-    <span style="font-size:0.7rem;color:#888;">03-27 12:20</span>
+    <span style="font-size:0.7rem;color:#888;">03-27 12:30</span>
   </div>
 </div>
 
@@ -308,13 +308,13 @@ function valField(r) { return Number(useDollars ? r.Dollars : r.Cases) || 0; }
 
 function ytdCases(rows, year) {
   return rows
-    .filter(r => r.ISOYear === year && r.ISOWeek <= MAX_WEEK)
+    .filter(r => r.Year === year && r.ISOWeek <= MAX_WEEK)
     .reduce((sum, r) => sum + valField(r), 0);
 }
 
 function ytdCasesByFarm(rows, year, farm) {
   return rows
-    .filter(r => r.ISOYear === year && r.ISOWeek <= MAX_WEEK && r.Farm === farm)
+    .filter(r => r.Year === year && r.ISOWeek <= MAX_WEEK && r.Farm === farm)
     .reduce((sum, r) => sum + valField(r), 0);
 }
 
