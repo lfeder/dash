@@ -331,7 +331,8 @@ body {
     <h1>Plant Map</h1>
 <div class="header-stats" id="headerStats"></div>
     <div class="variety-legend" id="headerLegend"></div>
-    <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+    <span style="margin-left:auto;font-size:0.75rem;color:var(--text-secondary)">03-27 12:00</span>
+    <div style="display:flex;align-items:center;gap:6px">
         <button id="simBtn" onclick="toggleSim()" style="padding:4px 12px;border-radius:4px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:0.8rem;white-space:nowrap">Sim</button>
         <div id="simControls" style="display:none;align-items:center;gap:4px">
             <button onclick="simStep(-1)" style="padding:4px 8px;border-radius:4px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:0.9rem" title="Back 1 week">◀</button>
@@ -354,7 +355,7 @@ const SHEET_ID = '1ewWyvaXGkRCvZxjUxBOHGY4PKdMHwKeTA5jTIod48LE';
 const GID = '1615707612';
 const GVIZ_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:handleSheetResponse&gid=${GID}`;
 
-const COLORS = {"Keiki": "#4CAF50", "Japanese": "#E91E63", "Japanese (5/bag)": "#F8BBD0", "English": "#2196F3", "Mixed": "#FF9800"};
+const COLORS = {"Keiki": "#4CAF50", "Japanese": "#E91E63", "Japanese (5/bag)": "#F8BBD0", "English": "#FF9800", "Mixed": "#9C27B0"};
 
 let DATA = {};
 let SUMMARY = {};
@@ -370,11 +371,11 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwtqmQMvQo_F5sX
 const EDIT_OPTIONS = [
     { label: 'K', variety: 'Keiki', ppb: 4, color: '#4CAF50' },
     { label: 'J5', variety: 'Japanese', ppb: 5, color: '#F8BBD0' },
-    { label: 'E', variety: 'English', ppb: 4, color: '#2196F3' },
+    { label: 'E', variety: 'English', ppb: 4, color: '#FF9800' },
 ];
 const SPLIT_OPTIONS = [
     { label: 'J5/K', varieties: ['Japanese','Keiki'], colors: ['#F8BBD0','#4CAF50'] },
-    { label: 'E/K', varieties: ['English','Keiki'], colors: ['#2196F3','#4CAF50'] },
+    { label: 'E/K', varieties: ['English','Keiki'], colors: ['#FF9800','#4CAF50'] },
 ];
 let POPUP_POS = { x: 0, y: 0 };
 
