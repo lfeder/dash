@@ -25,13 +25,14 @@
   .section-title { font-size: 1.1rem; font-weight: 600; color: #333; margin: 24px 0 8px; }
   .chart-box { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 24px; border: 1px solid #ddd; }
   .chart-box h3 { font-size: 1rem; font-weight: 600; color: #333; margin-bottom: 8px; }
+  .chart-wrap { position: relative; height: 300px; }
 </style>
 </head>
 <body>
 
 <div id="header">
   <h1>Daily</h1>
-  <span style="font-size:0.7rem;color:#fff;" id="version">04-07 23:01</span>
+  <span style="font-size:0.7rem;color:#fff;" id="version">04-07 23:42</span>
 </div>
 
 <div id="content">
@@ -49,7 +50,7 @@
 
   <div class="chart-box">
     <h3>Weekly $ (000)</h3>
-    <canvas id="weeklyChart" height="300"></canvas>
+    <div class="chart-wrap"><canvas id="weeklyChart"></canvas></div>
   </div>
 
   <div class="section-title">Cuke Pounds</div>
