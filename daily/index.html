@@ -31,7 +31,7 @@
 
 <div id="header">
   <h1>Daily</h1>
-  <span style="font-size:0.7rem;color:#e0e0e0;" id="version">04-07 22:57</span>
+  <span style="font-size:0.7rem;color:#fff;" id="version">04-07 22:57</span>
 </div>
 
 <div id="content">
@@ -222,7 +222,7 @@ function renderSalesTable() {
       <td class="num">${Math.round(mtd / 1000).toLocaleString()}</td>
       <td class="num">${Math.round(ytd / 1000).toLocaleString()}</td>
       <td class="num">${Math.round(lytd / 1000).toLocaleString()}</td>
-      <td class="num">${lytd ? Math.round(chg) + '%' : '—'}</td>
+      <td class="num">${lytd ? chg.toFixed(1) + '%' : '—'}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -237,7 +237,7 @@ function renderSalesTable() {
     <td class="num">${Math.round(totals.mtd / 1000).toLocaleString()}</td>
     <td class="num">${Math.round(totals.ytd / 1000).toLocaleString()}</td>
     <td class="num">${Math.round(totals.lytd / 1000).toLocaleString()}</td>
-    <td class="num">${totals.lytd ? Math.round(totChg) + '%' : '—'}</td>
+    <td class="num">${totals.lytd ? totChg.toFixed(1) + '%' : '—'}</td>
   `;
   tbody.appendChild(totTr);
 }
@@ -291,7 +291,14 @@ function renderWeeklyChart() {
             color: '#555',
             font: { size: 11 },
             usePointStyle: true,
-            pointStyle: 'circle'
+            pointStyle: 'circle',
+            generateLabels: chart => {
+              const original = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+              return original.map(label => {
+                if (label.hidden) label.fontColor = 'rgba(85,85,85,0.3)';
+                return label;
+              });
+            }
           }
         },
         tooltip: {
@@ -335,7 +342,7 @@ function renderCukeTable() {
     const day = d.K1 + d.K2 + d.J1 + d.J2 + d.E1 + d.E2;
     const g1 = d.K1 + d.J1 + d.E1;
     const g2 = d.K2 + d.J2 + d.E2;
-    const og = (g1 + g2) ? Math.round(g2 / (g1 + g2) * 100) : 0;
+    const og = (g1 + g2) ? (g2 / (g1 + g2) * 100) : 0;
     Object.keys(tots).forEach(k => tots[k] += d[k]);
 
     const tr = document.createElement('tr');
@@ -349,7 +356,7 @@ function renderCukeTable() {
       <td class="num">${d.J2 ? Math.round(d.J2).toLocaleString() : ''}</td>
       <td class="num">${d.E2 ? Math.round(d.E2).toLocaleString() : ''}</td>
       <td class="num">${Math.round(day).toLocaleString()}</td>
-      <td class="num">${og}%</td>
+      <td class="num">${og.toFixed(1)}%</td>
     `;
     tbody.appendChild(tr);
   });
@@ -357,13 +364,13 @@ function renderCukeTable() {
   const totDay = Object.values(tots).reduce((s, v) => s + v, 0);
   const totG1 = tots.K1 + tots.J1 + tots.E1;
   const totG2 = tots.K2 + tots.J2 + tots.E2;
-  const totOg = (totG1 + totG2) ? Math.round(totG2 / (totG1 + totG2) * 100) : 0;
+  const totOg = (totG1 + totG2) ? (totG2 / (totG1 + totG2) * 100) : 0;
 
   const tr = document.createElement('tr');
   tr.className = 'total-row';
   tr.innerHTML = `
     <td style="font-weight:600;">Total</td>
-    <td class="num"></td>
+    <td class="num">${Math.round(totDay).toLocaleString()}</td>
     <td class="num">${Math.round(tots.K1).toLocaleString()}</td>
     <td class="num">${Math.round(tots.J1).toLocaleString()}</td>
     <td class="num">${Math.round(tots.E1).toLocaleString()}</td>
@@ -371,7 +378,7 @@ function renderCukeTable() {
     <td class="num">${Math.round(tots.J2).toLocaleString()}</td>
     <td class="num">${Math.round(tots.E2).toLocaleString()}</td>
     <td class="num">${Math.round(totDay).toLocaleString()}</td>
-    <td class="num">${totOg}%</td>
+    <td class="num">${totOg.toFixed(1)}%</td>
   `;
   tbody.appendChild(tr);
 }
