@@ -59,7 +59,7 @@
   <h1>Sales Dashboard</h1>
   <div style="display:flex;align-items:center;gap:12px;">
     <button id="toggle25" onclick="toggle25Lines()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer;">Show '25</button>
-    <button id="toggleUnit" onclick="toggleUnit()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer;">Show $</button>
+    <button id="toggleUnit" onclick="toggleUnit()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer;">Cases</button>
     <button id="toggleByCust" onclick="toggleByCust()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer;">By Customer</button>
     <div id="productFilterWrap" style="display:none;position:relative;">
       <button id="productFilterBtn" onclick="toggleProductDropdown()" style="padding:4px 8px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer;white-space:nowrap;">All Products ▾</button>
@@ -67,7 +67,7 @@
     </div>
     <button id="toggleAll" onclick="toggleAllLines()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer;">Clear All</button>
     <div class="info" id="status">Loading data...</div>
-    <span style="font-size:0.7rem;color:#888;">04-07 00:56</span>
+    <span style="font-size:0.7rem;color:#888;">04-07 01:05</span>
   </div>
 </div>
 
@@ -168,8 +168,8 @@ function toggleUnit() {
   const order = ['cases', 'dollars', 'pounds'];
   unitMode = order[(order.indexOf(unitMode) + 1) % 3];
   const btn = document.getElementById('toggleUnit');
-  const nextLabels = { cases: '$', dollars: 'Lbs', pounds: 'Cases' };
-  btn.textContent = 'Show ' + nextLabels[unitMode];
+  const labels = { cases: 'Cases', dollars: '$s', pounds: 'Lbs' };
+  btn.textContent = labels[unitMode];
   btn.style.borderColor = unitMode !== 'cases' ? '#4ecca3' : '#555';
   buildTable();
   updateCharts(lastGroup, lastCust);
