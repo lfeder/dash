@@ -15,13 +15,13 @@ A new "Daily" page in the farm dashboard showing a daily sales summary, weekly d
 ### Cuke Grow
 - **Sheet**: `1VtEecYn-W1pbnIU1hRHfxIpkH2DtK7hj0CpcpiLoziM`
 - **Tab**: `grow_C_harvest`
-- **Fields**: `HarvestDate` (col A), `Greenhouse` (need to identify column), `Variety` (col H — K/J/E), `Grade` (col I — 1 or 2), `GreenhouseNetWeight` (col L — pounds)
+- **Fields**: `HarvestDate` (col A), `Greenhouse` (col G), `Variety` (col H — K/J/E), `Grade` (col I — 1 or 2), `GreenhouseNetWeight` (col L — pounds)
 - **Fetch method**: JSONP via gviz API
 
 ### Lettuce Grow
 - **Sheet**: `1VtEecYn-W1pbnIU1hRHfxIpkH2DtK7hj0CpcpiLoziM`
 - **Tab**: `grow_L_seeding`
-- **Fields**: `HarvestDate` (col N), `Pond`, `Variety` (col D), `Boards`, `GreenhouseNetWeight` (col P — pounds)
+- **Fields**: `Pond`, `SeedName` (variety), `BoardsPerPond`, `HarvestDate`, `PoundsPerBoard`, `GreenhouseNetWeight` (total pounds)
 - **Fetch method**: JSONP via gviz API
 
 ## Reference Date
@@ -91,9 +91,9 @@ A new "Daily" page in the farm dashboard showing a daily sales summary, weekly d
 
 - One row per pond from grow_L_seeding for the reference date
 - **Pond**: pond identifier
-- **Variety**: lettuce variety name
-- **Boards**: number of boards harvested
-- **Lb/Board**: `GreenhouseNetWeight / Boards`
+- **Variety**: `SeedName` from sheet
+- **Boards**: `BoardsPerPond` from sheet
+- **Lb/Board**: `PoundsPerBoard` from sheet
 - **Total**: `GreenhouseNetWeight` (total pounds)
 - **Total row**: sum of Boards, weighted average Lb/Board, sum of Total
 
