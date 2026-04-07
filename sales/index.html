@@ -67,7 +67,7 @@
     </div>
     <button id="toggleAll" onclick="toggleAllLines()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer;">Clear All</button>
     <div class="info" id="status">Loading data...</div>
-    <span style="font-size:0.7rem;color:#888;">03-27 22:10</span>
+    <span style="font-size:0.7rem;color:#888;">04-07 00:56</span>
   </div>
 </div>
 
@@ -79,6 +79,7 @@
       <thead>
         <tr>
           <th>Customer Group</th>
+          <th class="num">2025 FY</th>
           <th class="num">2025 YTD</th>
           <th class="num">2026 YTD</th>
           <th class="num">% Chg</th>
@@ -136,7 +137,7 @@ let show25 = false;
 let byCust = false;
 let lastGroup = null, lastCust = null;
 let productFilter = new Set();
-let useDollars = false;
+let unitMode = 'cases'; // cycles: cases -> dollars -> pounds
 
 // Virtual customers: combine multiple CustomerNames into one
 const VIRTUAL_CUSTOMERS = {
@@ -164,10 +165,12 @@ function toggle25Lines() {
 }
 
 function toggleUnit() {
-  useDollars = !useDollars;
+  const order = ['cases', 'dollars', 'pounds'];
+  unitMode = order[(order.indexOf(unitMode) + 1) % 3];
   const btn = document.getElementById('toggleUnit');
-  btn.textContent = useDollars ? 'Show Cases' : 'Show $';
-  btn.style.borderColor = useDollars ? '#4ecca3' : '#555';
+  const nextLabels = { cases: '$', dollars: 'Lbs', pounds: 'Cases' };
+  btn.textContent = 'Show ' + nextLabels[unitMode];
+  btn.style.borderColor = unitMode !== 'cases' ? '#4ecca3' : '#555';
   buildTable();
   updateCharts(lastGroup, lastCust);
 }
@@ -209,7 +212,7 @@ function parseGvizTable(table) {
   const cols = table.cols.map(c => c.label);
   // Identify numeric columns we need as integers
   const intCols = new Set(['Cases','Year','Month','ISOYear','ISOWeek','DOW','Grade']);
-  const numCols = new Set(['Dollars']);
+  const numCols = new Set(['Dollars','Pounds']);
   return table.rows.map(r => {
     const obj = {};
     r.c.forEach((cell, i) => {
@@ -308,7 +311,18 @@ function getFilteredRows() {
 }
 
 // Group data for the left table (YTD cases or dollars)
-function valField(r) { return Number(useDollars ? r.Dollars : r.Cases) || 0; }
+function valField(r) {
+  if (unitMode === 'dollars') return Number(r.Dollars) || 0;
+  if (unitMode === 'pounds') return Number(r.Pounds) || 0;
+  return Number(r.Cases) || 0;
+}
+function unitLabel() { return unitMode === 'dollars' ? 'Dollars' : unitMode === 'pounds' ? 'Pounds' : 'Cases'; }
+
+function fyCases(rows, year) {
+  return rows
+    .filter(r => r.Year === year)
+    .reduce((sum, r) => sum + valField(r), 0);
+}
 
 function ytdCases(rows, year) {
   return rows
@@ -323,8 +337,7 @@ function ytdCasesByFarm(rows, year, farm) {
 }
 
 function fmtVal(v) {
-  if (useDollars) return '$' + Math.round(v).toLocaleString();
-  return v.toLocaleString();
+  return Math.round(v).toLocaleString();
 }
 
 function fmtPct(cur, prev) {
@@ -365,6 +378,7 @@ function buildTable() {
 
     if (isExpandable) {
       // Show group header with expandable children
+      const fy25 = fyCases(groupRows, 2025);
       const y25 = ytdCases(groupRows, 2025);
       const y26 = ytdCases(groupRows, 2026);
       const diff = y26 - y25;
@@ -378,6 +392,7 @@ function buildTable() {
       tr.dataset.group = groupName;
       tr.innerHTML = `
         <td><span class="arrow">&#9654;</span>${groupName}</td>
+        <td class="num">${fmtVal(fy25)}</td>
         <td class="num">${fmtVal(y25)}</td>
         <td class="num">${fmtVal(y26)}</td>
         <td class="num ${diff >= 0 ? 'pos' : 'neg'}">${fmtPct(y26, y25)}</td>
@@ -390,6 +405,7 @@ function buildTable() {
       // Customer rows (hidden by default)
       const custSorted = Object.entries(customers).sort((a, b) => ytdCases(b[1], 2026) - ytdCases(a[1], 2026));
       custSorted.forEach(([custName, custRows]) => {
+        const cf25 = fyCases(custRows, 2025);
         const c25 = ytdCases(custRows, 2025);
         const c26 = ytdCases(custRows, 2026);
         if (groupName.toLowerCase() === 'small' && c25 + c26 === 0) return;
@@ -404,6 +420,7 @@ function buildTable() {
         ctr.dataset.customer = custName;
       ctr.innerHTML = `
         <td>${custName}</td>
+        <td class="num">${fmtVal(cf25)}</td>
         <td class="num">${fmtVal(c25)}</td>
         <td class="num">${fmtVal(c26)}</td>
         <td class="num ${cd >= 0 ? 'pos' : 'neg'}">${fmtPct(c26, c25)}</td>
@@ -417,6 +434,7 @@ function buildTable() {
       // Non-expandable: show each customer as a top-level row
       const custSorted = Object.entries(customers).sort((a, b) => ytdCases(b[1], 2026) - ytdCases(a[1], 2026));
       custSorted.forEach(([custName, custRows]) => {
+        const cf25 = fyCases(custRows, 2025);
         const c25 = ytdCases(custRows, 2025);
         const c26 = ytdCases(custRows, 2026);
         const cd = c26 - c25;
@@ -430,6 +448,7 @@ function buildTable() {
         tr.dataset.customer = custName;
         tr.innerHTML = `
           <td>${custName}</td>
+          <td class="num">${fmtVal(cf25)}</td>
           <td class="num">${fmtVal(c25)}</td>
           <td class="num">${fmtVal(c26)}</td>
           <td class="num ${cd >= 0 ? 'pos' : 'neg'}">${fmtPct(c26, c25)}</td>
@@ -448,6 +467,7 @@ function buildTable() {
 
   // Total row at bottom — exclude virtual group rows to avoid double-counting
   const totRows = rows.filter(r => !VIRTUAL_GROUPS.has(r.CustomerGroup));
+  const totFY25 = fyCases(totRows, 2025);
   const totY25 = ytdCases(totRows, 2025);
   const totY26 = ytdCases(totRows, 2026);
   const totDiff = totY26 - totY25;
@@ -460,6 +480,7 @@ function buildTable() {
   totTr.style.borderTop = '2px solid #4ecca3';
   totTr.innerHTML = `
     <td style="color:#4ecca3; font-weight:700;">TOTAL</td>
+    <td class="num" style="color:#4ecca3; font-weight:700;">${fmtVal(totFY25)}</td>
     <td class="num" style="color:#4ecca3; font-weight:700;">${fmtVal(totY25)}</td>
     <td class="num" style="color:#4ecca3; font-weight:700;">${fmtVal(totY26)}</td>
     <td class="num ${totDiff >= 0 ? 'pos' : 'neg'}" style="font-weight:700;">${fmtPct(totY26, totY25)}</td>
@@ -720,7 +741,7 @@ function renderChart(type, rows, label, useByCust) {
               const ds = ctx.dataset;
               const name = ds.label.replace(/ '\d+$/, '');
               const v = Math.round(ctx.parsed.y);
-              return ` ${name} '${ds.year % 100}: ${useDollars ? '$' + v.toLocaleString() : v}`;
+              return ` ${name} '${ds.year % 100}: ${v.toLocaleString()}`;
             }
           }
         }
@@ -729,8 +750,8 @@ function renderChart(type, rows, label, useByCust) {
         x: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } },
         y: {
           grace: '10%',
-          title: { display: true, text: useDollars ? 'Dollars' : 'Cases', color: '#888' },
-          ticks: { color: '#888', precision: 0, callback: v => useDollars ? '$' + v.toLocaleString() : v },
+          title: { display: true, text: unitLabel(), color: '#888' },
+          ticks: { color: '#888', precision: 0, callback: v => v.toLocaleString() },
           grid: { color: 'rgba(255,255,255,0.05)' }
         }
       }
