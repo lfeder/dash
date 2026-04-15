@@ -331,7 +331,7 @@ body {
     <h1>Plant Map</h1>
 <div class="header-stats" id="headerStats"></div>
     <div class="variety-legend" id="headerLegend"></div>
-    <span style="margin-left:auto;font-size:0.75rem;color:var(--text-primary)">04-15 02:50</span>
+    <span style="margin-left:auto;font-size:0.75rem;color:var(--text-primary)">04-15 02:54</span>
     <div style="display:flex;align-items:center;gap:6px">
         <button id="simBtn" onclick="toggleSim()" style="padding:4px 12px;border-radius:4px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:0.8rem;white-space:nowrap">Sim</button>
         <div id="simControls" style="display:none;align-items:center;gap:4px">
@@ -989,30 +989,10 @@ function showOverview() {
         return t;
     }
 
-    // Render a group grid with optional extra content appended to a specific column
-    function renderGridWithExtra(group, wrapClass, innerClass, byCols, extraCol, extraHtml) {
-        const grid = buildGrid(group);
-        const cells = Object.values(grid);
-        if (!cells.length) return '';
-        const maxR = Math.max(...cells.map(c => c.r)), maxC = Math.max(...cells.map(c => c.c));
-        const [outerMax, innerMax] = byCols ? [maxC, maxR] : [maxR, maxC];
-        let h = `<div class="${wrapClass}">`;
-        for (let o = 0; o <= outerMax; o++) {
-            h += `<div class="${innerClass}">`;
-            for (let i = 0; i <= innerMax; i++) {
-                const key = byCols ? `${i},${o}` : `${o},${i}`;
-                const cell = grid[key];
-                if (cell) h += renderCell(cell);
-            }
-            if (extraHtml && o === extraCol) h += extraHtml;
-            h += '</div>';
-        }
-        return h + '</div>';
-    }
-
     let html = '<div class="overview-wrapper">';
     html += renderGrid('JTL', 'farm-layout', 'farm-row', false);
-    html += renderGridWithExtra('BIP', 'other-locations', 'bip-col', true, 1, renderSummaryTable());
+    html += renderSummaryTable();
+    html += renderGrid('BIP', 'other-locations', 'bip-col', true);
     html += '</div>';
     document.getElementById('content').innerHTML = html;
 }
