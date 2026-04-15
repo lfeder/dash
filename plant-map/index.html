@@ -331,7 +331,7 @@ body {
     <h1>Plant Map</h1>
 <div class="header-stats" id="headerStats"></div>
     <div class="variety-legend" id="headerLegend"></div>
-    <span style="margin-left:auto;font-size:0.75rem;color:var(--text-secondary)">03-27 12:00</span>
+    <span style="margin-left:auto;font-size:0.75rem;color:var(--text-primary)">04-15 02:50</span>
     <div style="display:flex;align-items:center;gap:6px">
         <button id="simBtn" onclick="toggleSim()" style="padding:4px 12px;border-radius:4px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:0.8rem;white-space:nowrap">Sim</button>
         <div id="simControls" style="display:none;align-items:center;gap:4px">
@@ -887,7 +887,7 @@ function showOverview() {
     }
 
     // Compute next seeding date for each GH
-    // GH2 seeds the week of 3/15/2026, forward through SIM_ORDER: GH2→GH6→Hilo→...
+    // GH2 seeds the week of 3/15/2026, forward through SIM_ORDER: GH2→GH5→Hilo→...
     function getNextSeedingDates() {
         const ANCHOR_SEED = new Date(2026, 2, 15); // 3/15/2026
         const ANCHOR_IDX = 7; // GH2's index in SIM_ORDER
@@ -909,7 +909,7 @@ function showOverview() {
 
     // Summary table HTML
     function renderSummaryTable() {
-        const TABLE_ORDER_BASE = ['Kona','GH8','GH1','Hamakua','Kohala','GH7','Waimea','GH4','GH2','GH6','Hilo','GH5','GH3'];
+        const TABLE_ORDER_BASE = SIM_ORDER.flat();
         const TABLE_COLS = ['Keiki','Japanese','English'];
         const TABLE_LABELS = { Keiki: 'K', Japanese: 'J', English: 'E' };
         const seedDates = getNextSeedingDates();
@@ -919,28 +919,45 @@ function showOverview() {
         const fmtDate = d => `${d.getMonth()+1}/${d.getDate()}`;
         const getISOWeek = d => { const t = new Date(d); t.setHours(0,0,0,0); t.setDate(t.getDate()+3-(t.getDay()+6)%7); const w1 = new Date(t.getFullYear(),0,4); return 1+Math.round(((t-w1)/86400000-3+(w1.getDay()+6)%7)/7); };
         const thStyle = 'padding:4px 10px;border:1px solid var(--border)';
+        const fmtRow = n => n === 0 ? '' : (n % 1 === 0 ? n.toString() : n.toFixed(1));
         let t = '<table style="margin-top:12px;border-collapse:collapse;font-size:0.85rem;color:var(--text-primary)">';
-        t += `<tr><th style="${thStyle};text-align:left"></th>`;
+        t += `<tr><th style="${thStyle};text-align:left" rowspan="2"></th>`;
+        t += `<th style="${thStyle};text-align:center" colspan="3">Rows</th>`;
+        t += `<th style="${thStyle};text-align:center" colspan="3">Plants</th>`;
+        t += `<th style="${thStyle}" rowspan="2">Next Seed</th>`;
+        t += `<th style="${thStyle}" rowspan="2">Wk</th></tr>`;
+        t += '<tr>';
         TABLE_COLS.forEach(v => {
             t += `<th style="${thStyle};color:${COLORS[v]}">${TABLE_LABELS[v]}</th>`;
         });
-        t += `<th style="${thStyle}">Next Seed</th><th style="${thStyle}">Wk</th></tr>`;
+        TABLE_COLS.forEach(v => {
+            t += `<th style="${thStyle};color:${COLORS[v]}">${TABLE_LABELS[v]}</th>`;
+        });
+        t += '</tr>';
         const totals = { Keiki: 0, Japanese: 0, English: 0 };
+        const rowTotals = { Keiki: 0, Japanese: 0, English: 0 };
         TABLE_ORDER.forEach(name => {
             const gh = DATA[name];
             if (!gh) return;
             const counts = { Keiki: 0, Japanese: 0, English: 0 };
+            const rowCounts = { Keiki: 0, Japanese: 0, English: 0 };
             for (const entries of Object.values(gh.sides)) {
                 for (const e of entries) {
                     if (e.split) {
                         const half = Math.round(e.total_plants / 2);
                         e.split.forEach(sv => {
-                            if (sv === 'Japanese' || sv === 'Japanese (5/bag)') counts.Japanese += half;
-                            else if (counts[sv] !== undefined) counts[sv] += half;
+                            const base = (sv === 'Japanese' || sv === 'Japanese (5/bag)') ? 'Japanese' : sv;
+                            if (counts[base] !== undefined) {
+                                counts[base] += half;
+                                rowCounts[base] += 0.5;
+                            }
                         });
                     } else {
                         const base = e.variety === 'Japanese' || e.color_key === 'Japanese (5/bag)' ? 'Japanese' : e.variety;
-                        if (counts[base] !== undefined) counts[base] += e.total_plants;
+                        if (counts[base] !== undefined) {
+                            counts[base] += e.total_plants;
+                            rowCounts[base] += 1;
+                        }
                     }
                 }
             }
@@ -950,6 +967,10 @@ function showOverview() {
             const rowBg = isThisWeek ? 'background:rgba(78,204,163,0.15);' : '';
             t += `<tr style="${rowBg}"><td style="${thStyle};font-weight:700">${label}</td>`;
             TABLE_COLS.forEach(v => {
+                rowTotals[v] += rowCounts[v];
+                t += `<td style="${thStyle};text-align:right">${fmtRow(rowCounts[v])}</td>`;
+            });
+            TABLE_COLS.forEach(v => {
                 totals[v] += counts[v];
                 t += `<td style="${thStyle};text-align:right">${counts[v] ? counts[v].toLocaleString() : ''}</td>`;
             });
@@ -958,6 +979,9 @@ function showOverview() {
             t += '</tr>';
         });
         t += `<tr style="font-weight:700"><td style="${thStyle}">Total</td>`;
+        TABLE_COLS.forEach(v => {
+            t += `<td style="${thStyle};text-align:right;color:${COLORS[v]}">${fmtRow(rowTotals[v])}</td>`;
+        });
         TABLE_COLS.forEach(v => {
             t += `<td style="${thStyle};text-align:right;color:${COLORS[v]}">${totals[v].toLocaleString()}</td>`;
         });
@@ -1156,7 +1180,7 @@ function hideTooltip() {
 }
 
 // --- Sim ---
-const SIM_ORDER = ['Kona','GH8','GH1',['Hamakua','Kohala'],'GH7','Waimea','GH4','GH2','GH6','Hilo','GH5','GH3'];
+const SIM_ORDER = ['Kona','GH8','GH1',['Hamakua','Kohala'],'GH7','Waimea','GH4','GH2','GH5','Hilo','GH6','GH3'];
 let simTimer = null;
 let simTick = 0;
 let simPaused = false;
