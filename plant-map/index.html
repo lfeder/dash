@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Greenhouse Plant Map</title>
+<script src="../lib/data-source.js"></script>
 <style>
 :root {
     --bg-primary: #1a1a2e;
@@ -332,7 +333,7 @@ body {
     <h1>Plant Map</h1>
 <div class="header-stats" id="headerStats"></div>
     <div class="variety-legend" id="headerLegend"></div>
-    <span style="margin-left:auto;font-size:0.75rem;color:var(--text-primary)">04-15 03:06</span>
+    <span id="versionStamp" style="margin-left:auto;font-size:0.75rem;color:var(--text-primary)">04-18 01:20</span>
     <div style="display:flex;align-items:center;gap:6px">
         <button id="simBtn" onclick="toggleSim()" style="padding:4px 12px;border-radius:4px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:0.8rem;white-space:nowrap">Sim</button>
         <div id="simControls" style="display:none;align-items:center;gap:4px">
@@ -1339,6 +1340,15 @@ function stopSim() {
     showSimControls(false);
 }
 
+// Data source (sheets | dev | prod): plant-map still reads plant layout and
+// bag_changes from the Google Sheet directly regardless of the toggle mode.
+// Reason: Supabase has org_site_gh_row + grow_cuke_gh_row_planting etc. but
+// (a) no plant_map_v view yet to mirror the sheet shape, (b) the write path
+// (APPS_SCRIPT_URL below) still targets the sheet, and (c) there's no
+// nightly sync from sheet -> Supabase for plant-map. Toggle is rendered so
+// the dashboard is visually consistent with the others; flipping modes has
+// no effect on plant-map data until the above is wired up.
+DataSource.attachToggleAfter('versionStamp');
 init();
 </script>
 </body>
