@@ -333,7 +333,7 @@ body {
     <h1>Plant Map</h1>
 <div class="header-stats" id="headerStats"></div>
     <div class="variety-legend" id="headerLegend"></div>
-    <span id="versionStamp" style="margin-left:auto;font-size:0.75rem;color:var(--text-primary)">04-18 09:32</span>
+    <span id="versionStamp" style="margin-left:auto;font-size:0.75rem;color:var(--text-primary)">04-18 09:58</span>
     <div style="display:flex;align-items:center;gap:6px">
         <button id="simBtn" onclick="toggleSim()" style="padding:4px 12px;border-radius:4px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:0.8rem;white-space:nowrap">Sim</button>
         <div id="simControls" style="display:none;align-items:center;gap:4px">
@@ -669,10 +669,14 @@ function buildRawRowsFromTables(rowsTbl, blocksTbl, plantTbl) {
     const planIdx = {};
     plantings.forEach(p => { planIdx[`${p.row_id}|${p.scenario}`] = p; });
     const encode = (p) => {
-        if (!p) return { variety: '', ppb: 0 };
+        if (!p) return { variety: '', ppb: 0, nb: 0 };
         const v1 = VARIETY_NAME_MAP[(p.variety || '').toLowerCase()] || '';
         const v2 = VARIETY_NAME_MAP[(p.variety2 || '').toLowerCase()] || '';
-        return { variety: v2 ? `${v1}/${v2}` : v1, ppb: Number(p.plants_per_bag) || 0 };
+        return {
+            variety: v2 ? `${v1}/${v2}` : v1,
+            ppb: Number(p.plants_per_bag) || 0,
+            nb:  Number(p.num_bags)       || 0,
+        };
     };
     // Iterate blocks so we emit rows in the block's stored display direction
     // (reverse blocks like GH1/GH2/GH4 need row_num DESC to match the sheet).
@@ -701,18 +705,17 @@ function buildRawRowsFromTables(rowsTbl, blocksTbl, plantTbl) {
             }
             const cur = encode(planIdx[`${gr.id}|current`]);
             const plan = encode(planIdx[`${gr.id}|planned`]);
-            const bags = Number(gr.bags) || 0;
             rows.push({
                 greenhouse: ghName,
                 side: sideName,
                 row_num: displayRow,
-                bags: bags,
+                bags: cur.nb,
                 plants_per_bag: cur.ppb,
-                total_plants: bags * cur.ppb,
+                total_plants: cur.nb * cur.ppb,
                 variety: cur.variety,
-                bags2: bags,
+                bags2: plan.nb,
                 plants_per_bag2: plan.ppb,
-                total_plants2: bags * plan.ppb,
+                total_plants2: plan.nb * plan.ppb,
                 variety2: plan.variety,
                 sheetRow: null, // only set in sheets mode
                 rowId: gr.id,   // org_site_gh_row_id — used for Supabase writes
