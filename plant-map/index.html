@@ -333,7 +333,7 @@ body {
     <h1>Plant Map</h1>
 <div class="header-stats" id="headerStats"></div>
     <div class="variety-legend" id="headerLegend"></div>
-    <span id="versionStamp" style="margin-left:auto;font-size:0.75rem;color:var(--text-primary)">04-18 08:51</span>
+    <span id="versionStamp" style="margin-left:auto;font-size:0.75rem;color:var(--text-primary)">04-18 09:03</span>
     <div style="display:flex;align-items:center;gap:6px">
         <button id="simBtn" onclick="toggleSim()" style="padding:4px 12px;border-radius:4px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:0.8rem;white-space:nowrap">Sim</button>
         <div id="simControls" style="display:none;align-items:center;gap:4px">
@@ -552,6 +552,42 @@ function handleBagChanges(response) {
     if (mainDataReady) finishInit();
 }
 
+// Build BAG_CHANGES from grow_cuke_seed_batch.next_bag_change_date.
+// HK has a single site_id so its dates fan out to both Hamakua and Kohala cards.
+function buildBagChangesFromBatches(batchTbl) {
+    const batches = gvizToObjects(batchTbl);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const byGH = {};
+    batches.forEach(b => {
+        const raw = b.next_bag_change_date;
+        if (!raw) return;
+        const m = String(raw).match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (!m) return;
+        const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+        const site = b.site_id;
+        const ghs = site === 'hk' ? ['Hamakua', 'Kohala']
+            : [SITE_GH_MAP[site] || (site || '').toUpperCase()];
+        ghs.forEach(gh => {
+            if (!byGH[gh]) byGH[gh] = new Set();
+            byGH[gh].add(d.getTime());
+        });
+    });
+    const result = {};
+    for (const [gh, set] of Object.entries(byGH)) {
+        const dates = [...set].sort((a, b) => a - b).map(t => new Date(t));
+        let current = null, next = null;
+        for (const d of dates) {
+            if (d < today) current = d;
+            else if (!next) next = d;
+        }
+        const cycles = (current && next)
+            ? Math.round((next - current) / (84 * 24 * 60 * 60 * 1000))
+            : null;
+        result[gh] = { current, next, cycles, allDates: dates };
+    }
+    return result;
+}
+
 function finishInit() {
     renderHeader();
     showOverview();
@@ -686,10 +722,11 @@ function buildRawRowsFromTables(rowsTbl, blocksTbl, plantTbl) {
 }
 
 async function loadFromSupabase() {
-    const [rowsTbl, blocksTbl, plantTbl] = await Promise.all([
+    const [rowsTbl, blocksTbl, plantTbl, batchTbl] = await Promise.all([
         DataSource.fetchTable('gh_rows'),
         DataSource.fetchTable('gh_blocks'),
         DataSource.fetchTable('row_plantings'),
+        DataSource.fetchTable('cuke_seed_batches'),
     ]);
     RAW_ROWS = buildRawRowsFromTables(rowsTbl, blocksTbl, plantTbl);
     if (RAW_ROWS.length === 0) throw new Error('No plant-map rows returned from Supabase.');
@@ -701,8 +738,10 @@ async function loadFromSupabase() {
         for (const entries of Object.values(gh.sides))
             for (const entry of entries)
                 if (entry.bags > MAX_BAGS) MAX_BAGS = entry.bags;
+    BAG_CHANGES = buildBagChangesFromBatches(batchTbl);
     mainDataReady = true;
-    if (bagChangesReady) finishInit();
+    bagChangesReady = true;
+    finishInit();
 }
 
 // --- Init: dispatch by data mode ---
@@ -711,14 +750,13 @@ function init() {
     document.getElementById('content').innerHTML =
         `<div style="text-align:center;padding:80px 20px;color:var(--text-secondary);font-size:1.2rem;">Loading plant map from ${mode === 'sheets' ? 'Google Sheets' : 'Supabase (' + mode + ')'}\u2026</div>`;
 
-    // Bag changes always come from the sheet for now — Supabase's
-    // grow_cuke_seed_batch doesn't distinguish Hamakua vs Kohala (both site_id='hk').
-    const script2 = document.createElement('script');
-    script2.src = BAG_CHANGES_URL;
-    script2.onerror = function() { bagChangesReady = true; if (mainDataReady) finishInit(); };
-    document.head.appendChild(script2);
-
     if (mode === 'sheets') {
+        // In sheets mode, fetch bag_changes tab via JSONP (dev/prod pulls it
+        // from grow_cuke_seed_batch inside loadFromSupabase).
+        const script2 = document.createElement('script');
+        script2.src = BAG_CHANGES_URL;
+        script2.onerror = function() { bagChangesReady = true; if (mainDataReady) finishInit(); };
+        document.head.appendChild(script2);
         const script = document.createElement('script');
         script.src = GVIZ_URL;
         script.onerror = function() {
