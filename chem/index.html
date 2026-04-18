@@ -454,11 +454,10 @@ function renderCharts(variety) {
 }
 
 // --- Init ---
-// Note: chem + seeding still fetch from sheets directly regardless of the
-// DataSource toggle. No Supabase chemistry table exists yet, and
-// grow_lettuce_seed_batch is missing the pond/seed-name/expected-harvest
-// fields this dashboard needs. Toggle is rendered for consistency.
-DataSource.attachToggleAfter('versionStamp');
+// Chem + seeding fetch from sheets directly. No Supabase chemistry table
+// exists yet, and grow_lettuce_seed_batch is missing the pond/seed-name/
+// expected-harvest fields this dashboard needs. The parent portal pins this
+// iframe to ?src=sheets regardless of the global mode.
 (async function init() {
   try {
     const [chem, seeding] = await Promise.all([

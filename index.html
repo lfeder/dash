@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Farm Dashboard</title>
+<script src="lib/data-source.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; }
@@ -23,6 +24,7 @@
   <span class="brand">Dash</span>
   <div class="tabs" id="tabs"></div>
   <span id="version" style="margin-left:auto;font-size:0.7rem;color:#e0e0e0"></span>
+  <span id="modeToggle" style="margin-left:8px"></span>
 </nav>
 <div class="frame-container" id="frames"></div>
 <script>
@@ -40,13 +42,22 @@ const tabs = document.getElementById('tabs');
 const framesEl = document.getElementById('frames');
 const iframes = {};
 
+// Chem has no Supabase tables yet, so pin it to sheets regardless of global mode.
+const FORCE_SHEETS = { chem: true };
+
+function srcWithMode(dash) {
+  const mode = FORCE_SHEETS[dash.id] ? 'sheets' : DataSource.getMode();
+  const sep = dash.src.includes('?') ? '&' : '?';
+  return dash.src + sep + 'src=' + mode;
+}
+
 function navigate(id) {
   const dash = DASHBOARDS.find(d => d.id === id) || DASHBOARDS[0];
   location.hash = dash.id;
   // Lazy-create iframe on first visit
   if (!iframes[dash.id]) {
     const f = document.createElement('iframe');
-    f.src = dash.src;
+    f.src = srcWithMode(dash);
     f.id = 'frame-' + dash.id;
     framesEl.appendChild(f);
     iframes[dash.id] = f;
@@ -67,6 +78,7 @@ DASHBOARDS.forEach(d => {
   tabs.appendChild(el);
 });
 
+DataSource.renderModeToggle('modeToggle');
 navigate(location.hash.slice(1) || DASHBOARDS[0].id);
 window.addEventListener('hashchange', () => navigate(location.hash.slice(1)));
 

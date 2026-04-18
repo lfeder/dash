@@ -333,7 +333,7 @@ body {
     <h1>Plant Map</h1>
 <div class="header-stats" id="headerStats"></div>
     <div class="variety-legend" id="headerLegend"></div>
-    <span id="versionStamp" style="margin-left:auto;font-size:0.75rem;color:var(--text-primary)">04-18 01:20</span>
+    <span id="versionStamp" style="margin-left:auto;font-size:0.75rem;color:var(--text-primary)">04-18 08:46</span>
     <div style="display:flex;align-items:center;gap:6px">
         <button id="simBtn" onclick="toggleSim()" style="padding:4px 12px;border-radius:4px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:0.8rem;white-space:nowrap">Sim</button>
         <div id="simControls" style="display:none;align-items:center;gap:4px">
@@ -611,24 +611,125 @@ function toggleView() {
     rebuild();
 }
 
-// --- Init: inject <script> to load data (bypasses CORS for file:// URLs) ---
-function init() {
-    document.getElementById('content').innerHTML =
-        '<div style="text-align:center;padding:80px 20px;color:var(--text-secondary);font-size:1.2rem;">Loading data from Google Sheets\u2026</div>';
-    const script = document.createElement('script');
-    script.src = GVIZ_URL;
-    script.onerror = function() {
-        document.getElementById('content').innerHTML =
-            '<div style="text-align:center;padding:60px 20px;color:#e57373;font-size:1.1rem;">' +
-            '<p>Failed to load data from Google Sheets.</p>' +
-            '<p style="font-size:0.85rem;margin-top:16px;color:var(--text-secondary);">Make sure the sheet is shared as &ldquo;Anyone with the link&rdquo; can view.</p>' +
-            '</div>';
+// --- Build RAW_ROWS from Supabase source tables (gh_rows + blocks + plantings).
+// Three tables joined client-side into the same shape parseGvizResponse
+// produces, so the rest of the dashboard code is mode-agnostic.
+const SITE_GH_MAP = {'01':'GH1','02':'GH2','03':'GH3','04':'GH4','05':'GH5','06':'GH6','07':'GH7','08':'GH8','ko':'Kona','hi':'Hilo','wa':'Waimea'};
+const VARIETY_NAME_MAP = {'k':'Keiki','j':'Japanese','e':'English'};
+
+function gvizToObjects(t) {
+    if (!t || !t.cols) return [];
+    return t.rows.map(r => {
+        const o = {};
+        t.cols.forEach((col, i) => { o[col.label] = r.c[i] ? r.c[i].v : null; });
+        return o;
+    });
+}
+
+function buildRawRowsFromTables(rowsTbl, blocksTbl, plantTbl) {
+    const ghRows = gvizToObjects(rowsTbl);
+    const blocks = gvizToObjects(blocksTbl);
+    const plantings = gvizToObjects(plantTbl);
+    const findBlock = (site, rn) => blocks.find(b => b.site_id === site && rn >= Number(b.row_num_from) && rn <= Number(b.row_num_to));
+    const planIdx = {};
+    plantings.forEach(p => { planIdx[`${p.row_id}|${p.scenario}`] = p; });
+    const encode = (p) => {
+        if (!p) return { variety: '', ppb: 0 };
+        const v1 = VARIETY_NAME_MAP[(p.variety || '').toLowerCase()] || '';
+        const v2 = VARIETY_NAME_MAP[(p.variety2 || '').toLowerCase()] || '';
+        return { variety: v2 ? `${v1}/${v2}` : v1, ppb: Number(p.plants_per_bag) || 0 };
     };
-    document.head.appendChild(script);
+    const rows = [];
+    ghRows.forEach(gr => {
+        const site = gr.site_id;
+        const rn = Number(gr.row_num);
+        const block = findBlock(site, rn);
+        if (!block) return;
+        let ghName, sideName, displayRow;
+        if (site === 'hk') {
+            ghName = block.name; // 'Hamakua' or 'Kohala'
+            sideName = 'Main';
+            displayRow = block.name === 'Kohala' ? rn - 100 : rn;
+        } else {
+            ghName = SITE_GH_MAP[site] || site.toUpperCase();
+            sideName = block.name;
+            displayRow = rn;
+        }
+        const cur = encode(planIdx[`${gr.id}|current`]);
+        const plan = encode(planIdx[`${gr.id}|planned`]);
+        const bags = Number(gr.bags) || 0;
+        rows.push({
+            greenhouse: ghName,
+            side: sideName,
+            row_num: displayRow,
+            bags: bags,
+            plants_per_bag: cur.ppb,
+            total_plants: bags * cur.ppb,
+            variety: cur.variety,
+            bags2: bags,
+            plants_per_bag2: plan.ppb,
+            total_plants2: bags * plan.ppb,
+            variety2: plan.variety,
+            sheetRow: null, // only set in sheets mode
+        });
+    });
+    return rows;
+}
+
+async function loadFromSupabase() {
+    const [rowsTbl, blocksTbl, plantTbl] = await Promise.all([
+        DataSource.fetchTable('gh_rows'),
+        DataSource.fetchTable('gh_blocks'),
+        DataSource.fetchTable('row_plantings'),
+    ]);
+    RAW_ROWS = buildRawRowsFromTables(rowsTbl, blocksTbl, plantTbl);
+    if (RAW_ROWS.length === 0) throw new Error('No plant-map rows returned from Supabase.');
+    DATA = buildData(RAW_ROWS);
+    SUMMARY = computeSummary(DATA);
+    GH_NAMES = Object.keys(DATA);
+    MAX_BAGS = 0;
+    for (const gh of Object.values(DATA))
+        for (const entries of Object.values(gh.sides))
+            for (const entry of entries)
+                if (entry.bags > MAX_BAGS) MAX_BAGS = entry.bags;
+    mainDataReady = true;
+    if (bagChangesReady) finishInit();
+}
+
+// --- Init: dispatch by data mode ---
+function init() {
+    const mode = DataSource.getMode();
+    document.getElementById('content').innerHTML =
+        `<div style="text-align:center;padding:80px 20px;color:var(--text-secondary);font-size:1.2rem;">Loading plant map from ${mode === 'sheets' ? 'Google Sheets' : 'Supabase (' + mode + ')'}\u2026</div>`;
+
+    // Bag changes always come from the sheet for now — Supabase's
+    // grow_cuke_seed_batch doesn't distinguish Hamakua vs Kohala (both site_id='hk').
     const script2 = document.createElement('script');
     script2.src = BAG_CHANGES_URL;
     script2.onerror = function() { bagChangesReady = true; if (mainDataReady) finishInit(); };
     document.head.appendChild(script2);
+
+    if (mode === 'sheets') {
+        const script = document.createElement('script');
+        script.src = GVIZ_URL;
+        script.onerror = function() {
+            document.getElementById('content').innerHTML =
+                '<div style="text-align:center;padding:60px 20px;color:#e57373;font-size:1.1rem;">' +
+                '<p>Failed to load data from Google Sheets.</p>' +
+                '<p style="font-size:0.85rem;margin-top:16px;color:var(--text-secondary);">Make sure the sheet is shared as &ldquo;Anyone with the link&rdquo; can view.</p>' +
+                '</div>';
+        };
+        document.head.appendChild(script);
+    } else {
+        loadFromSupabase().catch(err => {
+            console.error('Supabase plant-map load error:', err);
+            document.getElementById('content').innerHTML =
+                '<div style="text-align:center;padding:60px 20px;color:#e57373;font-size:1.1rem;">' +
+                '<p>Failed to load plant map from Supabase.</p>' +
+                '<p style="font-size:0.85rem;margin-top:16px;color:var(--text-secondary);">' + (err.message || err) + '</p>' +
+                '</div>';
+        });
+    }
 }
 
 // --- Rendering ---
@@ -1125,6 +1226,10 @@ function clearEdits() {
 
 function saveToSheet(saves) {
     if (!APPS_SCRIPT_URL || !saves.length) return;
+    if (DataSource.getMode() !== 'sheets') {
+        showSaveStatus('Edits not saved — Supabase mode');
+        return;
+    }
     // Use a form POST via hidden iframe to avoid CORS entirely
     const form = document.createElement('form');
     form.method = 'POST';
@@ -1340,15 +1445,9 @@ function stopSim() {
     showSimControls(false);
 }
 
-// Data source (sheets | dev | prod): plant-map still reads plant layout and
-// bag_changes from the Google Sheet directly regardless of the toggle mode.
-// Reason: Supabase has org_site_gh_row + grow_cuke_gh_row_planting etc. but
-// (a) no plant_map_v view yet to mirror the sheet shape, (b) the write path
-// (APPS_SCRIPT_URL below) still targets the sheet, and (c) there's no
-// nightly sync from sheet -> Supabase for plant-map. Toggle is rendered so
-// the dashboard is visually consistent with the others; flipping modes has
-// no effect on plant-map data until the above is wired up.
-DataSource.attachToggleAfter('versionStamp');
+// Mode toggle lives on the parent portal (dash/index.html) — this page
+// reads ?src=... from the iframe URL. Writes (Apps Script) still target
+// the sheet regardless of mode; saveToSheet() skips the write in non-sheets mode.
 init();
 </script>
 </body>

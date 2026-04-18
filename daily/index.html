@@ -439,8 +439,6 @@ async function loadData() {
   setDay('today');
 }
 
-DataSource.attachToggleAfter('versionStamp');
-
 loadData().catch(err => console.error('Load error:', err));
 </script>
 </body>

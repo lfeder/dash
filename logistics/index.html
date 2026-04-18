@@ -1208,8 +1208,6 @@ async function loadData() {
 }
 
 
-DataSource.attachToggleAfter('versionStamp');
-
 loadData().catch(err => {
   const mode = DataSource.getMode();
   document.getElementById('loading').textContent =
