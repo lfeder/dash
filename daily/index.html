@@ -293,9 +293,15 @@ function renderCukeTable() {
   const ghData = {};
   dayRows.forEach(r => {
     const gh = r.Greenhouse;
-    if (!ghData[gh]) ghData[gh] = { K1:0, K2:0, J1:0, J2:0, E1:0, E2:0 };
+    if (!ghData[gh]) ghData[gh] = { K1:0, K2:0, J1:0, J2:0, E1:0, E2:0, days:null };
     const key = r.Variety + r.Grade;
     if (ghData[gh][key] !== undefined) ghData[gh][key] += r.GreenhouseNetWeight;
+    // Age of the cycle = days since seeding, expected to be the same across
+    // all varieties in a single GH cycle. Take min if different.
+    const d = r.DaysSinceSeed;
+    if (typeof d === 'number' && !isNaN(d)) {
+      if (ghData[gh].days === null || d < ghData[gh].days) ghData[gh].days = d;
+    }
   });
 
   const tbody = document.getElementById('cuke-tbody');
@@ -305,7 +311,7 @@ function renderCukeTable() {
 
   ghNames.forEach(gh => {
     const d = ghData[gh];
-    const day = d.K1 + d.K2 + d.J1 + d.J2 + d.E1 + d.E2;
+    const total = d.K1 + d.K2 + d.J1 + d.J2 + d.E1 + d.E2;
     const g1 = d.K1 + d.J1 + d.E1;
     const g2 = d.K2 + d.J2 + d.E2;
     const og = (g1 + g2) ? (g2 / (g1 + g2) * 100) : 0;
@@ -314,14 +320,14 @@ function renderCukeTable() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td style="color:#4a8c5c;font-weight:600;">${gh}</td>
-      <td class="num">${Math.round(day).toLocaleString()}</td>
+      <td class="num">${d.days !== null ? d.days : ''}</td>
       <td class="num">${d.K1 ? Math.round(d.K1).toLocaleString() : ''}</td>
       <td class="num">${d.J1 ? Math.round(d.J1).toLocaleString() : ''}</td>
       <td class="num">${d.E1 ? Math.round(d.E1).toLocaleString() : ''}</td>
       <td class="num">${d.K2 ? Math.round(d.K2).toLocaleString() : ''}</td>
       <td class="num">${d.J2 ? Math.round(d.J2).toLocaleString() : ''}</td>
       <td class="num">${d.E2 ? Math.round(d.E2).toLocaleString() : ''}</td>
-      <td class="num">${Math.round(day).toLocaleString()}</td>
+      <td class="num">${Math.round(total).toLocaleString()}</td>
       <td class="num">${og.toFixed(1)}%</td>
     `;
     tbody.appendChild(tr);
@@ -336,7 +342,7 @@ function renderCukeTable() {
   tr.className = 'total-row';
   tr.innerHTML = `
     <td style="font-weight:600;">Total</td>
-    <td class="num">${Math.round(totDay).toLocaleString()}</td>
+    <td class="num"></td>
     <td class="num">${Math.round(tots.K1).toLocaleString()}</td>
     <td class="num">${Math.round(tots.J1).toLocaleString()}</td>
     <td class="num">${Math.round(tots.E1).toLocaleString()}</td>
