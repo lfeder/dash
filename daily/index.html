@@ -67,10 +67,10 @@
 
 <script>
 // ── Data ──
-// Invoices flow through DataSource (sheets | dev | prod toggle; see
-// ../lib/data-source.js). Grow sheets still fetched directly — they'll
-// migrate to DataSource once the grow logical tables are added to the
-// config.
+// Invoices + cuke harvest flow through DataSource (sheets | dev | prod
+// toggle; see ../lib/data-source.js). Lettuce seeding still fetched
+// directly because the sheet carries BoardsPerPond/PoundsPerBoard fields
+// that aren't tracked in grow_lettuce_seed_batch yet.
 const GROW_SHEET = '1VtEecYn-W1pbnIU1hRHfxIpkH2DtK7hj0CpcpiLoziM';
 
 let invoiceRows = [];
@@ -439,7 +439,7 @@ async function loadData() {
     r.Cases = Math.round(r.Cases || 0);
   });
 
-  const cukeTable = await fetchSheetByName(GROW_SHEET, 'grow_C_harvest', "SELECT A,G,H,I,L");
+  const cukeTable = await DataSource.fetchTable('cuke_harvest');
   cukeGrowRows = parseGvizTable(cukeTable).filter(r => r._y === 2026);
   cukeGrowRows.forEach(r => {
     r.Greenhouse = r.Greenhouse || '';
