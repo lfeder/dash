@@ -306,7 +306,14 @@ function renderCukeTable() {
 
   const tbody = document.getElementById('cuke-tbody');
   tbody.innerHTML = '';
-  const ghNames = Object.keys(ghData).sort();
+  // Sort GHs by days-since-seed (ascending). Null days go to the end.
+  const ghNames = Object.keys(ghData).sort((a, b) => {
+    const da = ghData[a].days, db = ghData[b].days;
+    if (da === null && db === null) return a.localeCompare(b);
+    if (da === null) return 1;
+    if (db === null) return -1;
+    return da - db;
+  });
   const tots = { K1:0, K2:0, J1:0, J2:0, E1:0, E2:0 };
 
   ghNames.forEach(gh => {
