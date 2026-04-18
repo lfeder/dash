@@ -333,7 +333,7 @@ body {
     <h1>Plant Map</h1>
 <div class="header-stats" id="headerStats"></div>
     <div class="variety-legend" id="headerLegend"></div>
-    <span id="versionStamp" style="margin-left:auto;font-size:0.75rem;color:var(--text-primary)">04-18 09:03</span>
+    <span id="versionStamp" style="margin-left:auto;font-size:0.75rem;color:var(--text-primary)">04-18 09:14</span>
     <div style="display:flex;align-items:center;gap:6px">
         <button id="simBtn" onclick="toggleSim()" style="padding:4px 12px;border-radius:4px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:0.8rem;white-space:nowrap">Sim</button>
         <div id="simControls" style="display:none;align-items:center;gap:4px">
@@ -715,6 +715,7 @@ function buildRawRowsFromTables(rowsTbl, blocksTbl, plantTbl) {
                 total_plants2: bags * plan.ppb,
                 variety2: plan.variety,
                 sheetRow: null, // only set in sheets mode
+                rowId: gr.id,   // org_site_gh_row_id — used for Supabase writes
             });
         });
     });
@@ -1240,16 +1241,27 @@ function renderPopup() {
     });
 }
 
+const VARIETY_CODE = { 'Keiki': 'k', 'Japanese': 'j', 'English': 'e' };
+
 function applyVariety(i) {
     const opt = EDIT_OPTIONS[i];
     const saves = [];
     for (const idx of SELECTED) {
         EDITS[idx] = { variety: opt.variety, ppb: opt.ppb };
-        if (RAW_ROWS[idx]) saves.push({ row: RAW_ROWS[idx].sheetRow, value: opt.variety, ppb: opt.ppb });
+        const raw = RAW_ROWS[idx];
+        if (!raw) continue;
+        saves.push({
+            sheetRow: raw.sheetRow,
+            sheetValue: opt.variety,
+            rowId: raw.rowId,
+            variety: VARIETY_CODE[opt.variety],
+            variety2: null,
+            ppb: opt.ppb,
+        });
     }
     SELECTED.clear();
     rebuild();
-    saveToSheet(saves);
+    saveEdits(saves);
 }
 
 function applySplit(i) {
@@ -1258,11 +1270,20 @@ function applySplit(i) {
     const saves = [];
     for (const idx of SELECTED) {
         EDITS[idx] = { split: [a, b], colors: opt.colors };
-        if (RAW_ROWS[idx]) saves.push({ row: RAW_ROWS[idx].sheetRow, value: `${a}/${b}` });
+        const raw = RAW_ROWS[idx];
+        if (!raw) continue;
+        saves.push({
+            sheetRow: raw.sheetRow,
+            sheetValue: `${a}/${b}`,
+            rowId: raw.rowId,
+            variety: VARIETY_CODE[a],
+            variety2: VARIETY_CODE[b],
+            ppb: a === 'Japanese' || b === 'Japanese' ? 5 : 4,
+        });
     }
     SELECTED.clear();
     rebuild();
-    saveToSheet(saves);
+    saveEdits(saves);
 }
 
 function clearEdits() {
@@ -1271,13 +1292,37 @@ function clearEdits() {
     rebuild();
 }
 
-function saveToSheet(saves) {
-    if (!APPS_SCRIPT_URL || !saves.length) return;
-    if (DataSource.getMode() !== 'sheets') {
-        showSaveStatus('Edits not saved — Supabase mode');
-        return;
+function saveEdits(saves) {
+    if (!saves.length) return;
+    const mode = DataSource.getMode();
+    if (mode === 'sheets') saveToSheet(saves);
+    else saveToSupabase(saves).catch(err => {
+        console.error('Supabase save error:', err);
+        showSaveStatus('Save failed');
+    });
+}
+
+async function saveToSupabase(saves) {
+    const client = await DataSource.getClient();
+    for (const s of saves) {
+        if (!s.rowId) continue;
+        const { error } = await client.from('grow_cuke_gh_row_planting')
+            .update({
+                grow_variety_id:   s.variety,
+                grow_variety_id_2: s.variety2,
+                plants_per_bag:    s.ppb,
+            })
+            .eq('org_site_gh_row_id', s.rowId)
+            .eq('scenario', 'current');
+        if (error) throw error;
     }
+    showSaveStatus('Saved');
+}
+
+function saveToSheet(saves) {
+    if (!APPS_SCRIPT_URL) return;
     // Use a form POST via hidden iframe to avoid CORS entirely
+    const payload = saves.map(s => ({ row: s.sheetRow, value: s.sheetValue, ppb: s.ppb }));
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = APPS_SCRIPT_URL;
@@ -1285,7 +1330,7 @@ function saveToSheet(saves) {
     const input = document.createElement('input');
     input.type = 'hidden';
     input.name = 'payload';
-    input.value = JSON.stringify({ edits: saves });
+    input.value = JSON.stringify({ edits: payload });
     form.appendChild(input);
     let iframe = document.getElementById('saveFrame');
     if (!iframe) {
