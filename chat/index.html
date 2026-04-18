@@ -4,15 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Farm AI Chat</title>
-<!-- v: 03-17 17:45 -->
+<script src="../lib/data-source.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; }
 #header { background: #16213e; padding: 8px 20px; border-bottom: 1px solid #0f3460; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
 #header h1 { font-size: 1.1rem; color: #4ecca3; }
-#header .stats { font-size: 0.7rem; color: #888; display: flex; gap: 16px; }
+#header .stats { font-size: 0.7rem; color: #888; display: flex; gap: 16px; align-items: center; }
+#header .stats #versionStamp { font-size: 0.75rem; color: #e0e0e0; }
 
-/* Chat area */
 #chat-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 #messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
 .msg { max-width: 85%; padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; line-height: 1.5; }
@@ -30,7 +30,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .result-table td { padding: 3px 8px; border-bottom: 1px solid #0f3460; }
 .result-table th.num, .result-table td.num { text-align: right; }
 
-/* Input */
 #input-area { padding: 10px 16px; border-top: 1px solid #0f3460; display: flex; gap: 8px; flex-shrink: 0; }
 #question { flex: 1; background: #16213e; border: 1px solid #0f3460; color: #e0e0e0; padding: 10px 14px; border-radius: 6px; font-size: 0.85rem; font-family: inherit; outline: none; }
 #question:focus { border-color: #4ecca3; }
@@ -39,7 +38,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .btn-primary:hover { background: #3dbb94; }
 .btn-primary:disabled { opacity: 0.4; cursor: default; }
 
-/* Examples */
 .examples { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 8px; }
 .example-btn { padding: 4px 10px; font-size: 0.7rem; background: #0f3460; color: #aaa; border: 1px solid transparent; border-radius: 12px; cursor: pointer; transition: all 0.15s; }
 .example-btn:hover { color: #e0e0e0; border-color: #4ecca3; }
@@ -51,153 +49,83 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   <h1>Farm AI</h1>
   <div class="stats">
     <span id="stat-tables"></span>
-    <span id="stat-rows"></span>
     <span id="stat-cost"></span>
+    <span id="versionStamp">04-18 09:25</span>
   </div>
 </div>
 
 <div id="chat-wrap">
-  <div id="loading-status">Loading data from Google Sheets...<div class="sub" id="loading-tab"></div></div>
+  <div id="loading-status">Loading schema from Supabase…</div>
   <div id="messages" style="display:none"></div>
   <div class="examples" id="examples">
-    <button class="example-btn" onclick="askExample(this)">What tables are loaded?</button>
-    <button class="example-btn" onclick="askExample(this)">How many rows per table?</button>
-    <button class="example-btn" onclick="askExample(this)">List all columns in each table</button>
+    <button class="example-btn" onclick="askExample(this)">What tables are available?</button>
+    <button class="example-btn" onclick="askExample(this)">Total cases invoiced last week</button>
+    <button class="example-btn" onclick="askExample(this)">Top 10 customers by 2026 sales</button>
+    <button class="example-btn" onclick="askExample(this)">Cuke harvest pounds per greenhouse this month</button>
   </div>
   <div id="input-area">
-    <input type="text" id="question" placeholder="Ask a question about your farm data..." />
+    <input type="text" id="question" placeholder="Ask a question about your farm data…" />
     <button class="btn-primary" id="ask-btn" onclick="ask()">Ask</button>
   </div>
 </div>
 
 <script>
-// ── Config ──────────────────────────────────────────────
-const SHEETS = {
-  grow:  { id: '1VtEecYn-W1pbnIU1hRHfxIpkH2DtK7hj0CpcpiLoziM', tabs: ['grow_C_seeding', 'grow_C_harvest', 'grow_L_seeding', 'grow_spray_sched'] },
-  fsafe: { id: '1MbHJoJmq0w8hWz8rl9VXezmK-63MFmuK19lz3pu0dfc', tabs: ['fsafe_log_list', 'fsafe_log_corrective_action', 'fsafe_corrective_actions', 'fsafe_test_name', 'fsafe_site_name', 'fsafe_log_emp', 'fsafe_log_water', 'fsafe_log_test_n_hold', 'fsafe_log_test_n_hold_APC', 'fsafe_log_training', 'fsafe_log_training_employees', 'fsafe_log_C_gh_pre', 'fsafe_log_C_gh_post', 'fsafe_log_C_ph_pre', 'fsafe_log_C_ph_post', 'fsafe_log_L_gh_pre', 'fsafe_log_L_gh_post', 'fsafe_log_L_ph_pre', 'fsafe_log_L_ph_post', 'fsafe_log_pest', 'fsafe_log_pest_stations', 'fsafe_log_glass', 'fsafe_log_calibration', 'fsafe_log_visitors'] },
-  // maint: { id: '1e7AuQAOpKAHpmvizIgBNyUk42GscXNpz96hFX8C8uio', tabs: ['maint_req', 'maint_house_inspections', 'maint_houses', 'maint_sites'] }
-};
-
+// ── Anthropic API key (obfuscated) ──────────────────────
 const _k = ['c2stYW50LWFwaTAzLWFIYjAteVhXQ','21HMU9kNTVGTmZ6MnltNGFyS1hmTX','ZvMG9hY1otdThvbnFsM0VxVWJvLU8','2YzdRM0NOWEdoSEx4YXFBeW4ycUhP','SjU3d0xyZGdZNFlnLUx6UWJGUUFB'];
 const API_KEY = atob(_k.join(''));
 
 // ── State ───────────────────────────────────────────────
-const data = {};
+let SCHEMA = null;          // jsonb array of { table, kind, columns: [{name,type}] }
 let totalCost = 0;
 let queryCount = 0;
-let dataReady = false;
+let schemaReady = false;
 let pendingQuestion = null;
 
-// ── gviz data loading ───────────────────────────────────
-function parseGvizTable(table) {
-  const cols = table.cols.map(c => c.label || c.id);
-  return table.rows.map(r => {
-    const obj = {};
-    r.c.forEach((cell, i) => {
-      if (!cell) { obj[cols[i]] = ''; return; }
-      // Use formatted value for dates (gviz dates are strings like "Date(2024,1,25)" which JS can't parse)
-      if (typeof cell.v === 'string' && cell.v.startsWith('Date(') && cell.f) {
-        obj[cols[i]] = cell.f;
-      } else {
-        obj[cols[i]] = cell.v != null ? cell.v : '';
-      }
-    });
-    return obj;
-  });
-}
-
-function fetchTab(sheetId, sheetName) {
-  return new Promise((resolve, reject) => {
-    const cbName = '_cb_' + Math.random().toString(36).slice(2, 10);
-    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json;responseHandler:${cbName}&sheet=${encodeURIComponent(sheetName)}`;
-    window[cbName] = function(resp) {
-      delete window[cbName];
-      if (script.parentNode) script.parentNode.removeChild(script);
-      if (resp.status === 'error') { reject(sheetName + ': ' + JSON.stringify(resp.errors)); return; }
-      resolve(parseGvizTable(resp.table));
-    };
-    const script = document.createElement('script');
-    script.src = url;
-    script.onerror = () => { delete window[cbName]; script.remove(); reject('Network error: ' + sheetName); };
-    document.head.appendChild(script);
-  });
-}
-
-async function loadAllData() {
-  const statusEl = document.getElementById('question');
-  let loaded = 0;
-  let failed = 0;
-  const errors = [];
-
-  // Build flat tab list
-  const tabList = [];
-  for (const [key, info] of Object.entries(SHEETS)) {
-    for (const tab of info.tabs) {
-      tabList.push({ sheetId: info.id, tabName: tab });
-    }
-  }
-
-  const loadingTab = document.getElementById('loading-tab');
-  for (const tab of tabList) {
-    loadingTab.textContent = `${tab.tabName} (${loaded + failed + 1}/${tabList.length})`;
-    try {
-      const rows = await fetchTab(tab.sheetId, tab.tabName);
-      if (rows.length > 0) {
-        data[tab.tabName] = rows;
-      }
-      loaded++;
-    } catch (e) {
-      failed++;
-      errors.push(String(e));
-      console.warn('Failed:', e);
-    }
-  }
-
-  document.getElementById('loading-status').style.display = 'none';
-  document.getElementById('messages').style.display = 'flex';
-
-  if (Object.keys(data).length > 0) {
-    dataReady = true;
-    addMessage('status', `Loaded ${Object.keys(data).length} tables, ${Object.values(data).reduce((s,r) => s + r.length, 0).toLocaleString()} rows` + (failed ? ` (${failed} failed)` : ''));
+// ── Schema load (single Supabase RPC call) ──────────────
+async function loadSchema() {
+  try {
+    const client = await DataSource.getClient();
+    const { data, error } = await client.rpc('chat_schema');
+    if (error) throw error;
+    SCHEMA = data || [];
+    schemaReady = true;
+    document.getElementById('loading-status').style.display = 'none';
+    document.getElementById('messages').style.display = 'flex';
+    addMessage('status', `Loaded ${SCHEMA.length} tables (${DataSource.getMode()})`);
+    updateStats();
     if (pendingQuestion) { const q = pendingQuestion; pendingQuestion = null; document.getElementById('question').value = q; ask(); }
-  } else {
-    addMessage('error', 'Failed to load any data. Errors: ' + errors.join('; '));
+  } catch (err) {
+    document.getElementById('loading-status').textContent = 'Failed to load schema: ' + (err.message || err);
+    console.error(err);
   }
-
-  updateStats();
 }
 
-// ── Schema ──────────────────────────────────────────────
-function getSchema() {
-  let schema = '';
-  for (const [name, rows] of Object.entries(data)) {
-    const cols = Object.keys(rows[0] || {});
-    schema += `\nTable: ${name} (${rows.length} rows)\nColumns:\n`;
-    for (const col of cols) {
-      const samples = rows.slice(0, 2).map(r => r[col]).filter(v => v !== '');
-      schema += `  - ${col}: ${JSON.stringify(samples)}\n`;
-    }
+function formatSchemaForPrompt() {
+  let out = '';
+  for (const t of SCHEMA) {
+    out += `\n${t.kind === 'view' ? 'VIEW' : 'TABLE'} ${t.table}:\n`;
+    for (const c of t.columns) out += `  ${c.name} ${c.type}\n`;
   }
-  return schema;
+  return out;
 }
 
 // ── Claude API ──────────────────────────────────────────
 async function callClaude(question) {
-  const schema = getSchema();
-  const prompt = `You have these JavaScript data arrays in an object called \`data\`:
+  const schema = formatSchemaForPrompt();
+  const prompt = `You are a read-only analytics assistant for a farm's Postgres database (Supabase). Write a single SELECT / WITH query that answers the user's question.
+
+Schema (public schema only):
 ${schema}
-Access data like: data['grow_C_seeding'], data['maint_req'], etc.
-Each entry is an array of objects (rows).
-Date fields are strings in "M/d/yyyy" format (e.g. "2/25/2024"). Parse with new Date(dateString).
 
-Question: ${question}
+Rules:
+- Output ONLY the SQL query, nothing else. No markdown, no commentary, no trailing semicolon required.
+- SELECT / WITH only. No INSERT/UPDATE/DELETE/DDL (they will be rejected).
+- Do not reference hr_* / app_hr_* tables. They are restricted.
+- Prefer views (grow_cuke_harvest_v, grow_lettuce_harvest_v, sales_invoice_v, fin_expense_v) when they exist.
+- Limit results to at most 500 rows unless asked for more.
+- Use PostgreSQL syntax. Date columns are real DATE/TIMESTAMP types.
 
-Write ONLY executable JavaScript code. Store the answer in \`result\`.
-- result can be: a string, a number, an array of objects (for tables), or an object
-- For array-of-objects results, include only relevant columns
-- Use standard JS array methods (filter, map, reduce, sort, etc.)
-- NO console.log, NO comments, NO explanations, NO markdown, NO text before or after the code
-- Output MUST be a single valid JavaScript code block and nothing else`;
+Question: ${question}`;
 
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -209,7 +137,7 @@ Write ONLY executable JavaScript code. Store the answer in \`result\`.
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
+      max_tokens: 2048,
       messages: [{ role: 'user', content: prompt }]
     })
   });
@@ -224,37 +152,29 @@ Write ONLY executable JavaScript code. Store the answer in \`result\`.
   const outputTokens = json.usage.output_tokens;
   const cost = (inputTokens * 3 / 1e6) + (outputTokens * 15 / 1e6);
 
-  let code = json.content[0].text;
-  code = code.replace(/```javascript\n?/g, '').replace(/```js\n?/g, '').replace(/```\n?/g, '');
-  // Strip any non-code text before first valid JS and after last semicolon/brace
-  const lines = code.split('\n');
-  const codeLines = lines.filter(l => !l.match(/^(Wait|Let me|Actually|Looking|Here|Note|The |I |This )/));
-  code = codeLines.join('\n');
-
-  return { code: code.trim(), inputTokens, outputTokens, cost };
+  let sql = json.content[0].text.trim();
+  sql = sql.replace(/^```(?:sql|postgres|postgresql)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+  sql = sql.replace(/;\s*$/, '');
+  return { sql, inputTokens, outputTokens, cost };
 }
 
-// ── Execute + display ───────────────────────────────────
-function executeCode(code) {
-  const fn = new Function('data', code + '\nreturn result;');
-  return fn(data);
+// ── Execute via Supabase RPC ────────────────────────────
+async function executeSql(sql) {
+  const client = await DataSource.getClient();
+  const { data, error } = await client.rpc('chat_query', { q: sql });
+  if (error) throw new Error(error.message || JSON.stringify(error));
+  return data || [];
 }
 
+// ── Result rendering ────────────────────────────────────
 function formatResult(result) {
   if (result == null) return '<em>No result</em>';
-  if (typeof result === 'string' || typeof result === 'number') return String(result);
-  if (Array.isArray(result) && result.length > 0 && typeof result[0] === 'object') {
-    return renderTable(result);
-  }
-  if (Array.isArray(result)) return result.join(', ');
-  if (typeof result === 'object') {
-    return renderTable(Object.entries(result).map(([k, v]) => ({ Key: k, Value: v })));
-  }
+  if (Array.isArray(result) && result.length === 0) return '<em>No rows</em>';
+  if (Array.isArray(result) && typeof result[0] === 'object') return renderTable(result);
   return String(result);
 }
 
 function renderTable(rows) {
-  if (rows.length === 0) return '<em>Empty result</em>';
   const cols = Object.keys(rows[0]);
   const isNum = col => rows.some(r => typeof r[col] === 'number');
   let html = '<table class="result-table"><thead><tr>';
@@ -264,7 +184,9 @@ function renderTable(rows) {
     html += '<tr>';
     for (const c of cols) {
       const v = row[c];
-      const display = typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(1)) : (v ?? '');
+      const display = typeof v === 'number'
+        ? (Number.isInteger(v) ? v.toLocaleString() : v.toFixed(2))
+        : (v == null ? '' : v);
       html += `<td${isNum(c) ? ' class="num"' : ''}>${display}</td>`;
     }
     html += '</tr>';
@@ -295,9 +217,14 @@ async function ask() {
   const input = document.getElementById('question');
   const question = input.value.trim();
   if (!question) return;
-  if (!dataReady) { pendingQuestion = question; input.value = ''; addMessage('user', question); addMessage('status', 'Waiting for data to load…'); return; }
+  if (!schemaReady) {
+    pendingQuestion = question;
+    input.value = '';
+    addMessage('user', question);
+    addMessage('status', 'Waiting for schema to load…');
+    return;
+  }
 
-  // Save to prompt history
   const history = JSON.parse(localStorage.getItem('farm_chat_history') || '[]');
   if (history[history.length - 1] !== question) history.push(question);
   if (history.length > 100) history.shift();
@@ -310,24 +237,24 @@ async function ask() {
 
   const thinking = document.createElement('div');
   thinking.className = 'msg msg-ai';
-  thinking.textContent = 'Thinking...';
+  thinking.textContent = 'Thinking…';
   thinking.style.color = '#888';
   document.getElementById('messages').appendChild(thinking);
 
   try {
-    const { code, inputTokens, outputTokens, cost } = await callClaude(question);
+    const { sql, inputTokens, outputTokens, cost } = await callClaude(question);
     totalCost += cost;
     queryCount++;
 
     let resultHtml;
     try {
-      const result = executeCode(code);
-      resultHtml = formatResult(result);
+      const rows = await executeSql(sql);
+      resultHtml = formatResult(rows);
     } catch (execErr) {
-      resultHtml = `<span style="color:#e74c3c">Code error: ${execErr.message}</span>`;
+      resultHtml = `<span style="color:#e74c3c">Query error: ${execErr.message}</span>`;
     }
 
-    const codeBlock = `<details class="msg-code"><summary>code</summary>${code.replace(/</g, '&lt;')}</details>`;
+    const codeBlock = `<details class="msg-code"><summary>sql</summary>${sql.replace(/</g, '&lt;')}</details>`;
     const costLine = `<div class="msg-cost">${inputTokens.toLocaleString()} in / ${outputTokens.toLocaleString()} out · $${cost.toFixed(4)}</div>`;
 
     thinking.remove();
@@ -341,10 +268,7 @@ async function ask() {
 }
 
 function updateStats() {
-  const tables = Object.keys(data).length;
-  const rows = Object.values(data).reduce((s, r) => s + r.length, 0);
-  document.getElementById('stat-tables').textContent = tables ? `${tables} tables` : '';
-  document.getElementById('stat-rows').textContent = rows ? `${rows.toLocaleString()} rows` : '';
+  document.getElementById('stat-tables').textContent = SCHEMA ? `${SCHEMA.length} tables` : '';
   document.getElementById('stat-cost').textContent = queryCount ? `$${totalCost.toFixed(4)}` : '';
 }
 
@@ -399,9 +323,8 @@ function restoreChatHistory() {
   return true;
 }
 
-// ── Auto-load on page open ──────────────────────────────
 restoreChatHistory();
-loadAllData();
+loadSchema();
 </script>
 </body>
 </html>
