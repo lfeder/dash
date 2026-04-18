@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sales Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="../lib/data-source.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; }
@@ -67,11 +68,11 @@
     </div>
     <button id="toggleAll" onclick="toggleAllLines()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer;">Clear All</button>
     <div class="info" id="status">Loading data...</div>
-    <span style="font-size:0.7rem;color:#888;">04-07 01:05</span>
+    <span id="versionStamp" style="font-size:0.7rem;color:#ccc;">04-18 00:30</span>
   </div>
 </div>
 
-<div id="loading">Loading invoice data from Google Sheets...</div>
+<div id="loading">Loading invoice data...</div>
 
 <div id="main" style="display:none;">
   <div id="left">
@@ -103,11 +104,8 @@
 </div>
 
 <script>
-const SHEET_ID = '124y8JdWXmbf_hb1vfimHmGaKLVXrRHybw02w_ozCExE';
-const TABS = [
-  { name: 'invoices_23-25', gid: '1254110782' },
-  { name: 'invoices_2025',  gid: '544460225'  }
-];
+// Data source (sheets | dev | prod) comes from DataSource module
+// (see ../lib/data-source.js + ../lib/README.md).
 
 // Current ISO week for YTD cutoff
 function currentISOWeek() {
@@ -236,27 +234,9 @@ function parseGvizTable(table) {
   }).filter(r => r.CustomerGroup && r.ProductCode !== 'Sales');
 }
 
-// Fetch a tab via JSONP (works from file:// and avoids CORS)
-function fetchTab(gid) {
-  return new Promise((resolve, reject) => {
-    const cbName = '_cb' + gid;
-    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:${cbName}&gid=${gid}`;
-    window[cbName] = function(resp) {
-      delete window[cbName];
-      if (script.parentNode) script.parentNode.removeChild(script);
-      if (resp.status === 'error') { reject(resp.errors); return; }
-      resolve(parseGvizTable(resp.table));
-    };
-    const script = document.createElement('script');
-    script.src = url;
-    script.onerror = () => { delete window[cbName]; reject('Network error loading gid=' + gid); };
-    document.head.appendChild(script);
-  });
-}
-
 async function loadData() {
-  const results = await Promise.all(TABS.map(t => fetchTab(t.gid)));
-  allRows = results.flat();
+  const table = await DataSource.fetchTable('invoices');
+  allRows = parseGvizTable(table);
   // Create virtual group by duplicating rows (originals stay untouched)
   const virtualRows = [];
   allRows.forEach(r => {
@@ -762,8 +742,15 @@ function renderChart(type, rows, label, useByCust) {
   else lettuceChart = chart;
 }
 
+DataSource.attachToggleAfter('versionStamp');
+
 loadData().catch(err => {
-  document.getElementById('loading').textContent = 'Error loading data. Make sure the sheet is shared (anyone with link can view).';
+  const mode = DataSource.getMode();
+  document.getElementById('loading').textContent =
+    `Error loading data from ${mode}. ` +
+    (mode === 'sheets'
+      ? 'Make sure the sheet is shared (anyone with link can view).'
+      : 'Check that the Supabase project is reachable and sales_invoice_v has data.');
   console.error(err);
 });
 </script>
