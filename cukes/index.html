@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cukes lb/day</title>
+<script src="../lib/data-source.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f0eb; color: #333; }
+  #header { background: #4a8c5c; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; }
+  #header h1 { font-size: 1.5rem; color: #fff; font-weight: 700; }
+  #header .right { display: flex; align-items: center; gap: 12px; }
+  #header .version { font-size: 0.7rem; color: #fff; }
+  #content { max-width: 1200px; margin: 0 auto; padding: 20px 24px; }
+  .section-title { font-size: 1rem; font-weight: 600; color: #333; margin: 8px 0 8px; }
+  .note { font-size: 0.8rem; color: #666; margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 24px; }
+  th, td { padding: 6px 10px; border-bottom: 1px solid #ddd; }
+  th { text-align: right; color: #4a8c5c; font-weight: 600; border-bottom: 2px solid #ccc; }
+  th:first-child, td:first-child { text-align: left; }
+  td { text-align: right; }
+  tr.diff-row td { border-top: 2px solid #999; font-weight: 600; }
+  tr.year-break td { border-top: 1px solid #bbb; }
+  td.empty { color: #bbb; }
+  td.neg { color: #a04040; }
+  #status { font-size: 0.85rem; color: #666; padding: 16px 0; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>Cukes lb/day — Grade 1</h1>
+  <div class="right">
+    <span id="dsToggle"></span>
+    <span class="version">v 04-19 19:13</span>
+  </div>
+</div>
+
+<div id="content">
+  <div class="section-title">Average lb/day by month</div>
+  <div class="note">Grow = cuke harvest (GreenhouseNetWeight). Sales = invoices (Variety=Cuke). Grade 1 only. April 2026+ omitted.</div>
+  <div id="status">Loading…</div>
+  <table id="cuke-table" style="display:none"><thead id="thead"></thead><tbody id="tbody"></tbody></table>
+</div>
+
+<script>
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const YEARS = [2025, 2026];
+const CUTOFF = { 2025: 12, 2026: 3 };  // last included month per year
+
+function daysInMonth(year, month1Based) {
+  return new Date(year, month1Based, 0).getDate();
+}
+
+function parseGvizTable(table) {
+  const cols = table.cols.map(c => c.label);
+  return table.rows.map(r => {
+    const obj = {};
+    r.c.forEach((cell, i) => {
+      const col = cols[i];
+      if (!col) return;
+      if (!cell || cell.v === null || cell.v === undefined) { obj[col] = ''; return; }
+      if (typeof cell.v === 'string' && cell.v.startsWith('Date(')) {
+        const dm = cell.v.match(/Date\((\d+),(\d+),(\d+)\)/);
+        if (dm) {
+          obj[col] = cell.f || cell.v;
+          obj._y = parseInt(dm[1]);
+          obj._m = parseInt(dm[2]) + 1;
+          obj._d = parseInt(dm[3]);
+        }
+      } else if (typeof cell.v === 'number') {
+        obj[col] = cell.v;
+      } else {
+        obj[col] = cell.v;
+      }
+    });
+    return obj;
+  });
+}
+
+// Sum pounds by {year, month} for rows that pass the filter + pound-field extractor.
+function aggregate(rows, filterFn, poundsFn) {
+  const totals = {};
+  for (const r of rows) {
+    if (!filterFn(r)) continue;
+    const y = r._y, m = r._m;
+    if (!y || !m) continue;
+    if (!YEARS.includes(y)) continue;
+    if (m > CUTOFF[y]) continue;
+    const key = y + '-' + m;
+    const lbs = poundsFn(r) || 0;
+    totals[key] = (totals[key] || 0) + lbs;
+  }
+  return totals;
+}
+
+function perDay(totals, year, month1Based) {
+  const key = year + '-' + month1Based;
+  const lbs = totals[key];
+  if (!lbs) return null;
+  return lbs / daysInMonth(year, month1Based);
+}
+
+function fmt(v) {
+  if (v == null) return '<td class="empty">—</td>';
+  const cls = v < 0 ? ' class="neg"' : '';
+  return `<td${cls}>${Math.round(v).toLocaleString()}</td>`;
+}
+
+function render(growTotals, saleTotals) {
+  const thead = document.getElementById('thead');
+  thead.innerHTML = '<tr><th></th>' + MONTHS.map(m => `<th>${m}</th>`).join('') + '</tr>';
+
+  const tbody = document.getElementById('tbody');
+  let html = '';
+
+  // Grow rows
+  for (const y of YEARS) {
+    const cells = MONTHS.map((_, i) => {
+      const m = i + 1;
+      if (m > CUTOFF[y]) return '<td class="empty">—</td>';
+      return fmt(perDay(growTotals, y, m));
+    }).join('');
+    const cls = y === 2026 ? ' class="year-break"' : '';
+    html += `<tr${cls}><td>Grow ${y}</td>${cells}</tr>`;
+  }
+
+  // Sales rows
+  for (const y of YEARS) {
+    const cells = MONTHS.map((_, i) => {
+      const m = i + 1;
+      if (m > CUTOFF[y]) return '<td class="empty">—</td>';
+      return fmt(perDay(saleTotals, y, m));
+    }).join('');
+    const cls = y === 2025 ? ' class="year-break"' : '';
+    html += `<tr${cls}><td>Sales ${y}</td>${cells}</tr>`;
+  }
+
+  // Diff rows (Grow - Sales)
+  for (const y of YEARS) {
+    const cells = MONTHS.map((_, i) => {
+      const m = i + 1;
+      if (m > CUTOFF[y]) return '<td class="empty">—</td>';
+      const g = perDay(growTotals, y, m);
+      const s = perDay(saleTotals, y, m);
+      if (g == null && s == null) return '<td class="empty">—</td>';
+      return fmt((g || 0) - (s || 0));
+    }).join('');
+    const cls = y === 2025 ? ' class="diff-row"' : '';
+    html += `<tr${cls}><td>Diff ${y}</td>${cells}</tr>`;
+  }
+
+  tbody.innerHTML = html;
+  document.getElementById('cuke-table').style.display = '';
+  document.getElementById('status').style.display = 'none';
+}
+
+async function load() {
+  try {
+    // Default to sheets mode — dev is currently blank for harvest.
+    const [growTbl, salesTbl] = await Promise.all([
+      DataSource.fetchTable('cuke_harvest', { mode: 'sheets' }),
+      DataSource.fetchTable('invoices',     { mode: 'sheets' }),
+    ]);
+
+    const growRows = parseGvizTable(growTbl);
+    const salesRows = parseGvizTable(salesTbl);
+
+    const growTotals = aggregate(
+      growRows,
+      r => Math.round(r.Grade || 0) === 1,
+      r => r.GreenhouseNetWeight
+    );
+    const saleTotals = aggregate(
+      salesRows,
+      r => r.Variety === 'Cuke' && Math.round(r.Grade || 0) === 1,
+      r => r.Pounds
+    );
+
+    render(growTotals, saleTotals);
+  } catch (err) {
+    console.error(err);
+    document.getElementById('status').textContent = 'Load error: ' + (err && err.message || err);
+  }
+}
+
+// Show the data-source toggle in the header (sheets / dev / prod)
+DataSource.renderModeToggle('dsToggle');
+
+load();
+</script>
+</body>
+</html>
