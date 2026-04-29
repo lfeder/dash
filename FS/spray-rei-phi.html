@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spray REI / PHI vs Harvest</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; }
+  #header { background: #16213e; padding: 12px 24px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid #0f3460; flex-wrap: wrap; }
+  #header h1 { font-size: 1.3rem; color: #4ecca3; }
+  #version { margin-left: auto; font-size: 0.85rem; color: #e0e0e0; }
+  .controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .controls label { font-size: 0.85rem; color: #aaa; }
+  .controls select, .controls input[type="date"] { background: #0f3460; color: #e0e0e0; border: 1px solid #4ecca3; border-radius: 4px; padding: 4px 8px; font-size: 0.85rem; }
+  .controls input[type="checkbox"] { accent-color: #4ecca3; }
+  #summary { padding: 12px 24px; background: #0f1a2e; display: flex; gap: 24px; flex-wrap: wrap; border-bottom: 1px solid #0f3460; }
+  .stat { display: flex; flex-direction: column; gap: 2px; }
+  .stat .label { font-size: 0.75rem; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat .value { font-size: 1.4rem; font-weight: 700; color: #e0e0e0; }
+  .stat.violation .value { color: #ff8c5a; }
+  .stat.ok .value { color: #4ecca3; }
+  #table-wrap { padding: 12px 24px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  thead { background: #16213e; position: sticky; top: 0; }
+  th { padding: 8px 10px; text-align: left; color: #4ecca3; font-weight: 600; border-bottom: 1px solid #0f3460; cursor: pointer; user-select: none; white-space: nowrap; }
+  th:hover { color: #6ee0bb; }
+  td { padding: 6px 10px; border-bottom: 1px solid #0f3460; white-space: nowrap; }
+  tr.violation { background: rgba(255, 140, 90, 0.12); }
+  tr.violation td.status { color: #ff8c5a; font-weight: 700; }
+  tr.ok td.status { color: #4ecca3; }
+  tr.no-harvest td.status { color: #8a8aa0; }
+  tr.no-rei-phi td.status { color: #d4a44a; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  #loading, #error { padding: 24px; color: #4ecca3; }
+  #error { color: #ff8c5a; }
+  .chip { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
+  .chip.violation { background: rgba(255, 140, 90, 0.25); color: #ff8c5a; }
+  .chip.ok { background: rgba(78, 204, 163, 0.2); color: #4ecca3; }
+  .chip.warn { background: rgba(212, 164, 74, 0.25); color: #d4a44a; }
+  .chip.muted { background: rgba(138, 138, 160, 0.25); color: #8a8aa0; }
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>Spray REI / PHI vs Harvest</h1>
+  <div class="controls">
+    <label>From: <input type="date" id="dateFrom"></label>
+    <label>To: <input type="date" id="dateTo"></label>
+    <label>Farm:
+      <select id="farmSelect"><option value="">All</option></select>
+    </label>
+    <label>Status:
+      <select id="statusSelect">
+        <option value="">All</option>
+        <option value="violation">Violations only</option>
+        <option value="ok">Compliant only</option>
+        <option value="no-harvest">No harvest after</option>
+        <option value="no-rei-phi">Missing REI/PHI</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="hideNoHarvest"> Hide "no harvest after"</label>
+  </div>
+  <div id="version">04-29 00:13</div>
+</div>
+
+<div id="summary">
+  <div class="stat violation"><div class="label">PHI violations</div><div class="value" id="cnt-phi">—</div></div>
+  <div class="stat violation"><div class="label">REI violations</div><div class="value" id="cnt-rei">—</div></div>
+  <div class="stat ok"><div class="label">Compliant sprays</div><div class="value" id="cnt-ok">—</div></div>
+  <div class="stat"><div class="label">No harvest after</div><div class="value" id="cnt-no">—</div></div>
+  <div class="stat"><div class="label">Missing REI/PHI on file</div><div class="value" id="cnt-missing">—</div></div>
+  <div class="stat"><div class="label">Total sprays</div><div class="value" id="cnt-total">—</div></div>
+</div>
+
+<div id="loading">Loading spray data…</div>
+<div id="error" style="display:none"></div>
+<div id="table-wrap" style="display:none">
+  <table>
+    <thead><tr>
+      <th data-sort="spray_date">Spray date</th>
+      <th data-sort="spray_time">Time</th>
+      <th data-sort="farm_id">Farm</th>
+      <th data-sort="site_id">Site</th>
+      <th data-sort="chemical">Chemical</th>
+      <th data-sort="invnt_lot_id">Lot</th>
+      <th data-sort="rei_hours" class="num">REI (h)</th>
+      <th data-sort="phi_days" class="num">PHI (d)</th>
+      <th data-sort="application_quantity" class="num">Applied</th>
+      <th data-sort="next_harvest_date">Next harvest</th>
+      <th data-sort="hours_since_spray" class="num">Hrs since spray</th>
+      <th data-sort="days_since_spray" class="num">Days since</th>
+      <th data-sort="status">Status</th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://kfwqtaazdankxmdlqdak.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_AMRw7zq1xtPex_3-8wgvDA_A3QzWgHb';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let allRows = [];
+let sortKey = 'spray_date';
+let sortDir = -1; // -1 desc, 1 asc
+
+async function fetchData() {
+  // Pull recent spray inputs (last 90 days) joined with compliance, tracker, item
+  // Single query via supabase-js relations
+  const since = new Date(Date.now() - 90 * 86400000).toISOString();
+  const { data: sprays, error: e1 } = await sb
+    .from('grow_spray_input')
+    .select(`
+      id, farm_id, invnt_item_id, invnt_lot_id, application_quantity, application_uom,
+      tracker:ops_task_tracker_id ( start_time, site_id ),
+      compliance:grow_spray_compliance_id ( rei_hours, phi_days ),
+      item:invnt_item_id ( description )
+    `)
+    .eq('is_deleted', false)
+    .gte('created_at', since)
+    .limit(2000);
+  if (e1) throw e1;
+
+  // Collect (site_id, farm_id) pairs to query subsequent harvests
+  const siteFarmKeys = [...new Set(sprays.map(s => `${s.farm_id}|${s.tracker?.site_id || ''}`))];
+  const sites = [...new Set(sprays.map(s => s.tracker?.site_id).filter(Boolean))];
+
+  // Pull harvests for those sites in last 95 days through future
+  const harvestSince = new Date(Date.now() - 95 * 86400000).toISOString().slice(0, 10);
+  const { data: harvests, error: e2 } = await sb
+    .from('grow_harvest_weight')
+    .select('site_id, farm_id, harvest_date')
+    .in('site_id', sites)
+    .gte('harvest_date', harvestSince)
+    .eq('is_deleted', false)
+    .limit(20000);
+  if (e2) throw e2;
+
+  // Build site,farm -> sorted unique harvest dates
+  const harvestMap = {};
+  harvests.forEach(h => {
+    const k = `${h.farm_id}|${h.site_id}`;
+    (harvestMap[k] = harvestMap[k] || new Set()).add(h.harvest_date);
+  });
+  Object.keys(harvestMap).forEach(k => harvestMap[k] = [...harvestMap[k]].sort());
+
+  // Build rows
+  return sprays
+    .filter(s => s.tracker && s.tracker.start_time)
+    .map(s => {
+      const sprayedAt = new Date(s.tracker.start_time);
+      const sprayDate = sprayedAt.toISOString().slice(0, 10);
+      const k = `${s.farm_id}|${s.tracker.site_id}`;
+      const futureHarvests = (harvestMap[k] || []).filter(d => d >= sprayDate);
+      const nextHarvest = futureHarvests[0] || null;
+      const rei = s.compliance?.rei_hours;
+      const phi = s.compliance?.phi_days;
+      let hoursSinceSpray = null, daysSinceSpray = null, status = '';
+      if (nextHarvest) {
+        const nh = new Date(nextHarvest + 'T00:00:00');
+        hoursSinceSpray = (nh - sprayedAt) / 36e5;
+        daysSinceSpray = Math.floor((nh.setHours(0,0,0,0) - new Date(sprayDate + 'T00:00:00').getTime()) / 86400000);
+      }
+      if (rei == null && phi == null) status = 'no-rei-phi';
+      else if (!nextHarvest) status = 'no-harvest';
+      else {
+        const phiViolation = phi != null && daysSinceSpray < phi;
+        const reiViolation = rei != null && hoursSinceSpray < rei;
+        if (phiViolation || reiViolation) status = 'violation';
+        else status = 'ok';
+      }
+      return {
+        id: s.id,
+        spray_date: sprayDate,
+        spray_time: sprayedAt.toISOString().slice(11, 16),
+        farm_id: s.farm_id,
+        site_id: s.tracker.site_id,
+        chemical: s.item?.description || s.invnt_item_id || '—',
+        invnt_lot_id: s.invnt_lot_id || '—',
+        rei_hours: rei,
+        phi_days: phi,
+        application_quantity: s.application_quantity,
+        application_uom: s.application_uom,
+        next_harvest_date: nextHarvest,
+        hours_since_spray: hoursSinceSpray,
+        days_since_spray: daysSinceSpray,
+        phi_violation: status === 'violation' && phi != null && daysSinceSpray < phi,
+        rei_violation: status === 'violation' && rei != null && hoursSinceSpray < rei,
+        status,
+      };
+    });
+}
+
+function fmt(v, dp) { return v == null ? '' : (typeof v === 'number' ? v.toFixed(dp || 0) : v); }
+
+function statusChip(r) {
+  if (r.status === 'violation') {
+    const parts = [];
+    if (r.phi_violation) parts.push('PHI');
+    if (r.rei_violation) parts.push('REI');
+    return `<span class="chip violation">${parts.join('+')} violation</span>`;
+  }
+  if (r.status === 'ok') return '<span class="chip ok">ok</span>';
+  if (r.status === 'no-harvest') return '<span class="chip muted">no harvest after</span>';
+  if (r.status === 'no-rei-phi') return '<span class="chip warn">no REI/PHI on file</span>';
+  return '';
+}
+
+function render() {
+  const from = document.getElementById('dateFrom').value;
+  const to = document.getElementById('dateTo').value;
+  const farm = document.getElementById('farmSelect').value;
+  const statusFilter = document.getElementById('statusSelect').value;
+  const hideNo = document.getElementById('hideNoHarvest').checked;
+
+  let rows = allRows.filter(r => {
+    if (from && r.spray_date < from) return false;
+    if (to && r.spray_date > to) return false;
+    if (farm && r.farm_id !== farm) return false;
+    if (statusFilter && r.status !== statusFilter) return false;
+    if (hideNo && r.status === 'no-harvest') return false;
+    return true;
+  });
+
+  rows.sort((a, b) => {
+    const x = a[sortKey], y = b[sortKey];
+    if (x == null && y == null) return 0;
+    if (x == null) return 1;
+    if (y == null) return -1;
+    if (x < y) return -1 * sortDir;
+    if (x > y) return 1 * sortDir;
+    return 0;
+  });
+
+  // Counts
+  const cnt = { violation: 0, phi: 0, rei: 0, ok: 0, no: 0, missing: 0 };
+  rows.forEach(r => {
+    if (r.status === 'violation') {
+      cnt.violation++;
+      if (r.phi_violation) cnt.phi++;
+      if (r.rei_violation) cnt.rei++;
+    }
+    else if (r.status === 'ok') cnt.ok++;
+    else if (r.status === 'no-harvest') cnt.no++;
+    else if (r.status === 'no-rei-phi') cnt.missing++;
+  });
+  document.getElementById('cnt-phi').textContent = cnt.phi;
+  document.getElementById('cnt-rei').textContent = cnt.rei;
+  document.getElementById('cnt-ok').textContent = cnt.ok;
+  document.getElementById('cnt-no').textContent = cnt.no;
+  document.getElementById('cnt-missing').textContent = cnt.missing;
+  document.getElementById('cnt-total').textContent = rows.length;
+
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = rows.map(r => `
+    <tr class="${r.status}">
+      <td>${r.spray_date}</td>
+      <td>${r.spray_time}</td>
+      <td>${r.farm_id}</td>
+      <td>${r.site_id}</td>
+      <td>${r.chemical}</td>
+      <td>${r.invnt_lot_id}</td>
+      <td class="num">${fmt(r.rei_hours)}</td>
+      <td class="num">${fmt(r.phi_days)}</td>
+      <td class="num">${r.application_quantity != null ? r.application_quantity + ' ' + (r.application_uom || '') : ''}</td>
+      <td>${r.next_harvest_date || ''}</td>
+      <td class="num">${r.hours_since_spray != null ? r.hours_since_spray.toFixed(1) : ''}</td>
+      <td class="num">${r.days_since_spray != null ? r.days_since_spray : ''}</td>
+      <td class="status">${statusChip(r)}</td>
+    </tr>
+  `).join('');
+}
+
+document.querySelectorAll('th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const k = th.dataset.sort;
+    if (sortKey === k) sortDir = -sortDir;
+    else { sortKey = k; sortDir = 1; }
+    render();
+  });
+});
+['dateFrom', 'dateTo', 'farmSelect', 'statusSelect', 'hideNoHarvest'].forEach(id => {
+  document.getElementById(id).addEventListener('change', render);
+});
+
+(async () => {
+  try {
+    allRows = await fetchData();
+    // Populate farm select
+    const farms = [...new Set(allRows.map(r => r.farm_id))].sort();
+    document.getElementById('farmSelect').innerHTML = '<option value="">All</option>' +
+      farms.map(f => `<option value="${f}">${f}</option>`).join('');
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('table-wrap').style.display = 'block';
+    render();
+  } catch (e) {
+    document.getElementById('loading').style.display = 'none';
+    const err = document.getElementById('error');
+    err.style.display = 'block';
+    err.textContent = 'Error loading data: ' + (e.message || e);
+    console.error(e);
+  }
+})();
+</script>
+</body>
+</html>
