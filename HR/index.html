@@ -28,7 +28,15 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .delta.zero { color:#888; }
 #main { padding:14px 20px 60px; }
 #chartBox { background:#16213e; border:1px solid #2a3a5e; border-radius:6px; padding:10px; height:340px; margin-bottom:14px; }
-#tableWrap { background:#16213e; border:1px solid #2a3a5e; border-radius:6px; overflow:auto; }
+#tablesRow { display:flex; gap:14px; align-items:flex-start; }
+#tableWrap { background:#16213e; border:1px solid #2a3a5e; border-radius:6px; overflow:auto; flex:0 0 50%; max-height:70vh; }
+#summaryWrap { background:#16213e; border:1px solid #2a3a5e; border-radius:6px; overflow:auto; flex:1; }
+#summary { width:100%; border-collapse:collapse; font-size:0.82rem; }
+#summary th, #summary td { padding:8px 12px; text-align:right; border-bottom:1px solid #0f3460; white-space:nowrap; }
+#summary th { background:#0f3460; color:#aaa; font-weight:600; font-size:0.75rem; }
+#summary th:first-child, #summary td:first-child { text-align:left; color:#888; font-weight:600; }
+#summary td.col-actual26 { color:#4ecca3; font-weight:600; }
+@media(max-width:1100px) { #tablesRow { flex-direction:column; } #tableWrap { flex:1 1 auto; max-width:100%; } }
 table { width:100%; border-collapse:collapse; font-size:0.78rem; }
 th, td { padding:5px 8px; text-align:right; border-bottom:1px solid #0f3460; white-space:nowrap; }
 th { background:#0f3460; color:#aaa; font-weight:600; position:sticky; top:0; font-size:0.72rem; }
@@ -76,7 +84,10 @@ tr:hover td:first-child { background:#1c2a4a; }
 
 <div id="main">
   <div id="chartBox"><canvas id="chart"></canvas></div>
-  <div id="tableWrap"><table id="grid"></table></div>
+  <div id="tablesRow">
+    <div id="tableWrap"><table id="grid"></table></div>
+    <div id="summaryWrap"><table id="summary"></table></div>
+  </div>
 </div>
 
 <script>
@@ -527,6 +538,113 @@ function rerender() {
   renderChips();
   renderChart();
   renderTable();
+  renderSummary();
+}
+
+// ========= Summary table (year totals) =========
+function fmtNum(v, kind) {
+  if (v == null || isNaN(v)) return '—';
+  if (kind === 'hc')    return Math.round(v).toLocaleString();
+  if (kind === 'hours') return Math.round(v).toLocaleString();
+  if (kind === '$')     return '$' + (v/1000).toLocaleString(undefined, { maximumFractionDigits: 0 }) + 'k';
+  return v;
+}
+function pctDelta(actual, base) {
+  if (base == null || base === 0 || actual == null) return '';
+  const d = (actual - base) / base * 100;
+  const sign = d > 0 ? '+' : '';
+  const cls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
+  return ` <span class="delta ${cls}" style="font-size:0.7rem">${sign}${d.toFixed(1)}%</span>`;
+}
+
+function yearTotals(year, mode) {
+  // mode: 'actual' (sum from actuals) or 'budget' (full-year forecast using budget HC + 2026 rates)
+  const out = { hc_avg: 0, hours: 0, cost_total: 0, cost_gross: 0, pp_count: 0 };
+  if (mode === 'actual') {
+    const data = actuals[year];
+    if (!data) return null;
+    let hcSum = 0, ppCount = 0;
+    for (const pp of Object.keys(data)) {
+      let ppHC = 0, any = false;
+      for (const labor of LABOR) {
+        const a = data[pp][labor];
+        if (!a) continue;
+        ppHC += a.headcount;
+        out.hours      += a.hours;
+        out.cost_total += a.cost_total;
+        out.cost_gross += a.cost_gross;
+        any = true;
+      }
+      if (any) { hcSum += ppHC; ppCount++; }
+    }
+    out.hc_avg = ppCount ? hcSum / ppCount : 0;
+    out.pp_count = ppCount;
+    return out;
+  }
+  // budget = full 26-PP forecast for 2026
+  if (year !== 2026 || !budgets[2026]) return null;
+  let hcSum = 0, ppCount = 0;
+  for (let pp = 1; pp <= PP_COUNT; pp++) {
+    const b = budgets[2026][pp];
+    if (!b) continue;
+    let ppHC = 0;
+    for (const labor of LABOR) {
+      const r = rates[labor] || { hours_per_head_pp:0, dollar_per_hour_total:0, dollar_per_hour_gross:0 };
+      const hc = b[labor] || 0;
+      const hrs = hc * r.hours_per_head_pp;
+      ppHC += hc;
+      out.hours      += hrs;
+      out.cost_total += hrs * r.dollar_per_hour_total;
+      out.cost_gross += hrs * r.dollar_per_hour_gross;
+    }
+    hcSum += ppHC; ppCount++;
+  }
+  out.hc_avg = ppCount ? hcSum / ppCount : 0;
+  out.pp_count = ppCount;
+  return out;
+}
+
+function renderSummary() {
+  const t25 = yearTotals(2025, 'actual') || {};
+  const t26b = yearTotals(2026, 'budget') || {};
+  const t26a = yearTotals(2026, 'actual') || {};
+  const ppA = t26a.pp_count || 0;
+
+  const rows = [
+    { label: 'Avg headcount / PP', kind: 'hc',    a25: t25.hc_avg,     b26: t26b.hc_avg,     a26: t26a.hc_avg     },
+    { label: 'Total hours',        kind: 'hours', a25: t25.hours,      b26: t26b.hours,      a26: t26a.hours      },
+    { label: 'Total cost',         kind: '$',     a25: t25.cost_total, b26: t26b.cost_total, a26: t26a.cost_total },
+    { label: 'Gross wages',        kind: '$',     a25: t25.cost_gross, b26: t26b.cost_gross, a26: t26a.cost_gross },
+  ];
+
+  let html = `<thead><tr>
+    <th></th>
+    <th>2025 act</th>
+    <th>2026 bdg<div style="color:#666;font-weight:400;font-size:0.65rem">full year</div></th>
+    <th>2026 act<div style="color:#666;font-weight:400;font-size:0.65rem">PP 1–${ppA}</div></th>
+    <th>2026 bdg pace<div style="color:#666;font-weight:400;font-size:0.65rem">PP 1–${ppA}</div></th>
+  </tr></thead><tbody>`;
+
+  for (const r of rows) {
+    // Pro-rated 2026 budget for the same PPs we have actuals for
+    let bdgPace = null;
+    if (r.kind === 'hc') bdgPace = r.b26; // headcount is an avg, no pro-rating
+    else if (t26b.pp_count && ppA) bdgPace = (r.b26 || 0) * (ppA / PP_COUNT);
+
+    const deltaPct = (r.kind === 'hc')
+      ? pctDelta(r.a26, r.b26)
+      : pctDelta(r.a26, bdgPace);
+
+    html += `<tr>
+      <td>${r.label}</td>
+      <td>${fmtNum(r.a25, r.kind)}</td>
+      <td>${fmtNum(r.b26, r.kind)}</td>
+      <td class="col-actual26">${fmtNum(r.a26, r.kind)}${deltaPct}</td>
+      <td>${fmtNum(bdgPace, r.kind)}</td>
+    </tr>`;
+  }
+  html += '</tbody>';
+  document.getElementById('summary').innerHTML = html;
 }
 
 document.querySelectorAll('#yearToggle button').forEach(b => {
