@@ -120,73 +120,39 @@ async function loadBudget() {
 
 async function loadActuals() {
   const client = await DataSource.getClient();
-  // Pull all hourly rows for 2025-01-01 through today, is_standard=true
-  const all = [];
-  let page = 0;
-  const PAGE = 1000;
-  while (true) {
-    const { data, error } = await client
-      .from('hr_payroll')
-      .select('check_date,hr_employee_id,hr_work_authorization_id,total_hours,total_cost,gross_wage')
-      .eq('is_deleted', false)
-      .eq('is_standard', true)
-      .eq('pay_structure', 'Hourly')
-      .gte('check_date', '2025-01-01')
-      .order('check_date', { ascending: true })
-      .range(page * PAGE, (page + 1) * PAGE - 1);
-    if (error) throw error;
-    if (!data || !data.length) break;
-    all.push(...data);
-    if (data.length < PAGE) break;
-    page++;
+  const { data, error } = await client
+    .from('hr_staffing_pp_v')
+    .select('*')
+    .gte('year', 2025);
+  if (error) throw error;
+  // Group rows: actuals[year][pp][labor] = {headcount, hours, cost_total, cost_gross}
+  const ppDateByYear = { 2025: new Map(), 2026: new Map() };
+  for (const r of data) {
+    if (!actuals[r.year]) actuals[r.year] = {};
+    if (!actuals[r.year][r.pp]) actuals[r.year][r.pp] = {};
+    actuals[r.year][r.pp][r.labor_type] = {
+      headcount: r.headcount,
+      hours: parseFloat(r.hours) || 0,
+      cost_total: parseFloat(r.cost_total) || 0,
+      cost_gross: parseFloat(r.cost_gross) || 0,
+    };
+    if (ppDateByYear[r.year]) ppDateByYear[r.year].set(r.pp, r.check_date);
   }
-  // Build PP boundaries per year (distinct check_date sorted)
-  const byYear = { 2025: new Set(), 2026: new Set() };
-  for (const r of all) {
-    const yr = parseInt(r.check_date.slice(0, 4), 10);
-    if (byYear[yr]) byYear[yr].add(r.check_date);
-  }
-  ppDates[2025] = [...byYear[2025]].sort();
-  ppDates[2026] = [...byYear[2026]].sort();
-  // Aggregate per (year, pp, labor) — countunique employees
-  function makeYearAgg(yr) {
-    const dates = ppDates[yr];
-    const dateToPP = new Map(dates.map((d, i) => [d, i + 1]));
-    const empSet = {}; // [pp][labor] = Set<emp_id>
-    const sums = {};   // [pp][labor] = {hours, cost_total, cost_gross}
-    for (const r of all) {
-      const pp = dateToPP.get(r.check_date);
-      if (!pp) continue;
-      const labor = AUTH_TO_LABOR[r.hr_work_authorization_id];
-      if (!labor) continue;
-      empSet[pp] = empSet[pp] || {};
-      sums[pp]   = sums[pp]   || {};
-      empSet[pp][labor] = empSet[pp][labor] || new Set();
-      sums[pp][labor]   = sums[pp][labor]   || { hours:0, cost_total:0, cost_gross:0 };
-      empSet[pp][labor].add(r.hr_employee_id);
-      sums[pp][labor].hours      += parseFloat(r.total_hours)  || 0;
-      sums[pp][labor].cost_total += parseFloat(r.total_cost)   || 0;
-      sums[pp][labor].cost_gross += parseFloat(r.gross_wage)   || 0;
-    }
-    const out = {};
-    for (let pp = 1; pp <= dates.length; pp++) {
-      out[pp] = {};
+  for (const yr of [2025, 2026]) {
+    const maxPP = Math.max(0, ...ppDateByYear[yr].keys());
+    ppDates[yr] = [];
+    for (let pp = 1; pp <= maxPP; pp++) ppDates[yr].push(ppDateByYear[yr].get(pp) || '');
+    currentPP[yr] = maxPP;
+    // Backfill any (pp, labor) cells the view didn't return so lookups don't crash
+    for (let pp = 1; pp <= maxPP; pp++) {
+      if (!actuals[yr][pp]) actuals[yr][pp] = {};
       for (const labor of LABOR) {
-        const s = sums[pp]?.[labor] || { hours:0, cost_total:0, cost_gross:0 };
-        out[pp][labor] = {
-          headcount: empSet[pp]?.[labor]?.size || 0,
-          hours: s.hours,
-          cost_total: s.cost_total,
-          cost_gross: s.cost_gross,
-        };
+        if (!actuals[yr][pp][labor]) {
+          actuals[yr][pp][labor] = { headcount:0, hours:0, cost_total:0, cost_gross:0 };
+        }
       }
     }
-    return out;
   }
-  actuals[2025] = makeYearAgg(2025);
-  actuals[2026] = makeYearAgg(2026);
-  currentPP[2025] = ppDates[2025].length;
-  currentPP[2026] = ppDates[2026].length;
 }
 
 // ========= Forecast rates (2026 only) =========
