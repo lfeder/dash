@@ -618,14 +618,17 @@ function pctDelta(actual, base) {
   return ` <span class="delta ${cls}" style="font-size:0.7rem">${sign}${d.toFixed(1)}%</span>`;
 }
 
-function yearTotals(year, mode) {
-  // mode: 'actual' (sum from actuals) or 'budget' (full-year forecast using budget HC + 2026 rates)
+function yearTotals(year, mode, ppMax) {
+  // mode: 'actual' (sum from actuals) or 'budget' (forecast using budget HC + 2026 rates).
+  // ppMax: optional cap (e.g. for YTD-bound budget). Defaults to PP_COUNT for budget mode.
   const out = { hc_avg: 0, hours: 0, cost_total: 0, cost_gross: 0, pp_count: 0 };
   if (mode === 'actual') {
     const data = actuals[year];
     if (!data) return null;
     let hcSum = 0, ppCount = 0;
     for (const pp of Object.keys(data)) {
+      const ppN = parseInt(pp, 10);
+      if (ppMax != null && ppN > ppMax) continue;
       let ppHC = 0, any = false;
       for (const labor of LABOR) {
         const a = data[pp][labor];
@@ -642,10 +645,11 @@ function yearTotals(year, mode) {
     out.pp_count = ppCount;
     return out;
   }
-  // budget = full 26-PP forecast for 2026
+  // budget forecast: PPs 1..ppMax (default full year)
   if (year !== 2026 || !budgets[2026]) return null;
+  const cap = ppMax || PP_COUNT;
   let hcSum = 0, ppCount = 0;
-  for (let pp = 1; pp <= PP_COUNT; pp++) {
+  for (let pp = 1; pp <= cap; pp++) {
     const b = budgets[2026][pp];
     if (!b) continue;
     let ppHC = 0;
@@ -666,42 +670,45 @@ function yearTotals(year, mode) {
 }
 
 function renderSummary() {
-  const t25 = yearTotals(2025, 'actual') || {};
-  const t26b = yearTotals(2026, 'budget') || {};
-  const t26a = yearTotals(2026, 'actual') || {};
-  const ppA = t26a.pp_count || 0;
+  const t25         = yearTotals(2025, 'actual') || {};
+  const t26b_full   = yearTotals(2026, 'budget') || {};
+  const t26a        = yearTotals(2026, 'actual') || {};
+  const ppA         = t26a.pp_count || 0;
+  const t26b_ytd    = yearTotals(2026, 'budget', ppA) || {};
 
   const rows = [
-    { label: 'Avg headcount / PP', kind: 'hc',    a25: t25.hc_avg,     b26: t26b.hc_avg,     a26: t26a.hc_avg     },
-    { label: 'Total hours',        kind: 'hours', a25: t25.hours,      b26: t26b.hours,      a26: t26a.hours      },
-    { label: 'Total cost',         kind: '$',     a25: t25.cost_total, b26: t26b.cost_total, a26: t26a.cost_total },
-    { label: 'Gross wages',        kind: '$',     a25: t25.cost_gross, b26: t26b.cost_gross, a26: t26a.cost_gross },
+    { label: 'Avg headcount / PP', kind: 'hc',    a25: t25.hc_avg,     b26f: t26b_full.hc_avg,     a26: t26a.hc_avg,     b26y: t26b_ytd.hc_avg     },
+    { label: 'Total hours',        kind: 'hours', a25: t25.hours,      b26f: t26b_full.hours,      a26: t26a.hours,      b26y: t26b_ytd.hours      },
+    { label: 'Total cost',         kind: '$',     a25: t25.cost_total, b26f: t26b_full.cost_total, a26: t26a.cost_total, b26y: t26b_ytd.cost_total },
+    { label: 'Gross wages',        kind: '$',     a25: t25.cost_gross, b26f: t26b_full.cost_gross, a26: t26a.cost_gross, b26y: t26b_ytd.cost_gross },
   ];
 
   let html = `<thead><tr>
     <th></th>
     <th>2025 act</th>
     <th>2026 bdg<div style="color:#666;font-weight:400;font-size:0.65rem">full year</div></th>
-    <th>2026 act<div style="color:#666;font-weight:400;font-size:0.65rem">PP 1–${ppA}</div></th>
-    <th>2026 bdg pace<div style="color:#666;font-weight:400;font-size:0.65rem">PP 1–${ppA}</div></th>
+    <th>2026 YTD bdg<div style="color:#666;font-weight:400;font-size:0.65rem">PP 1–${ppA}</div></th>
+    <th>2026 YTD act<div style="color:#666;font-weight:400;font-size:0.65rem">PP 1–${ppA}</div></th>
+    <th>YTD vs bdg</th>
   </tr></thead><tbody>`;
 
   for (const r of rows) {
-    // Pro-rated 2026 budget for the same PPs we have actuals for
-    let bdgPace = null;
-    if (r.kind === 'hc') bdgPace = r.b26; // headcount is an avg, no pro-rating
-    else if (t26b.pp_count && ppA) bdgPace = (r.b26 || 0) * (ppA / PP_COUNT);
-
-    const deltaPct = (r.kind === 'hc')
-      ? pctDelta(r.a26, r.b26)
-      : pctDelta(r.a26, bdgPace);
+    const base = r.b26y;
+    const variance = (base != null && r.a26 != null) ? r.a26 - base : null;
+    const cls = variance == null ? 'zero' : variance > 0 ? 'pos' : variance < 0 ? 'neg' : 'zero';
+    const sign = variance == null ? '' : variance > 0 ? '+' : '';
+    const pct = (base && base !== 0 && variance != null) ? (variance / base * 100) : null;
+    const varHTML = variance == null ? '—' :
+      `<span class="cell-val">${sign}${fmtNum(variance, r.kind)}</span>` +
+      (pct != null ? ` <span class="delta ${cls}" style="font-size:0.7rem">${sign}${pct.toFixed(1)}%</span>` : '');
 
     html += `<tr>
       <td>${r.label}</td>
       <td>${fmtNum(r.a25, r.kind)}</td>
-      <td>${fmtNum(r.b26, r.kind)}</td>
-      <td class="col-actual26">${fmtNum(r.a26, r.kind)}${deltaPct}</td>
-      <td>${fmtNum(bdgPace, r.kind)}</td>
+      <td>${fmtNum(r.b26f, r.kind)}</td>
+      <td>${fmtNum(r.b26y, r.kind)}</td>
+      <td class="col-actual26">${fmtNum(r.a26, r.kind)}</td>
+      <td class="delta ${cls}">${varHTML}</td>
     </tr>`;
   }
   html += '</tbody>';
