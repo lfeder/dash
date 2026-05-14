@@ -693,7 +693,7 @@ async function openMovement() {
       if (p.y2026 && !inLatest.has(name)) left.push({ name, ...p.y2026, lastPP: p.y2026.lastPP });
     }
     joined.sort((a,b) => a.firstPP - b.firstPP || a.name.localeCompare(b.name));
-    left.sort((a,b) => b.lastPP - a.lastPP || a.name.localeCompare(b.name));
+    left.sort((a,b) => a.lastPP - b.lastPP || a.name.localeCompare(b.name));
 
     function tbl(title, rows, ppKey, ppLabel) {
       if (!rows.length) return `<h3 style="margin:14px 0 6px;color:#aaa;font-size:0.85rem">${title} (0)</h3>`;
