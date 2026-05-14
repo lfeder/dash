@@ -262,22 +262,29 @@ async function loadActuals() {
 let rates = {}; // rates[labor] = {dollar_per_hour_total, dollar_per_hour_gross, hours_per_head_pp}
 function computeRates() {
   rates = {};
-  if (!actuals[2026]) return;
+  if (!actuals[2026] || !actuals[2025]) return;
   for (const labor of LABOR) {
-    let h = 0, ct = 0, cg = 0, hcSum = 0, ppCount = 0;
+    // $/hr rates: derived from 2026 YTD actuals (used for budget cost forecast)
+    let h26 = 0, ct = 0, cg = 0;
     for (let pp = 1; pp <= currentPP[2026]; pp++) {
       const a = actuals[2026][pp]?.[labor];
       if (!a) continue;
-      h  += a.hours;
-      ct += a.cost_total;
-      cg += a.cost_gross;
-      hcSum += a.headcount;
-      ppCount++;
+      h26 += a.hours;
+      ct  += a.cost_total;
+      cg  += a.cost_gross;
+    }
+    // hours_per_head_pp: derived from full 2025 actuals (used for budget hours forecast)
+    let h25 = 0, hcSum25 = 0;
+    for (let pp = 1; pp <= 26; pp++) {
+      const a = actuals[2025][pp]?.[labor];
+      if (!a) continue;
+      h25 += a.hours;
+      hcSum25 += a.headcount;
     }
     rates[labor] = {
-      dollar_per_hour_total: h > 0 ? ct / h : 0,
-      dollar_per_hour_gross: h > 0 ? cg / h : 0,
-      hours_per_head_pp: (ppCount > 0 && hcSum > 0) ? h / hcSum : 0,
+      dollar_per_hour_total: h26 > 0 ? ct / h26 : 0,
+      dollar_per_hour_gross: h26 > 0 ? cg / h26 : 0,
+      hours_per_head_pp: hcSum25 > 0 ? h25 / hcSum25 : 0,
     };
   }
 }
