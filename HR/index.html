@@ -30,8 +30,11 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 #tableWrap { background:#16213e; border:1px solid #2a3a5e; border-radius:6px; overflow:auto; max-height:calc(100vh - 130px); }
 table { width:100%; border-collapse:collapse; font-size:0.78rem; table-layout:fixed; }
 th, td { padding:4px 8px; text-align:right; border-bottom:1px solid #0f3460; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-col.col-pp     { width:80px; }
-col.col-data   { width:70px; }
+col.col-pp     { width:90px; }
+col.col-data   { width:65px; }
+col.col-tot    { width:120px; }
+td.sec-end-25, td.sec-end-bdg, .sec-act:last-child,
+th.sec-end-25, th.sec-end-bdg { overflow:visible; }
 th { background:#0f3460; color:#aaa; font-weight:600; font-size:0.72rem; }
 tr.totals td { background:#0d2a4f !important; font-weight:700; color:#fff; position:sticky; z-index:4; }
 tr.totals.tr-full td { top:0; }
@@ -349,8 +352,11 @@ function renderTable() {
 
   // Build the full HTML — totals rows live in thead so they sit ABOVE headers
   let html = '<colgroup><col class="col-pp">';
-  // 6 cols (5 labor + Tot) x 3 sections = 18 data cols
-  for (let i = 0; i < 18; i++) html += '<col class="col-data">';
+  // 3 sections of (5 labor + 1 Tot)
+  for (let s = 0; s < 3; s++) {
+    for (let i = 0; i < 5; i++) html += '<col class="col-data">';
+    html += '<col class="col-tot">';
+  }
   html += '</colgroup><thead>';
   html += totalsRow('Full year', 'tr-full', tot25_full, totB26_full, null);
   html += totalsRow('YTD',       'tr-ytd',  tot25_ytd,  totB26_ytd,  totA26_ytd);
@@ -376,7 +382,7 @@ function renderTable() {
     const isFuture26 = pp > currentPP[2026];
     const dateLbl = date26 ? date26.slice(5) : (date25 ? date25.slice(5) : '');
     html += '<tr class="' + (isFuture26 ? 'future' : '') + '" data-pp="' + pp + '"><td>' + pp;
-    if (dateLbl) html += ' <span style="color:#555;font-size:0.65rem">' + dateLbl + '</span>';
+    if (dateLbl) html += ' <span style="color:#bbb;font-size:0.7rem;font-weight:400">' + dateLbl + '</span>';
     html += '</td>';
 
     let tot25row = 0, any25 = false;
