@@ -48,12 +48,9 @@ tr:hover td:first-child { background:#1c2a4a; }
 .cell-val { color:#e0e0e0; }
 .cell-bdg { color:#666; font-size:0.7rem; }
 .cell-delta { font-size:0.7rem; margin-left:4px; }
-.cell-edit { background:#0a1c3a !important; cursor:pointer; outline:1px dashed rgba(78,204,163,0.35); outline-offset:-2px; }
-.cell-edit:hover { background:#1c2a4a !important; outline-color:#4ecca3; }
-.cell-edit input { width:55px; background:#0a1c3a; color:#e0e0e0; border:1px solid #4ecca3; border-radius:3px; padding:2px 4px; text-align:right; font-size:0.78rem; }
-tr.row-edit-anchor td:first-child { color:#4ecca3 !important; cursor:pointer; }
-tr.row-edit-anchor td:first-child:hover { background:#1c2a4a !important; }
-tr.row-edit-anchor td:first-child::after { content:' ✎'; color:rgba(78,204,163,0.6); font-size:0.7rem; }
+.cell-edit { background:#0a1c3a !important; padding:2px 4px; }
+input.bdg-input { width:55px; background:#0a1c3a; color:#e0e0e0; border:1px solid #4ecca3; border-radius:3px; padding:2px 4px; text-align:right; font-size:0.78rem; font-family:inherit; }
+input.bdg-input:focus { outline:none; border-color:#fff; background:#1c2a4a; }
 .future { opacity:0.85; }
 #status { font-size:0.7rem; color:#888; }
 #issue { padding:6px 14px; background:#3a2a1a; color:#e8b87a; font-size:0.72rem; border-bottom:1px solid #5a3a1a; display:none; }
@@ -435,9 +432,7 @@ function renderTable() {
   for (let pp = 1; pp <= PP_COUNT; pp++) {
     const isFuture = yr === 2026 && pp > currentPP[2026];
     const ppDate = ppDates[yr][pp - 1] || '';
-    const isEditableRow = state.editMode && yr === 2026 && state.metric === 'headcount';
-    const trCls = (isFuture ? 'future ' : '') + (isEditableRow ? 'row-edit-anchor' : '');
-    html += `<tr class="${trCls}" data-pp="${pp}"><td>${pp}${ppDate ? ' <span style="color:#555;font-size:0.65rem">'+ppDate.slice(5)+'</span>' : ''}</td>`;
+    html += `<tr class="${isFuture ? 'future' : ''}" data-pp="${pp}"><td>${pp}${ppDate ? ' <span style="color:#555;font-size:0.65rem">'+ppDate.slice(5)+'</span>' : ''}</td>`;
     let totA = 0, totB = 0, anyA = false, anyB = false;
     for (const labor of LABOR) {
       const a = metricValue(yr, pp, labor, false);
@@ -447,7 +442,7 @@ function renderTable() {
       let cellHTML = '';
       if (state.editMode && yr === 2026 && state.metric === 'headcount') {
         const cur = b ?? 0;
-        cellHTML = `<td class="cell-edit" data-pp="${pp}" data-labor="${labor}"><span class="cell-val">${fmt(a)}</span> <span class="cell-bdg">[${fmt(cur)}]</span></td>`;
+        cellHTML = `<td class="cell-edit"><input class="bdg-input" type="number" min="0" value="${cur}" data-pp="${pp}" data-labor="${labor}" /></td>`;
       } else if (a == null && b == null) {
         cellHTML = '<td></td>';
       } else if (yr !== 2026 || b == null) {
@@ -478,96 +473,39 @@ function renderTable() {
   html += '</tbody>';
   const t = document.getElementById('grid');
   t.innerHTML = html;
-  if (state.editMode && state.metric === 'headcount') wireEditClicks();
+  if (state.editMode && state.metric === 'headcount') wireBudgetInputs();
 }
 
-function wireEditClicks() {
-  // Row-level: click PP # to open all 5 inputs at once, Tab/Enter advances
-  document.querySelectorAll('tr.row-edit-anchor').forEach(tr => {
-    const ppCell = tr.querySelector('td:first-child');
-    ppCell.onclick = () => openRowEdit(tr);
-  });
-  // Cell-level: click any single cell to edit just that one
-  document.querySelectorAll('td.cell-edit').forEach(td => {
-    td.onclick = (ev) => {
-      if (td.querySelector('input')) return;
-      ev.stopPropagation();
-      openCellEdit(td);
-    };
-  });
-}
-
-function openCellEdit(td) {
-  const pp = parseInt(td.dataset.pp, 10);
-  const labor = td.dataset.labor;
-  const cur = getBudgetHC(2026, pp, labor) ?? 0;
-  td.innerHTML = `<input type="number" min="0" value="${cur}" />`;
-  const inp = td.querySelector('input');
-  inp.focus(); inp.select();
-  const commit = () => {
-    const v = parseInt(inp.value, 10);
-    if (!isNaN(v) && v >= 0) {
+function wireBudgetInputs() {
+  document.querySelectorAll('input.bdg-input').forEach(inp => {
+    const pp = parseInt(inp.dataset.pp, 10);
+    const labor = inp.dataset.labor;
+    const writeValue = () => {
+      const v = parseInt(inp.value, 10);
+      if (isNaN(v) || v < 0) return;
       if (!budgets[2026]) budgets[2026] = {};
       if (!budgets[2026][pp]) budgets[2026][pp] = {};
+      if (budgets[2026][pp][labor] === v) return;
       budgets[2026][pp][labor] = v;
       state.budgetDirty = true;
       document.getElementById('saveBtn').style.display = '';
-    }
-    rerender();
-  };
-  inp.onblur = commit;
-  inp.onkeydown = (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
-    if (e.key === 'Escape') { inp.value = cur; inp.blur(); }
-  };
+    };
+    // Write on every keystroke so values can never be lost
+    inp.addEventListener('input', writeValue);
+    inp.addEventListener('change', writeValue);
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        writeValue();
+        // Move to next input in the same row, or first input of next row
+        const all = [...document.querySelectorAll('input.bdg-input')];
+        const idx = all.indexOf(inp);
+        if (idx >= 0 && idx < all.length - 1) all[idx + 1].focus();
+      }
+    });
+  });
 }
 
-function openRowEdit(tr) {
-  const pp = parseInt(tr.dataset.pp, 10);
-  const tds = tr.querySelectorAll('td');
-  // tds[0] = PP, tds[1..5] = labor cells, tds[6] = Total
-  LABOR.forEach((labor, i) => {
-    const td = tds[i + 1];
-    const cur = getBudgetHC(2026, pp, labor) ?? 0;
-    td.innerHTML = `<input type="number" min="0" value="${cur}" data-i="${i}" />`;
-  });
-  const inputs = tr.querySelectorAll('input');
-  let committed = false;
-  const commitAll = () => {
-    if (committed) return;
-    committed = true;
-    if (!budgets[2026]) budgets[2026] = {};
-    if (!budgets[2026][pp]) budgets[2026][pp] = {};
-    inputs.forEach((inp, i) => {
-      const v = parseInt(inp.value, 10);
-      if (!isNaN(v) && v >= 0) budgets[2026][pp][LABOR[i]] = v;
-    });
-    state.budgetDirty = true;
-    document.getElementById('saveBtn').style.display = '';
-    rerender();
-  };
-  inputs.forEach((inp, i) => {
-    inp.onkeydown = (e) => {
-      if (e.key === 'Tab') {
-        // Default tab order works
-      } else if (e.key === 'Enter') {
-        e.preventDefault();
-        if (i < inputs.length - 1) inputs[i + 1].focus();
-        else commitAll();
-      } else if (e.key === 'Escape') {
-        committed = true; // skip blur commit
-        rerender();
-      }
-    };
-    inp.onblur = (e) => {
-      // Commit when focus leaves the row entirely
-      setTimeout(() => {
-        if (!tr.contains(document.activeElement)) commitAll();
-      }, 0);
-    };
-  });
-  inputs[0].focus(); inputs[0].select();
-}
 
 // ========= Save (download JSON) =========
 function saveBudget() {
@@ -680,35 +618,44 @@ function renderSummary() {
     { label: 'Avg headcount / PP', kind: 'hc',    a25: t25.hc_avg,     b26f: t26b_full.hc_avg,     a26: t26a.hc_avg,     b26y: t26b_ytd.hc_avg     },
     { label: 'Total hours',        kind: 'hours', a25: t25.hours,      b26f: t26b_full.hours,      a26: t26a.hours,      b26y: t26b_ytd.hours      },
     { label: 'Total cost',         kind: '$',     a25: t25.cost_total, b26f: t26b_full.cost_total, a26: t26a.cost_total, b26y: t26b_ytd.cost_total },
-    { label: 'Gross wages',        kind: '$',     a25: t25.cost_gross, b26f: t26b_full.cost_gross, a26: t26a.cost_gross, b26y: t26b_ytd.cost_gross },
   ];
 
   let html = `<thead><tr>
     <th></th>
     <th>2025 act</th>
     <th>2026 bdg<div style="color:#666;font-weight:400;font-size:0.65rem">full year</div></th>
+    <th>vs 25</th>
     <th>2026 YTD bdg<div style="color:#666;font-weight:400;font-size:0.65rem">PP 1–${ppA}</div></th>
     <th>2026 YTD act<div style="color:#666;font-weight:400;font-size:0.65rem">PP 1–${ppA}</div></th>
-    <th>YTD vs bdg</th>
   </tr></thead><tbody>`;
 
+  function pctCellHTML(actual, base) {
+    if (base == null || base === 0 || actual == null) return '<td>—</td>';
+    const d = (actual - base) / base * 100;
+    const sign = d > 0 ? '+' : '';
+    const cls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
+    return `<td class="delta ${cls}">${sign}${d.toFixed(1)}%</td>`;
+  }
+
   for (const r of rows) {
-    const base = r.b26y;
-    const variance = (base != null && r.a26 != null) ? r.a26 - base : null;
-    const cls = variance == null ? 'zero' : variance > 0 ? 'pos' : variance < 0 ? 'neg' : 'zero';
-    const sign = variance == null ? '' : variance > 0 ? '+' : '';
-    const pct = (base && base !== 0 && variance != null) ? (variance / base * 100) : null;
-    const varHTML = variance == null ? '—' :
-      `<span class="cell-val">${sign}${fmtNum(variance, r.kind)}</span>` +
-      (pct != null ? ` <span class="delta ${cls}" style="font-size:0.7rem">${sign}${pct.toFixed(1)}%</span>` : '');
+    // % vs 25: full-year 26 budget compared to 25 actual
+    const vsCell = pctCellHTML(r.b26f, r.a25);
+    // YTD act with inline % vs YTD bdg
+    let ytdActHTML = fmtNum(r.a26, r.kind);
+    if (r.b26y != null && r.b26y !== 0 && r.a26 != null) {
+      const d = (r.a26 - r.b26y) / r.b26y * 100;
+      const sign = d > 0 ? '+' : '';
+      const cls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
+      ytdActHTML += ` <span class="delta ${cls}" style="font-size:0.72rem;font-weight:500">${sign}${d.toFixed(1)}%</span>`;
+    }
 
     html += `<tr>
       <td>${r.label}</td>
       <td>${fmtNum(r.a25, r.kind)}</td>
       <td>${fmtNum(r.b26f, r.kind)}</td>
+      ${vsCell}
       <td>${fmtNum(r.b26y, r.kind)}</td>
-      <td class="col-actual26">${fmtNum(r.a26, r.kind)}</td>
-      <td class="delta ${cls}">${varHTML}</td>
+      <td class="col-actual26">${ytdActHTML}</td>
     </tr>`;
   }
   html += '</tbody>';
