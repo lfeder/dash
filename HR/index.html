@@ -323,18 +323,29 @@ function renderTable() {
   const totB26_ytd  = yrAgg(2026, 'budget', 1, ppA);
   const totA26_ytd  = yrAgg(2026, 'actual', 1, ppA);
 
+  function pctTag(actual, base) {
+    if (base == null || base === 0 || actual == null) return '';
+    const d = (actual - base) / base * 100;
+    const sign = d > 0 ? '+' : '';
+    const cls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
+    return ' <span class="delta ' + cls + '" style="font-size:0.68rem;font-weight:500">' + sign + d.toFixed(1) + '%</span>';
+  }
   function totalsRow(label, cls, t25, tB, tA, showDelta) {
     let row = '<tr class="totals ' + cls + '"><td>' + label + '</td>';
     for (const l of LABOR) row += '<td class="sec-25">' + (t25 ? fmt(t25.perLabor[l]) : '') + '</td>';
     row += '<td class="sec-25 sec-end-25">' + (t25 ? fmt(t25.total) : '') + '</td>';
     for (const l of LABOR) row += '<td class="sec-bdg">' + (tB ? fmt(tB.perLabor[l]) : '') + '</td>';
-    row += '<td class="sec-bdg sec-end-bdg">' + (tB ? fmt(tB.total) : '') + '</td>';
+    // 2026 Bdg Tot: show value + small "+X% vs 25" tag
+    const bdgPct = (tB && t25) ? pctTag(tB.total, t25.total) : '';
+    row += '<td class="sec-bdg sec-end-bdg">' + (tB ? fmt(tB.total) : '') + bdgPct + '</td>';
     for (const l of LABOR) row += '<td class="sec-act">' + (tA ? fmt(tA.perLabor[l]) : '') + '</td>';
-    row += '<td class="sec-act">' + (tA ? fmt(tA.total) : '') + '</td>';
+    // 2026 Act Tot: show value + small "+X% vs bdg" tag
+    const actPct = (tA && tB) ? pctTag(tA.total, tB.total) : '';
+    row += '<td class="sec-act">' + (tA ? fmt(tA.total) : '') + actPct + '</td>';
     if (showDelta && tA && tB) {
       const d = tA.total - tB.total;
-      const cls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
-      row += '<td class="sec-act delta ' + cls + '">' + fmtDelta(d) + '</td>';
+      const dcls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
+      row += '<td class="sec-act delta ' + dcls + '">' + fmtDelta(d) + '</td>';
     } else {
       row += '<td class="sec-act"></td>';
     }
