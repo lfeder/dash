@@ -85,6 +85,7 @@ input.bdg-input:focus { outline:none; border-color:#fff; background:#1c2a4a; }
       <button data-metric="hours">Hours</button>
       <button data-metric="cost_total">Total Cost</button>
       <button data-metric="dollar_per_hour">$/hr</button>
+      <button data-metric="prodhours">ProdHours</button>
     </div>
     <div class="toggle-group" id="srcToggle" title="2025 actuals source">
       <button data-src="supa" class="active">'25 Supa</button>
@@ -307,7 +308,7 @@ function budgetValue(year, pp, labor) {
 function fmt(v) {
   if (v == null) return '';
   if (state.metric === 'headcount') return Math.round(v).toString();
-  if (state.metric === 'hours')     return Math.round(v).toLocaleString();
+  if (state.metric === 'hours' || state.metric === 'prodhours') return Math.round(v).toLocaleString();
   if (state.metric === 'dollar_per_hour') return '$' + v.toFixed(2);
   // cost
   if (Math.abs(v) >= 1000) return '$' + Math.round(v / 1000).toLocaleString() + 'k';
@@ -317,12 +318,14 @@ function fmtDelta(v) {
   if (v == null || isNaN(v)) return '';
   const sign = v > 0 ? '+' : '';
   if (state.metric === 'headcount') return sign + Math.round(v);
-  if (state.metric === 'hours')     return sign + Math.round(v).toLocaleString();
+  if (state.metric === 'hours' || state.metric === 'prodhours') return sign + Math.round(v).toLocaleString();
+  if (state.metric === 'dollar_per_hour') return sign + '$' + v.toFixed(2);
   if (Math.abs(v) >= 1000) return sign + '$' + Math.round(v / 1000).toLocaleString() + 'k';
   return sign + '$' + Math.round(v).toLocaleString();
 }
 
 // ========= Cell value helpers (year-agnostic) =========
+const PROD_MULT = { local:1, wfe:1.2, h2a:1.2, f_local:1.2, fuerte:1.2 };
 function actualMetricVal(year, pp, labor) {
   const a = actuals[year]?.[pp]?.[labor];
   if (!a) return null;
@@ -331,6 +334,7 @@ function actualMetricVal(year, pp, labor) {
   if (state.metric === 'cost_total') return a.cost_total;
   if (state.metric === 'cost_gross') return a.cost_gross;
   if (state.metric === 'dollar_per_hour') return a.hours > 0 ? a.cost_total / a.hours : null;
+  if (state.metric === 'prodhours')  return a.hours * PROD_MULT[labor];
   return null;
 }
 function budgetMetricVal(pp, labor) {
@@ -342,6 +346,7 @@ function budgetMetricVal(pp, labor) {
   if (state.metric === 'dollar_per_hour') return r.dollar_per_hour_total;
   const fHours = bHC * r.hours_per_head_pp;
   if (state.metric === 'hours')      return fHours;
+  if (state.metric === 'prodhours')  return fHours * PROD_MULT[labor];
   if (state.metric === 'cost_total') return fHours * r.dollar_per_hour_total;
   if (state.metric === 'cost_gross') return fHours * r.dollar_per_hour_gross;
   return null;
@@ -678,7 +683,7 @@ function renderChart() {
         legend: { labels:{ color:'#aaa', font:{size:11}, usePointStyle:true, pointStyle:'circle', boxWidth:8 } },
         tooltip: { bodyFont:{size:11}, titleFont:{size:12} },
         title: { display:true, color:'#aaa',
-          text: ({headcount:'Headcount', hours:'Hours', cost_total:'Total Cost', dollar_per_hour:'$/hr'}[state.metric]||state.metric) + ' — total per PP' }
+          text: ({headcount:'Headcount', hours:'Hours', cost_total:'Total Cost', dollar_per_hour:'$/hr', prodhours:'ProdHours'}[state.metric]||state.metric) + ' — total per PP' }
       },
       scales: {
         x: { ticks:{ color:'#888', font:{size:11}, maxRotation:0 }, grid:{ display:false } },
