@@ -457,18 +457,27 @@ function renderTable() {
     if (dateLbl) html += ' <span style="color:#bbb;font-size:0.7rem;font-weight:400">' + dateLbl + '</span>';
     html += '</td>';
 
-    let tot25row = 0, any25 = false;
+    let tot25row = 0, any25 = false, c25 = 0, h25 = 0;
     for (const l of LABOR) {
       const v = actualMetricVal(2025, pp, l);
       if (v != null) { tot25row += v; any25 = true; }
+      if (isRate) {
+        const ch = actualCostHours(2025, pp, l);
+        if (ch && ch.hours > 0) { c25 += ch.cost; h25 += ch.hours; }
+      }
       html += '<td class="sec-25">' + (v != null ? fmt(v) : '') + '</td>';
     }
-    html += '<td class="sec-25 sec-end-25">' + (any25 ? fmt(tot25row) : '') + '</td>';
+    const tot25cell = isRate ? (h25 > 0 ? c25 / h25 : null) : (any25 ? tot25row : null);
+    html += '<td class="sec-25 sec-end-25">' + (tot25cell != null ? fmt(tot25cell) : '') + '</td>';
 
-    let totB26row = 0, anyB = false;
+    let totB26row = 0, anyB = false, cB = 0, hB = 0;
     for (const l of LABOR) {
       const v = budgetMetricVal(pp, l);
       if (v != null) { totB26row += v; anyB = true; }
+      if (isRate) {
+        const ch = budgetCostHours(pp, l);
+        if (ch && ch.hours > 0) { cB += ch.cost; hB += ch.hours; }
+      }
       if (state.editMode && isHC) {
         const bHC = getBudgetHC(2026, pp, l) ?? 0;
         html += '<td class="sec-bdg cell-edit"><input class="bdg-input" type="number" min="0" value="' + bHC + '" data-pp="' + pp + '" data-labor="' + l + '" /></td>';
@@ -476,16 +485,22 @@ function renderTable() {
         html += '<td class="sec-bdg">' + (v != null ? fmt(v) : '') + '</td>';
       }
     }
-    html += '<td class="sec-bdg sec-end-bdg">' + (anyB ? fmt(totB26row) : '') + '</td>';
+    const totBcell = isRate ? (hB > 0 ? cB / hB : null) : (anyB ? totB26row : null);
+    html += '<td class="sec-bdg sec-end-bdg">' + (totBcell != null ? fmt(totBcell) : '') + '</td>';
 
-    let totA26row = 0, anyA = false;
+    let totA26row = 0, anyA = false, cA = 0, hA = 0;
     if (!isFuture26) {
       for (const l of LABOR) {
         const v = actualMetricVal(2026, pp, l);
         if (v != null) { totA26row += v; anyA = true; }
+        if (isRate) {
+          const ch = actualCostHours(2026, pp, l);
+          if (ch && ch.hours > 0) { cA += ch.cost; hA += ch.hours; }
+        }
         html += '<td class="sec-act">' + (v != null ? fmt(v) : '') + '</td>';
       }
-      html += '<td class="sec-act">' + (anyA ? fmt(totA26row) : '') + '</td>';
+      const totAcell = isRate ? (hA > 0 ? cA / hA : null) : (anyA ? totA26row : null);
+      html += '<td class="sec-act">' + (totAcell != null ? fmt(totAcell) : '') + '</td>';
     } else {
       for (let i = 0; i < 6; i++) html += '<td class="sec-act"></td>';
     }
