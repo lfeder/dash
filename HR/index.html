@@ -525,6 +525,7 @@ function renderTable() {
 
     let totA26row = 0, anyA = false, cA = 0, hA = 0;
     if (!isFuture26) {
+      const showLaborDelta = isHC && pp === currentPP[2026];
       for (const l of LABOR) {
         const v = actualMetricVal(2026, pp, l);
         if (v != null) { totA26row += v; anyA = true; }
@@ -532,10 +533,25 @@ function renderTable() {
           const ch = actualCostHours(2026, pp, l);
           if (ch && ch.hours > 0) { cA += ch.cost; hA += ch.hours; }
         }
-        html += '<td class="sec-act">' + (v != null ? fmt(v) : '') + '</td>';
+        let cellHTML = v != null ? fmt(v) : '';
+        if (showLaborDelta && v != null) {
+          const b = budgetMetricVal(pp, l);
+          if (b != null) {
+            const d = v - b;
+            const dcls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
+            cellHTML += ' <span class="delta ' + dcls + '" style="font-size:0.7rem">' + fmtDelta(d) + '</span>';
+          }
+        }
+        html += '<td class="sec-act">' + cellHTML + '</td>';
       }
       const totAcell = isRate ? (hA > 0 ? cA / hA : null) : (anyA ? totA26row : null);
-      html += '<td class="sec-act">' + (totAcell != null ? fmt(totAcell) : '') + '</td>';
+      let totCellHTML = totAcell != null ? fmt(totAcell) : '';
+      if (showLaborDelta && totAcell != null && anyB) {
+        const d = totA26row - totB26row;
+        const dcls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
+        totCellHTML += ' <span class="delta ' + dcls + '" style="font-size:0.7rem">' + fmtDelta(d) + '</span>';
+      }
+      html += '<td class="sec-act">' + totCellHTML + '</td>';
     } else {
       for (let i = 0; i < 6; i++) html += '<td class="sec-act"></td>';
     }
