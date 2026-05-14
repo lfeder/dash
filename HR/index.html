@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Staffing</title>
 <script src="../lib/data-source.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#1a1a2e; color:#e0e0e0; }
@@ -27,7 +28,14 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .delta.zero { color:#888; }
 #main { padding:14px 20px 60px; }
 #chartBox { background:#16213e; border:1px solid #2a3a5e; border-radius:6px; padding:10px; height:340px; margin-bottom:14px; }
-#tableWrap { background:#16213e; border:1px solid #2a3a5e; border-radius:6px; overflow:auto; max-height:calc(100vh - 130px); }
+#layout { display:flex; gap:12px; align-items:stretch; }
+#tableWrap { background:#16213e; border:1px solid #2a3a5e; border-radius:6px; overflow:auto; max-height:calc(100vh - 130px); flex:1; }
+#chartWrap { background:#16213e; border:1px solid #2a3a5e; border-radius:6px; padding:10px; flex:1; min-height:520px; height:calc(100vh - 130px); }
+body.collapsed .sec-25:not(.sec-end-25),
+body.collapsed .sec-bdg:not(.sec-end-bdg),
+body.collapsed td.sec-act:not(:last-child):not([colspan]),
+body.collapsed th.sec-act:not(:last-child) { display:none; }
+body.collapsed col.col-data { width:0; }
 table { width:100%; border-collapse:collapse; font-size:0.78rem; table-layout:fixed; }
 th, td { padding:4px 8px; text-align:right; border-bottom:1px solid #0f3460; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 col.col-pp     { width:90px; }
@@ -78,6 +86,7 @@ input.bdg-input:focus { outline:none; border-color:#fff; background:#1c2a4a; }
       <button data-src="excel">'25 Excel</button>
     </div>
     <select id="versionSel" class="btn" title="Budget version" style="cursor:pointer"></select>
+    <button id="collapseBtn" class="btn">Focus Totals</button>
     <button id="editBtn" class="btn">Edit Budget</button>
     <button id="saveBtn" class="btn primary" style="display:none">Save Budget</button>
     <span id="status">Loading…</span>
@@ -86,7 +95,10 @@ input.bdg-input:focus { outline:none; border-color:#fff; background:#1c2a4a; }
 </div>
 
 <div id="main">
-  <div id="tableWrap"><table id="grid"></table></div>
+  <div id="layout">
+    <div id="tableWrap"><table id="grid"></table></div>
+    <div id="chartWrap" style="display:none"><canvas id="chart"></canvas></div>
+  </div>
 </div>
 
 <script>
@@ -105,7 +117,9 @@ let state = {
   editMode: false,
   budgetDirty: false,
   src25: 'supa',
+  collapsed: false,
 };
+let chart = null;
 let actualsSupa = { 2025: null, 2026: null };
 let actualsExcel = { 2025: null, 2026: null };
 let budgets = { 2026: null }; // 2025 has no budget; 2026 = expanded selected version
@@ -597,6 +611,67 @@ function saveBudget() {
 function rerender() {
   computeRates();
   renderTable();
+  renderChart();
+}
+
+function renderChart() {
+  const wrap = document.getElementById('chartWrap');
+  if (!state.collapsed) { wrap.style.display = 'none'; if (chart) { chart.destroy(); chart = null; } return; }
+  wrap.style.display = '';
+  const isHC = state.metric === 'headcount';
+  const isRate = state.metric === 'dollar_per_hour';
+  const labels = []; for (let pp = 1; pp <= PP_COUNT; pp++) labels.push('PP' + pp);
+
+  function ppTotal(year, mode, pp) {
+    if (isRate) {
+      let c=0, h=0;
+      for (const l of LABOR) {
+        const ch = mode==='actual' ? actualCostHours(year, pp, l) : budgetCostHours(pp, l);
+        if (ch && ch.hours > 0) { c += ch.cost; h += ch.hours; }
+      }
+      return h > 0 ? c / h : null;
+    }
+    let s = 0, any = false;
+    for (const l of LABOR) {
+      const v = mode==='actual' ? actualMetricVal(year, pp, l) : budgetMetricVal(pp, l);
+      if (v != null) { s += v; any = true; }
+    }
+    return any ? s : null;
+  }
+
+  const data25 = [], data26B = [], data26A = [];
+  for (let pp = 1; pp <= PP_COUNT; pp++) {
+    data25.push(ppTotal(2025, 'actual', pp));
+    data26B.push(ppTotal(2026, 'budget', pp));
+    data26A.push(pp <= currentPP[2026] ? ppTotal(2026, 'actual', pp) : null);
+  }
+
+  const cvs = document.getElementById('chart');
+  if (chart) chart.destroy();
+  chart = new Chart(cvs, {
+    type: 'line',
+    data: { labels, datasets: [
+      { label:'2025 Actual', data:data25, borderColor:'#bbb', backgroundColor:'#bbb', borderWidth:1.5, pointRadius:0, spanGaps:true },
+      { label:'2026 Budget', data:data26B, borderColor:'#c7a3e0', backgroundColor:'#c7a3e0', borderWidth:1.5, pointRadius:0, borderDash:[5,4], spanGaps:true },
+      { label:'2026 Actual', data:data26A, borderColor:'#4ecca3', backgroundColor:'#4ecca3', borderWidth:2, pointRadius:0, spanGaps:false },
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode:'index', intersect:false },
+      plugins: {
+        legend: { labels:{ color:'#aaa', font:{size:11}, usePointStyle:true, pointStyle:'circle', boxWidth:8 } },
+        tooltip: { bodyFont:{size:11}, titleFont:{size:12} },
+        title: { display:true, color:'#aaa',
+          text: ({headcount:'Headcount', hours:'Hours', cost_total:'Total Cost', dollar_per_hour:'$/hr'}[state.metric]||state.metric) + ' — total per PP' }
+      },
+      scales: {
+        x: { ticks:{ color:'#888', font:{size:11}, maxRotation:0 }, grid:{ display:false } },
+        y: { ticks:{ color:'#888', font:{size:11},
+            callback: v => state.metric==='cost_total' ? '$'+(v/1000).toFixed(0)+'k' : v },
+          grid:{ color:'rgba(255,255,255,0.05)' } }
+      }
+    }
+  });
 }
 
 
@@ -629,6 +704,14 @@ document.getElementById('editBtn').onclick = () => {
   rerender();
 };
 document.getElementById('saveBtn').onclick = saveBudget;
+document.getElementById('collapseBtn').onclick = () => {
+  state.collapsed = !state.collapsed;
+  document.body.classList.toggle('collapsed', state.collapsed);
+  const b = document.getElementById('collapseBtn');
+  b.textContent = state.collapsed ? 'Show All Cols' : 'Focus Totals';
+  b.classList.toggle('primary', state.collapsed);
+  rerender();
+};
 document.getElementById('versionSel').onchange = (e) => {
   activeVersion = e.target.value;
   applyActiveVersion();
