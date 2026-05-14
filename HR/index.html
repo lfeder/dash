@@ -104,6 +104,7 @@ tbody tr:hover td.sec-25, tbody tr:hover td.sec-act { background:rgba(78,204,163
       <button data-src="excel">'25 Excel</button>
     </div>
     <select id="versionSel" class="btn" title="Budget version" style="cursor:pointer"></select>
+    <button id="movementBtn" class="btn">Joined / Left in '26</button>
     <button id="collapseBtn" class="btn">Focus Totals</button>
     <button id="editBtn" class="btn">Edit Budget</button>
     <button id="saveBtn" class="btn primary" style="display:none">Save Budget</button>
@@ -642,6 +643,73 @@ async function openDetail(year, pp) {
 function closeModal() {
   document.getElementById('modal').classList.remove('show');
 }
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('modal').classList.contains('show')) {
+    closeModal();
+  }
+});
+
+async function openMovement() {
+  document.getElementById('modal').classList.add('show');
+  document.getElementById('modalTitle').textContent = 'Hourly movement: 2025 → 2026';
+  document.getElementById('modalBody').textContent = 'Loading…';
+  try {
+    const client = await DataSource.getClient();
+    // Pull all detail rows for 25+26, paginated
+    const all = [];
+    let page = 0; const PAGE = 1000;
+    while (true) {
+      const { data, error } = await client
+        .from('hr_staffing_pp_detail_v').select('*').gte('year', 2025).lte('year', 2026)
+        .order('check_date').range(page*PAGE, (page+1)*PAGE - 1);
+      if (error) throw error;
+      if (!data || !data.length) break;
+      all.push(...data);
+      if (data.length < PAGE) break;
+      page++;
+    }
+    // Build per-employee summary per year
+    const ppl = {};  // name -> { y2025: {firstPP, lastPP, dept, status}, y2026: {...} }
+    for (const r of all) {
+      const k = r.employee_name;
+      if (!ppl[k]) ppl[k] = {};
+      const slot = (r.year === 2025) ? 'y2025' : 'y2026';
+      if (!ppl[k][slot]) ppl[k][slot] = { firstPP: r.pp, lastPP: r.pp, dept: r.hr_department_id, status: r.hr_work_authorization_id };
+      else {
+        ppl[k][slot].firstPP = Math.min(ppl[k][slot].firstPP, r.pp);
+        ppl[k][slot].lastPP  = Math.max(ppl[k][slot].lastPP, r.pp);
+      }
+    }
+    const joined = [], left = [];
+    for (const name of Object.keys(ppl)) {
+      const p = ppl[name];
+      if (p.y2026 && !p.y2025) joined.push({ name, ...p.y2026, firstPP: p.y2026.firstPP });
+      else if (p.y2025 && !p.y2026) left.push({ name, ...p.y2025, lastPP: p.y2025.lastPP });
+    }
+    joined.sort((a,b) => a.firstPP - b.firstPP || a.name.localeCompare(b.name));
+    left.sort((a,b) => b.lastPP - a.lastPP || a.name.localeCompare(b.name));
+
+    function tbl(title, rows, ppKey, ppLabel) {
+      if (!rows.length) return `<h3 style="margin:14px 0 6px;color:#aaa;font-size:0.85rem">${title} (0)</h3>`;
+      let body = rows.map(r => `<tr>
+        <td>${r.name}</td>
+        <td>${r.dept || ''}</td>
+        <td>${r.status || ''}</td>
+        <td class="num">PP ${r[ppKey]}</td>
+      </tr>`).join('');
+      return `<h3 style="margin:14px 0 6px;color:#aaa;font-size:0.85rem">${title} (${rows.length})</h3>
+        <table><thead><tr><th>Name</th><th>Dept</th><th>Status</th><th style="text-align:right">${ppLabel}</th></tr></thead>
+        <tbody>${body}</tbody></table>`;
+    }
+    document.getElementById('modalBody').innerHTML =
+      tbl('Joined in 2026 (not in 2025)', joined, 'firstPP', 'First PP') +
+      tbl('Left after 2025 (not in 2026)', left, 'lastPP', 'Last PP');
+  } catch (e) {
+    document.getElementById('modalBody').innerHTML = '<div style="color:#e74c3c">Error: ' + e.message + '</div>';
+  }
+}
+document.getElementById('movementBtn').onclick = openMovement;
 
 
 function wireBudgetInputs() {
