@@ -539,7 +539,7 @@ function renderTable() {
           if (b != null) {
             const d = v - b;
             const dcls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
-            cellHTML += ' <span class="delta ' + dcls + '" style="font-size:0.7rem">' + fmtDelta(d) + '</span>';
+            cellHTML = '<span class="delta ' + dcls + '" style="font-size:0.7rem">' + fmtDelta(d) + '</span> ' + cellHTML;
           }
         }
         html += '<td class="sec-act">' + cellHTML + '</td>';
@@ -549,7 +549,7 @@ function renderTable() {
       if (showLaborDelta && totAcell != null && anyB) {
         const d = totA26row - totB26row;
         const dcls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
-        totCellHTML += ' <span class="delta ' + dcls + '" style="font-size:0.7rem">' + fmtDelta(d) + '</span>';
+        totCellHTML = '<span class="delta ' + dcls + '" style="font-size:0.7rem">' + fmtDelta(d) + '</span> ' + totCellHTML;
       }
       html += '<td class="sec-act">' + totCellHTML + '</td>';
     } else {
