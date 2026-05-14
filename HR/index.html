@@ -376,11 +376,14 @@ function renderTable() {
       for (const l of LABOR) out.perLabor[l] = perLabor[l].hrs > 0 ? perLabor[l].cost / perLabor[l].hrs : 0;
       out.total = totHrs > 0 ? totCost / totHrs : 0;
     } else {
+      // 2025 always displayed as avg/PP for any sum-metric (hours/cost).
+      // HC is always avg/PP. 2026 hours/cost remain as sums.
+      const asAvg = isHC || (year === 2025);
       for (const l of LABOR) {
         const c = perLabor[l].count;
-        out.perLabor[l] = isHC ? (c ? perLabor[l].sum / c : 0) : perLabor[l].sum;
+        out.perLabor[l] = asAvg ? (c ? perLabor[l].sum / c : 0) : perLabor[l].sum;
       }
-      out.total = isHC ? (ppCount ? totVal / ppCount : 0) : totVal;
+      out.total = asAvg ? (ppCount ? totVal / ppCount : 0) : totVal;
     }
     return out;
   }
