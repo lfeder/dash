@@ -40,6 +40,7 @@ table { width:100%; border-collapse:collapse; font-size:0.78rem; table-layout:fi
 th, td { padding:4px 8px; text-align:right; border-bottom:1px solid #0f3460; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 col.col-pp     { width:90px; }
 col.col-data   { width:70px; }
+col.col-tot    { width:80px; }
 col.col-tot26  { width:110px; }
 th { background:#0f3460; color:#aaa; font-weight:600; font-size:0.72rem; }
 tr.totals td { background:#0d2a4f !important; font-weight:700; color:#fff; position:sticky; z-index:4; }
@@ -451,7 +452,8 @@ function renderTable() {
   // Build the full HTML — totals rows live in thead so they sit ABOVE headers
   // Cols: PP | 5 labor (25) + Tot25 | 5 labor (26B) + Tot26B (wider) | 5 labor (26A) + Tot26A (wider)
   let html = '<colgroup><col class="col-pp">';
-  for (let i = 0; i < 6; i++) html += '<col class="col-data">';
+  for (let i = 0; i < 5; i++) html += '<col class="col-data">';
+  html += '<col class="col-tot">';
   for (let i = 0; i < 5; i++) html += '<col class="col-data">';
   html += '<col class="col-tot26">';
   for (let i = 0; i < 5; i++) html += '<col class="col-data">';
