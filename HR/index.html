@@ -47,11 +47,11 @@ col.col-data   { width:70px; }
 col.col-tot    { width:80px; }
 col.col-tot26  { width:110px; }
 th { background:#0f3460; color:#aaa; font-weight:600; font-size:0.72rem; }
+thead tr.hdr-section th { position:sticky; top:0; z-index:3; background:#0a2440; font-size:0.78rem; text-align:center; }
+thead tr.hdr-cols    th { position:sticky; top:28px; z-index:3; text-align:right; }
 tr.totals td { background:#0d2a4f !important; font-weight:700; color:#fff; position:sticky; z-index:4; }
-tr.totals.tr-full td { top:0; }
-tr.totals.tr-ytd td  { top:26px; border-bottom:2px solid #4ecca3; }
-thead tr.hdr-section th { position:sticky; top:54px; z-index:3; background:#0a2440; font-size:0.78rem; text-align:center; }
-thead tr.hdr-cols    th { position:sticky; top:82px; z-index:3; text-align:right; }
+tr.totals.tr-full td { top:54px; }
+tr.totals.tr-ytd td  { top:80px; border-bottom:2px solid #4ecca3; }
 th:first-child, td:first-child { text-align:left; padding-left:12px; position:sticky; left:0; background:#0f3460; z-index:1; }
 tr.totals td:first-child { background:#0d2a4f !important; z-index:6; color:#fff; font-weight:700; }
 td:first-child { background:#16213e; color:#e0e0e0; font-weight:600; }
@@ -459,8 +459,6 @@ function renderTable() {
   for (let i = 0; i < 5; i++) html += '<col class="col-data">';
   html += '<col class="col-tot26">';
   html += '</colgroup><thead>';
-  html += totalsRow('Full year', 'tr-full', tot25_full, totB26_full, null);
-  html += totalsRow('YTD',       'tr-ytd',  tot25_ytd,  totB26_ytd,  totA26_ytd);
   // Section header row — when collapsed, colspan=1 over the Tot col so labels align
   html += '<tr class="hdr-section"><th rowspan="2"></th>';
   if (state.collapsed) {
@@ -485,6 +483,8 @@ function renderTable() {
   for (const l of LABOR) html += '<th class="sec-act">' + LABOR_LABEL[l] + '</th>';
   html += '<th class="sec-act">Tot</th>';
   html += '</tr>';
+  html += totalsRow('Full year', 'tr-full', tot25_full, totB26_full, null);
+  html += totalsRow('YTD',       'tr-ytd',  tot25_ytd,  totB26_ytd,  totA26_ytd);
   html += '</thead><tbody>';
 
   for (let pp = 1; pp <= PP_COUNT; pp++) {
