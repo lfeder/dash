@@ -82,8 +82,8 @@ tbody tr:hover td.sec-25, tbody tr:hover td.sec-act { background:rgba(78,204,163
 #modal h2 button { padding:2px 10px; font-size:0.7rem; background:#0f3460; color:#ccc; border:1px solid #555; border-radius:4px; cursor:pointer; }
 #modal table { width:100%; border-collapse:collapse; font-size:0.78rem; }
 #modal th { background:#0f3460; color:#aaa; font-weight:600; font-size:0.72rem; padding:6px 10px; text-align:left; border-bottom:1px solid #2a3a5e; }
-#modal td { padding:5px 10px; border-bottom:1px solid #0f3460; }
-#modal td.num { text-align:right; font-variant-numeric:tabular-nums; }
+#modal td { padding:5px 10px; border-bottom:1px solid #0f3460; text-align:left; }
+#modal th.num, #modal td.num { text-align:right; font-variant-numeric:tabular-nums; }
 #modal tfoot td { font-weight:700; color:#fff; border-top:2px solid #4ecca3; }
 </style>
 </head>
@@ -594,7 +594,7 @@ async function openDetail(year, pp) {
     }
     document.getElementById('modalBody').innerHTML = `
       <table>
-        <thead><tr><th>Name</th><th>Dept</th><th>Status</th><th style="text-align:right">Hours</th><th style="text-align:right">Total Cost</th></tr></thead>
+        <thead><tr><th>Name</th><th>Dept</th><th>Status</th><th class="num">Hours</th><th class="num">Total Cost</th></tr></thead>
         <tbody>${rows}</tbody>
         <tfoot><tr>
           <td colspan="3">${data.length} employees</td>
@@ -674,7 +674,7 @@ async function openMovement() {
         <td class="num">PP ${r[ppKey]}</td>
       </tr>`).join('');
       return `<h3 style="margin:14px 0 6px;color:#aaa;font-size:0.85rem">${title} (${rows.length})</h3>
-        <table><thead><tr><th>Name</th><th>Dept</th><th>Status</th><th style="text-align:right">${ppLabel}</th></tr></thead>
+        <table><thead><tr><th>Name</th><th>Dept</th><th>Status</th><th class="num">${ppLabel}</th></tr></thead>
         <tbody>${body}</tbody></table>`;
     }
     document.getElementById('modalBody').innerHTML =
