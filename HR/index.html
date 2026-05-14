@@ -71,6 +71,7 @@ input.bdg-input:focus { outline:none; border-color:#fff; background:#1c2a4a; }
       <button data-metric="cost_total">Total Cost</button>
       <button data-metric="cost_gross">Gross Wages</button>
     </div>
+    <select id="versionSel" class="btn" title="Budget version" style="cursor:pointer"></select>
     <button id="compare25" class="btn">Overlay 2025</button>
     <button id="editBtn" class="btn">Edit Budget</button>
     <button id="saveBtn" class="btn primary" style="display:none">Save Budget</button>
@@ -108,7 +109,9 @@ let state = {
   editMode: false,
   budgetDirty: false,
 };
-let budgets = { 2026: null }; // 2025 has no budget
+let budgets = { 2026: null }; // 2025 has no budget; 2026 = expanded selected version
+let budgetVersionsRaw = {}; // raw {versionDate: sparseObj} loaded from JSON
+let activeVersion = null;   // string date of the currently selected version
 let actuals = { 2025: null, 2026: null }; // [pp][labor] = {headcount, hours, cost_total, cost_gross}
 let ppDates = { 2025: [], 2026: [] }; // [pp-1] = check_date string
 let currentPP = { 2025: 26, 2026: 1 };
@@ -116,17 +119,35 @@ let chart = null;
 
 // ========= Loaders =========
 async function loadBudget() {
-  const r = await fetch('hr_budget_2026.json');
-  if (!r.ok) throw new Error('hr_budget_2026.json missing');
+  const r = await fetch('hr_budgets_2026.json');
+  if (!r.ok) throw new Error('hr_budgets_2026.json missing');
   const j = await r.json();
-  // Expand sparse budget: fill forward
+  budgetVersionsRaw = j.versions || {};
+  // Pick latest version by date
+  const dates = Object.keys(budgetVersionsRaw).sort();
+  if (!dates.length) throw new Error('no budget versions in file');
+  activeVersion = dates[dates.length - 1];
+  applyActiveVersion();
+}
+
+function applyActiveVersion() {
+  const sparse = budgetVersionsRaw[activeVersion] || {};
   const expanded = {};
   let last = null;
   for (let pp = 1; pp <= PP_COUNT; pp++) {
-    if (j.budget[String(pp)]) last = j.budget[String(pp)];
+    if (sparse[String(pp)]) last = sparse[String(pp)];
     if (last) expanded[pp] = { ...last };
   }
   budgets[2026] = expanded;
+}
+
+function renderVersionDropdown() {
+  const sel = document.getElementById('versionSel');
+  const dates = Object.keys(budgetVersionsRaw).sort();
+  sel.innerHTML = dates.map(d => {
+    const isLatest = d === dates[dates.length - 1];
+    return `<option value="${d}"${d === activeVersion ? ' selected' : ''}>${d}${isLatest ? ' (latest)' : ''}</option>`;
+  }).join('');
 }
 
 async function loadActuals() {
@@ -509,7 +530,7 @@ function wireBudgetInputs() {
 
 // ========= Save (download JSON) =========
 function saveBudget() {
-  // Compress sparse: only emit a row if it differs from the previous
+  // Compress current expanded budget back to sparse (only PPs where it changes)
   const sparse = {};
   let prev = null;
   for (let pp = 1; pp <= PP_COUNT; pp++) {
@@ -518,16 +539,29 @@ function saveBudget() {
     const sig = LABOR.map(l => r[l]).join(',');
     if (sig !== prev) { sparse[pp] = { ...r }; prev = sig; }
   }
+  // Stamp with today's date in HST as a new version. If a version with
+  // today's date already exists, it overwrites — same-day edits roll up.
+  const now = new Date();
+  const hst = new Date(now.getTime() - 10 * 3600 * 1000);
+  const today = `${hst.getUTCFullYear()}-${String(hst.getUTCMonth()+1).padStart(2,'0')}-${String(hst.getUTCDate()).padStart(2,'0')}`;
+  const versions = { ...budgetVersionsRaw, [today]: sparse };
+  // Sort versions by date for stable file order
+  const sorted = {};
+  Object.keys(versions).sort().forEach(d => { sorted[d] = versions[d]; });
   const out = {
     year: 2026,
     labor_types: LABOR,
-    budget: sparse,
+    versions: sorted,
   };
   const blob = new Blob([JSON.stringify(out, null, 2)], { type:'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = 'hr_budget_2026.json'; a.click();
+  a.href = url; a.download = 'hr_budgets_2026.json'; a.click();
   URL.revokeObjectURL(url);
+  // Reflect the new version locally so the dropdown updates without reload
+  budgetVersionsRaw = sorted;
+  activeVersion = today;
+  renderVersionDropdown();
   state.budgetDirty = false;
 }
 
@@ -695,6 +729,11 @@ document.getElementById('editBtn').onclick = () => {
   rerender();
 };
 document.getElementById('saveBtn').onclick = saveBudget;
+document.getElementById('versionSel').onchange = (e) => {
+  activeVersion = e.target.value;
+  applyActiveVersion();
+  rerender();
+};
 
 // ========= Init =========
 async function init() {
@@ -711,6 +750,7 @@ async function init() {
     // check_date, both rows merge into one PP automatically — but flag it.
     // (Skipping a runtime check; detection lives at the source.)
     document.getElementById('status').textContent = '';
+    renderVersionDropdown();
     rerender();
   } catch (e) {
     document.getElementById('status').textContent = 'Error: ' + e.message;
