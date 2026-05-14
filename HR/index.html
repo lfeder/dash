@@ -33,11 +33,11 @@ th, td { padding:4px 8px; text-align:right; border-bottom:1px solid #0f3460; whi
 col.col-pp     { width:80px; }
 col.col-data   { width:70px; }
 th { background:#0f3460; color:#aaa; font-weight:600; font-size:0.72rem; }
-thead tr:nth-child(1) th { position:sticky; top:0; z-index:3; background:#0a2440; font-size:0.78rem; text-align:center; }
-thead tr:nth-child(2) th { position:sticky; top:28px; z-index:3; text-align:right; }
-tr.totals td { background:#0d2a4f !important; font-weight:700; color:#fff; position:sticky; z-index:2; }
-tr.totals.tr-full td { top:54px; }
-tr.totals.tr-ytd td  { top:80px; border-bottom:2px solid #4ecca3; }
+tr.totals td { background:#0d2a4f !important; font-weight:700; color:#fff; position:sticky; z-index:4; }
+tr.totals.tr-full td { top:0; }
+tr.totals.tr-ytd td  { top:26px; border-bottom:2px solid #4ecca3; }
+thead tr.hdr-section th { position:sticky; top:54px; z-index:3; background:#0a2440; font-size:0.78rem; text-align:center; }
+thead tr.hdr-cols    th { position:sticky; top:82px; z-index:3; text-align:right; }
 th:first-child, td:first-child { text-align:left; padding-left:12px; position:sticky; left:0; background:#0f3460; z-index:1; }
 tr.totals td:first-child { background:#0d2a4f !important; z-index:4; color:#fff; font-weight:700; }
 td:first-child { background:#16213e; color:#888; }
@@ -289,21 +289,6 @@ function renderTable() {
   const isHC = state.metric === 'headcount';
   const Q = (s) => s; // identity, kept for readability
 
-  let html = '<colgroup><col class="col-pp">';
-  // 2025 (6) + 2026 bdg (6) + 2026 act (7) = 19 data cols
-  for (let i = 0; i < 19; i++) html += '<col class="col-data">';
-  html += '</colgroup>';
-  html += '<thead><tr><th rowspan="2"></th>';
-  html += '<th class="sec-25" colspan="6">2025 Actual</th>';
-  html += '<th class="sec-bdg" colspan="6">2026 Budget</th>';
-  html += '<th class="sec-act" colspan="7">2026 Actual</th></tr><tr>';
-  for (const l of LABOR) html += '<th class="sec-25">' + LABOR_LABEL[l] + '</th>';
-  html += '<th class="sec-25 sec-end-25">Tot</th>';
-  for (const l of LABOR) html += '<th class="sec-bdg">' + LABOR_LABEL[l] + '</th>';
-  html += '<th class="sec-bdg sec-end-bdg">Tot</th>';
-  for (const l of LABOR) html += '<th class="sec-act">' + LABOR_LABEL[l] + '</th>';
-  html += '<th class="sec-act">Tot</th><th class="sec-act">Δ</th></tr></thead><tbody>';
-
   function yrAgg(year, mode, ppMin, ppMax) {
     const perLabor = {}; for (const l of LABOR) perLabor[l] = { sum:0, count:0 };
     let totVal = 0, ppCount = 0;
@@ -357,8 +342,26 @@ function renderTable() {
     return row;
   }
 
+  // Build the full HTML — totals rows live in thead so they sit ABOVE headers
+  let html = '<colgroup><col class="col-pp">';
+  for (let i = 0; i < 19; i++) html += '<col class="col-data">';
+  html += '</colgroup><thead>';
   html += totalsRow('Full year', 'tr-full', tot25_full, totB26_full, null,       false);
   html += totalsRow('YTD',       'tr-ytd',  tot25_ytd,  totB26_ytd,  totA26_ytd, true);
+  // Section header row
+  html += '<tr class="hdr-section"><th rowspan="2"></th>';
+  html += '<th class="sec-25" colspan="6">2025 Actual</th>';
+  html += '<th class="sec-bdg" colspan="6">2026 Budget</th>';
+  html += '<th class="sec-act" colspan="7">2026 Actual</th></tr>';
+  // Column header row
+  html += '<tr class="hdr-cols">';
+  for (const l of LABOR) html += '<th class="sec-25">' + LABOR_LABEL[l] + '</th>';
+  html += '<th class="sec-25 sec-end-25">Tot</th>';
+  for (const l of LABOR) html += '<th class="sec-bdg">' + LABOR_LABEL[l] + '</th>';
+  html += '<th class="sec-bdg sec-end-bdg">Tot</th>';
+  for (const l of LABOR) html += '<th class="sec-act">' + LABOR_LABEL[l] + '</th>';
+  html += '<th class="sec-act">Tot</th><th class="sec-act">Δ</th></tr>';
+  html += '</thead><tbody>';
 
   for (let pp = 1; pp <= PP_COUNT; pp++) {
     const date25 = ppDates[2025][pp - 1] || '';
