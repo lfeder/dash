@@ -32,10 +32,6 @@ table { width:100%; border-collapse:collapse; font-size:0.78rem; table-layout:fi
 th, td { padding:4px 8px; text-align:right; border-bottom:1px solid #0f3460; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 col.col-pp     { width:80px; }
 col.col-data   { width:70px; }
-.sec-tot       { background:rgba(255,255,255,0.04); border-left:2px solid #2a3a5e; }
-th.sec-tot     { background:#1a2a40; color:#fff; }
-td.sec-tot     { font-size:0.72rem; }
-tr.totals td.sec-tot { font-size:0.78rem; font-weight:700; background:#0d2a4f !important; }
 th { background:#0f3460; color:#aaa; font-weight:600; font-size:0.72rem; }
 tr.totals td { background:#0d2a4f !important; font-weight:700; color:#fff; position:sticky; z-index:4; }
 tr.totals.tr-full td { top:0; }
@@ -44,7 +40,7 @@ thead tr.hdr-section th { position:sticky; top:54px; z-index:3; background:#0a24
 thead tr.hdr-cols    th { position:sticky; top:82px; z-index:3; text-align:right; }
 th:first-child, td:first-child { text-align:left; padding-left:12px; position:sticky; left:0; background:#0f3460; z-index:1; }
 tr.totals td:first-child { background:#0d2a4f !important; z-index:4; color:#fff; font-weight:700; }
-td:first-child { background:#16213e; color:#888; }
+td:first-child { background:#16213e; color:#e0e0e0; font-weight:600; }
 .sec-25  { background:rgba(135,135,135,0.05); }
 .sec-bdg { background:rgba(155,89,182,0.06); }
 .sec-act { background:rgba(78,204,163,0.05); }
@@ -336,23 +332,22 @@ function renderTable() {
   }
   function totalsRow(label, cls, t25, tB, tA) {
     let row = '<tr class="totals ' + cls + '"><td>' + label + '</td>';
-    for (const l of LABOR) row += '<td class="sec-25' + (l==='fuerte'?' sec-end-25':'') + '">' + (t25 ? fmt(t25.perLabor[l]) : '') + '</td>';
-    for (const l of LABOR) row += '<td class="sec-bdg' + (l==='fuerte'?' sec-end-bdg':'') + '">' + (tB ? fmt(tB.perLabor[l]) : '') + '</td>';
-    for (const l of LABOR) row += '<td class="sec-act">' + (tA ? fmt(tA.perLabor[l]) : '') + '</td>';
-    // Single consolidated Total cell with the 3 grand totals + %s
-    let totHTML = '';
-    if (t25) totHTML += '<div><span style="color:#bbb">25:</span> ' + fmt(t25.total) + '</div>';
-    if (tB)  totHTML += '<div><span style="color:#c7a3e0">26B:</span> ' + fmt(tB.total) + (t25 ? pctTag(tB.total, t25.total) : '') + '</div>';
-    if (tA)  totHTML += '<div><span style="color:#9bdfc4">26A:</span> ' + fmt(tA.total) + (tB ? pctTag(tA.total, tB.total) : '') + '</div>';
-    row += '<td class="sec-tot" style="text-align:right;line-height:1.4">' + totHTML + '</td>';
+    // 2025: one cell spanning 5
+    row += '<td class="sec-25 sec-end-25" colspan="5" style="text-align:right">' + (t25 ? fmt(t25.total) : '') + '</td>';
+    // 2026 budget: one cell spanning 5, with +% vs 25
+    const bdgPct = (tB && t25) ? pctTag(tB.total, t25.total) : '';
+    row += '<td class="sec-bdg sec-end-bdg" colspan="5" style="text-align:right">' + (tB ? fmt(tB.total) : '') + bdgPct + '</td>';
+    // 2026 actual: one cell spanning 5, with +% vs 26B
+    const actPct = (tA && tB) ? pctTag(tA.total, tB.total) : '';
+    row += '<td class="sec-act" colspan="5" style="text-align:right">' + (tA ? fmt(tA.total) + actPct : '') + '</td>';
     row += '</tr>';
     return row;
   }
 
   // Build the full HTML — totals rows live in thead so they sit ABOVE headers
   let html = '<colgroup><col class="col-pp">';
-  // 5 labor x 3 sections + 1 final Total = 16 data cols
-  for (let i = 0; i < 16; i++) html += '<col class="col-data">';
+  // 5 labor x 3 sections = 15 data cols
+  for (let i = 0; i < 15; i++) html += '<col class="col-data">';
   html += '</colgroup><thead>';
   html += totalsRow('Full year', 'tr-full', tot25_full, totB26_full, null);
   html += totalsRow('YTD',       'tr-ytd',  tot25_ytd,  totB26_ytd,  totA26_ytd);
@@ -360,8 +355,7 @@ function renderTable() {
   html += '<tr class="hdr-section"><th rowspan="2"></th>';
   html += '<th class="sec-25" colspan="5">2025 Actual</th>';
   html += '<th class="sec-bdg" colspan="5">2026 Budget</th>';
-  html += '<th class="sec-act" colspan="5">2026 Actual</th>';
-  html += '<th rowspan="2" class="sec-tot">Total</th></tr>';
+  html += '<th class="sec-act" colspan="5">2026 Actual</th></tr>';
   // Column header row
   html += '<tr class="hdr-cols">';
   for (const l of LABOR) html += '<th class="sec-25' + (l==='fuerte'?' sec-end-25':'') + '">' + LABOR_LABEL[l] + '</th>';
@@ -398,28 +392,14 @@ function renderTable() {
       }
     }
 
-    let totA26row = 0, anyA = false;
     if (!isFuture26) {
       for (const l of LABOR) {
         const v = actualMetricVal(2026, pp, l);
-        if (v != null) { totA26row += v; anyA = true; }
         html += '<td class="sec-act">' + (v != null ? fmt(v) : '') + '</td>';
       }
     } else {
       for (let i = 0; i < 5; i++) html += '<td class="sec-act"></td>';
     }
-
-    // Consolidated Total cell: stack 25 / 26B / 26A (when present)
-    let totHTML = '';
-    if (any25) totHTML += '<div><span style="color:#bbb">25:</span> ' + fmt(tot25row) + '</div>';
-    if (anyB)  totHTML += '<div><span style="color:#c7a3e0">26B:</span> ' + fmt(totB26row) + '</div>';
-    if (anyA)  {
-      const d = totA26row - totB26row;
-      const cls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
-      totHTML += '<div><span style="color:#9bdfc4">26A:</span> ' + fmt(totA26row) + (anyB ? ' <span class="delta ' + cls + '" style="font-size:0.68rem">' + fmtDelta(d) + '</span>' : '') + '</div>';
-    }
-    html += '<td class="sec-tot" style="text-align:right;line-height:1.3">' + totHTML + '</td>';
-
     html += '</tr>';
   }
   html += '</tbody>';
