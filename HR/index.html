@@ -73,6 +73,18 @@ input.bdg-input:focus { outline:none; border-color:#fff; background:#1c2a4a; }
 .future { opacity:0.85; }
 #status { font-size:0.7rem; color:#888; }
 #issue { padding:6px 14px; background:#3a2a1a; color:#e8b87a; font-size:0.72rem; border-bottom:1px solid #5a3a1a; display:none; }
+tbody tr td.sec-25, tbody tr td.sec-act { cursor:pointer; }
+tbody tr:hover td.sec-25, tbody tr:hover td.sec-act { background:rgba(78,204,163,0.08); }
+#modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; align-items:flex-start; justify-content:center; padding:60px 20px; }
+#modal.show { display:flex; }
+#modalBox { background:#16213e; border:1px solid #2a3a5e; border-radius:8px; padding:14px 18px; min-width:680px; max-width:92vw; max-height:80vh; overflow:auto; }
+#modal h2 { font-size:1rem; color:#4ecca3; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; }
+#modal h2 button { padding:2px 10px; font-size:0.7rem; background:#0f3460; color:#ccc; border:1px solid #555; border-radius:4px; cursor:pointer; }
+#modal table { width:100%; border-collapse:collapse; font-size:0.78rem; }
+#modal th { background:#0f3460; color:#aaa; font-weight:600; font-size:0.72rem; padding:6px 10px; text-align:left; border-bottom:1px solid #2a3a5e; }
+#modal td { padding:5px 10px; border-bottom:1px solid #0f3460; }
+#modal td.num { text-align:right; font-variant-numeric:tabular-nums; }
+#modal tfoot td { font-weight:700; color:#fff; border-top:2px solid #4ecca3; }
 </style>
 </head>
 <body>
@@ -104,6 +116,13 @@ input.bdg-input:focus { outline:none; border-color:#fff; background:#1c2a4a; }
   <div id="layout">
     <div id="tableWrap"><table id="grid"></table></div>
     <div id="chartWrap" style="display:none"><canvas id="chart"></canvas></div>
+  </div>
+</div>
+
+<div id="modal" onclick="if(event.target===this)closeModal()">
+  <div id="modalBox">
+    <h2><span id="modalTitle"></span><button onclick="closeModal()">Close ✕</button></h2>
+    <div id="modalBody">Loading…</div>
   </div>
 </div>
 
@@ -557,6 +576,71 @@ function renderTable() {
   html += '</tbody>';
   document.getElementById('grid').innerHTML = html;
   if (state.editMode && isHC) wireBudgetInputs();
+  wireDetailClicks();
+}
+
+function wireDetailClicks() {
+  document.querySelectorAll('#grid tbody tr').forEach(tr => {
+    const pp = parseInt(tr.dataset.pp, 10);
+    if (!pp) return;
+    tr.querySelectorAll('td.sec-25').forEach(td => {
+      td.onclick = (e) => { e.stopPropagation(); openDetail(2025, pp); };
+    });
+    tr.querySelectorAll('td.sec-act').forEach(td => {
+      td.onclick = (e) => { e.stopPropagation(); if (pp <= currentPP[2026]) openDetail(2026, pp); };
+    });
+  });
+}
+
+async function openDetail(year, pp) {
+  document.getElementById('modal').classList.add('show');
+  document.getElementById('modalTitle').textContent = `${year} PP ${pp} — employees`;
+  document.getElementById('modalBody').textContent = 'Loading…';
+  try {
+    const client = await DataSource.getClient();
+    const { data, error } = await client
+      .from('hr_staffing_pp_detail_v')
+      .select('*')
+      .eq('year', year)
+      .eq('pp', pp)
+      .order('hr_work_authorization_id')
+      .order('employee_name');
+    if (error) throw error;
+    if (!data || !data.length) {
+      document.getElementById('modalBody').innerHTML = '<div style="color:#888">No employees.</div>';
+      return;
+    }
+    let rows = '';
+    let totH = 0, totC = 0;
+    for (const r of data) {
+      const h = parseFloat(r.total_hours) || 0;
+      const c = parseFloat(r.total_cost) || 0;
+      totH += h; totC += c;
+      rows += `<tr>
+        <td>${r.employee_name || ''}</td>
+        <td>${r.hr_department_id || ''}</td>
+        <td>${r.hr_work_authorization_id || ''}</td>
+        <td class="num">${h.toFixed(2)}</td>
+        <td class="num">$${c.toLocaleString(undefined, {maximumFractionDigits:2})}</td>
+      </tr>`;
+    }
+    document.getElementById('modalBody').innerHTML = `
+      <table>
+        <thead><tr><th>Name</th><th>Dept</th><th>Status</th><th style="text-align:right">Hours</th><th style="text-align:right">Total Cost</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr>
+          <td colspan="3">${data.length} employees</td>
+          <td class="num">${totH.toFixed(2)}</td>
+          <td class="num">$${totC.toLocaleString(undefined, {maximumFractionDigits:2})}</td>
+        </tr></tfoot>
+      </table>`;
+  } catch (e) {
+    document.getElementById('modalBody').innerHTML = '<div style="color:#e74c3c">Error: ' + e.message + '</div>';
+  }
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('show');
 }
 
 
