@@ -681,11 +681,16 @@ async function openMovement() {
         ppl[k][slot].lastPP  = Math.max(ppl[k][slot].lastPP, r.pp);
       }
     }
+    const latestPP = currentPP[2026];
+    // Build set of names in the latest 2026 PP for fast lookup
+    const inLatest = new Set(all.filter(r => r.year === 2026 && r.pp === latestPP).map(r => r.employee_name));
+
     const joined = [], left = [];
     for (const name of Object.keys(ppl)) {
       const p = ppl[name];
       if (p.y2026 && !p.y2025) joined.push({ name, ...p.y2026, firstPP: p.y2026.firstPP });
-      else if (p.y2025 && !p.y2026) left.push({ name, ...p.y2025, lastPP: p.y2025.lastPP });
+      // Leaver: was in 2026 at some point but not in the latest PP
+      if (p.y2026 && !inLatest.has(name)) left.push({ name, ...p.y2026, lastPP: p.y2026.lastPP });
     }
     joined.sort((a,b) => a.firstPP - b.firstPP || a.name.localeCompare(b.name));
     left.sort((a,b) => b.lastPP - a.lastPP || a.name.localeCompare(b.name));
@@ -704,7 +709,7 @@ async function openMovement() {
     }
     document.getElementById('modalBody').innerHTML =
       tbl('Joined in 2026 (not in 2025)', joined, 'firstPP', 'First PP') +
-      tbl('Left after 2025 (not in 2026)', left, 'lastPP', 'Last PP');
+      tbl(`Left during 2026 (in earlier '26 PP but not PP ${latestPP})`, left, 'lastPP', 'Last PP');
   } catch (e) {
     document.getElementById('modalBody').innerHTML = '<div style="color:#e74c3c">Error: ' + e.message + '</div>';
   }
