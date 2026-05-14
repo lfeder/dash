@@ -465,11 +465,21 @@ function renderTable() {
   html += '</colgroup><thead>';
   html += totalsRow('Full year', 'tr-full', tot25_full, totB26_full, null);
   html += totalsRow('YTD',       'tr-ytd',  tot25_ytd,  totB26_ytd,  totA26_ytd);
-  // Section header row
+  // Section header row — when collapsed, colspan=1 over the Tot col so labels align
   html += '<tr class="hdr-section"><th rowspan="2"></th>';
-  html += '<th class="sec-25" colspan="6">2025 Actual</th>';
-  html += '<th class="sec-bdg" colspan="6">2026 Budget</th>';
-  html += '<th class="sec-act" colspan="6">2026 Actual</th></tr>';
+  if (state.collapsed) {
+    for (let i = 0; i < 5; i++) html += '<th style="display:none"></th>';
+    html += '<th class="sec-25 sec-end-25">2025 Actual</th>';
+    for (let i = 0; i < 5; i++) html += '<th style="display:none"></th>';
+    html += '<th class="sec-bdg sec-end-bdg">2026 Budget</th>';
+    for (let i = 0; i < 5; i++) html += '<th style="display:none"></th>';
+    html += '<th class="sec-act">2026 Actual</th>';
+  } else {
+    html += '<th class="sec-25" colspan="6">2025 Actual</th>';
+    html += '<th class="sec-bdg" colspan="6">2026 Budget</th>';
+    html += '<th class="sec-act" colspan="6">2026 Actual</th>';
+  }
+  html += '</tr>';
   // Column header row
   html += '<tr class="hdr-cols">';
   for (const l of LABOR) html += '<th class="sec-25">' + LABOR_LABEL[l] + '</th>';
