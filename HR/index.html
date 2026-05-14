@@ -32,6 +32,7 @@ table { width:100%; border-collapse:collapse; font-size:0.78rem; table-layout:fi
 th, td { padding:4px 8px; text-align:right; border-bottom:1px solid #0f3460; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 col.col-pp     { width:90px; }
 col.col-data   { width:70px; }
+col.col-tot26  { width:110px; }
 th { background:#0f3460; color:#aaa; font-weight:600; font-size:0.72rem; }
 tr.totals td { background:#0d2a4f !important; font-weight:700; color:#fff; position:sticky; z-index:4; }
 tr.totals.tr-full td { top:0; }
@@ -413,22 +414,34 @@ function renderTable() {
       for (let i = 0; i < 5; i++) row += '<td class="sec-25"></td>';
       row += '<td class="sec-25 sec-end-25"></td>';
     }
-    // 2026 budget: 4 blank labor cells + 1 Tot cell spanning the last two cols (Fuerte+Tot)
-    for (let i = 0; i < 4; i++) row += '<td class="sec-bdg"></td>';
+    // 2026 budget: per-labor avg/PP + Tot with +% vs 25
+    if (tB) {
+      for (const l of LABOR) row += '<td class="sec-bdg">' + fmt(tB.perLaborAvg[l]) + '</td>';
+    } else {
+      for (let i = 0; i < 5; i++) row += '<td class="sec-bdg"></td>';
+    }
     const bdgPct = (tB && t25) ? pctTag(tB.total, t25.total) : '';
-    row += '<td class="sec-bdg sec-end-bdg" colspan="2" style="text-align:right">' + (tB ? fmt(tB.total) : '') + bdgPct + '</td>';
-    // 2026 actual: 4 blank labor cells + 1 Tot cell spanning the last two cols
-    for (let i = 0; i < 4; i++) row += '<td class="sec-act"></td>';
+    row += '<td class="sec-bdg sec-end-bdg" style="text-align:right">' + (tB ? fmt(tB.total) : '') + bdgPct + '</td>';
+    // 2026 actual: per-labor avg/PP + Tot with +% vs 26B
+    if (tA) {
+      for (const l of LABOR) row += '<td class="sec-act">' + fmt(tA.perLaborAvg[l]) + '</td>';
+    } else {
+      for (let i = 0; i < 5; i++) row += '<td class="sec-act"></td>';
+    }
     const actPct = (tA && tB) ? pctTag(tA.total, tB.total) : '';
-    row += '<td class="sec-act" colspan="2" style="text-align:right">' + (tA ? fmt(tA.total) + actPct : '') + '</td>';
+    row += '<td class="sec-act" style="text-align:right">' + (tA ? fmt(tA.total) + actPct : '') + '</td>';
     row += '</tr>';
     return row;
   }
 
   // Build the full HTML — totals rows live in thead so they sit ABOVE headers
+  // Cols: PP | 5 labor (25) + Tot25 | 5 labor (26B) + Tot26B (wider) | 5 labor (26A) + Tot26A (wider)
   let html = '<colgroup><col class="col-pp">';
-  // 6 cols (5 labor + Tot) x 3 sections = 18 data cols
-  for (let i = 0; i < 18; i++) html += '<col class="col-data">';
+  for (let i = 0; i < 6; i++) html += '<col class="col-data">';
+  for (let i = 0; i < 5; i++) html += '<col class="col-data">';
+  html += '<col class="col-tot26">';
+  for (let i = 0; i < 5; i++) html += '<col class="col-data">';
+  html += '<col class="col-tot26">';
   html += '</colgroup><thead>';
   html += totalsRow('Full year', 'tr-full', tot25_full, totB26_full, null);
   html += totalsRow('YTD',       'tr-ytd',  tot25_ytd,  totB26_ytd,  totA26_ytd);
