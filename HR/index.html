@@ -100,8 +100,8 @@ tbody tr:hover td.sec-25, tbody tr:hover td.sec-act { background:rgba(78,204,163
       <button data-metric="prodhours">ProdHours</button>
     </div>
     <div class="toggle-group" id="srcToggle" title="2025 actuals source">
-      <button data-src="supa" class="active">'25 Supa</button>
-      <button data-src="excel">'25 Excel</button>
+      <button data-src="supa">'25 Supa</button>
+      <button data-src="excel" class="active">'25 Excel</button>
     </div>
     <select id="versionSel" class="btn" title="Budget version" style="cursor:pointer"></select>
     <button id="movementBtn" class="btn">Joined / Left in '26</button>
@@ -142,7 +142,7 @@ let state = {
   metric: 'headcount',
   editMode: false,
   budgetDirty: false,
-  src25: 'supa',
+  src25: 'excel',
   collapsed: false,
 };
 let chart = null;
