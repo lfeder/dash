@@ -72,6 +72,10 @@ input.bdg-input:focus { outline:none; border-color:#fff; background:#1c2a4a; }
       <button data-metric="cost_total">Total Cost</button>
       <button data-metric="dollar_per_hour">$/hr</button>
     </div>
+    <div class="toggle-group" id="srcToggle" title="2025 actuals source">
+      <button data-src="supa" class="active">'25 Supa</button>
+      <button data-src="excel">'25 Excel</button>
+    </div>
     <select id="versionSel" class="btn" title="Budget version" style="cursor:pointer"></select>
     <button id="editBtn" class="btn">Edit Budget</button>
     <button id="saveBtn" class="btn primary" style="display:none">Save Budget</button>
@@ -99,7 +103,10 @@ let state = {
   metric: 'headcount',
   editMode: false,
   budgetDirty: false,
+  src25: 'supa',
 };
+let actualsSupa = { 2025: null, 2026: null };
+let actualsExcel = { 2025: null, 2026: null };
 let budgets = { 2026: null }; // 2025 has no budget; 2026 = expanded selected version
 let budgetVersionsRaw = {}; // raw {versionDate: sparseObj} loaded from JSON
 let activeVersion = null;   // string date of the currently selected version
@@ -140,6 +147,34 @@ function renderVersionDropdown() {
   }).join('');
 }
 
+async function loadExcelActuals() {
+  try {
+    const r = await fetch('hr_excel_actuals.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) return;
+    const j = await r.json();
+    actualsExcel[2025] = {};
+    actualsExcel[2026] = {};
+    for (const yr of [2025, 2026]) {
+      const src = j[String(yr)] || {};
+      for (const pp of Object.keys(src)) {
+        actualsExcel[yr][pp] = {};
+        for (const labor of LABOR) {
+          const c = src[pp][labor];
+          actualsExcel[yr][pp][labor] = c
+            ? { headcount:c.headcount, hours:c.hours, cost_total:c.cost_total, cost_gross:c.cost_gross }
+            : { headcount:0, hours:0, cost_total:0, cost_gross:0 };
+        }
+      }
+    }
+  } catch (e) { console.warn('Excel actuals load failed:', e); }
+}
+
+function applySrc25() {
+  // Swap 2025 actuals based on selected source. 2026 always from Supabase.
+  if (state.src25 === 'excel' && actualsExcel[2025]) actuals[2025] = actualsExcel[2025];
+  else actuals[2025] = actualsSupa[2025];
+}
+
 async function loadActuals() {
   const client = await DataSource.getClient();
   const { data, error } = await client
@@ -147,12 +182,13 @@ async function loadActuals() {
     .select('*')
     .gte('year', 2025);
   if (error) throw error;
-  // Group rows: actuals[year][pp][labor] = {headcount, hours, cost_total, cost_gross}
+  // Group rows: actualsSupa[year][pp][labor] = {headcount, hours, cost_total, cost_gross}
+  actualsSupa[2025] = {}; actualsSupa[2026] = {};
   const ppDateByYear = { 2025: new Map(), 2026: new Map() };
   for (const r of data) {
-    if (!actuals[r.year]) actuals[r.year] = {};
-    if (!actuals[r.year][r.pp]) actuals[r.year][r.pp] = {};
-    actuals[r.year][r.pp][r.labor_type] = {
+    if (!actualsSupa[r.year]) actualsSupa[r.year] = {};
+    if (!actualsSupa[r.year][r.pp]) actualsSupa[r.year][r.pp] = {};
+    actualsSupa[r.year][r.pp][r.labor_type] = {
       headcount: r.headcount,
       hours: parseFloat(r.hours) || 0,
       cost_total: parseFloat(r.cost_total) || 0,
@@ -167,14 +203,17 @@ async function loadActuals() {
     currentPP[yr] = maxPP;
     // Backfill any (pp, labor) cells the view didn't return so lookups don't crash
     for (let pp = 1; pp <= maxPP; pp++) {
-      if (!actuals[yr][pp]) actuals[yr][pp] = {};
+      if (!actualsSupa[yr][pp]) actualsSupa[yr][pp] = {};
       for (const labor of LABOR) {
-        if (!actuals[yr][pp][labor]) {
-          actuals[yr][pp][labor] = { headcount:0, hours:0, cost_total:0, cost_gross:0 };
+        if (!actualsSupa[yr][pp][labor]) {
+          actualsSupa[yr][pp][labor] = { headcount:0, hours:0, cost_total:0, cost_gross:0 };
         }
       }
     }
   }
+  // 2026 always uses Supabase
+  actuals[2026] = actualsSupa[2026];
+  applySrc25();
 }
 
 // ========= Forecast rates (2026 only) =========
@@ -530,6 +569,14 @@ document.querySelectorAll('#metricToggle button').forEach(b => {
     rerender();
   };
 });
+document.querySelectorAll('#srcToggle button').forEach(b => {
+  b.onclick = () => {
+    state.src25 = b.dataset.src;
+    document.querySelectorAll('#srcToggle button').forEach(x => x.classList.toggle('active', x === b));
+    applySrc25();
+    rerender();
+  };
+});
 document.getElementById('editBtn').onclick = () => {
   state.editMode = !state.editMode;
   const b = document.getElementById('editBtn');
@@ -554,7 +601,8 @@ document.getElementById('versionSel').onchange = (e) => {
 async function init() {
   try {
     document.getElementById('status').textContent = 'Loading…';
-    await Promise.all([loadBudget(), loadActuals()]);
+    await Promise.all([loadBudget(), loadActuals(), loadExcelActuals()]);
+    applySrc25();
     // Surface the data anomaly if present
     const issues = [];
     for (const yr of [2025, 2026]) {
