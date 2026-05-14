@@ -659,16 +659,16 @@ document.addEventListener('keydown', (e) => {
 
 async function openMovement() {
   document.getElementById('modal').classList.add('show');
-  document.getElementById('modalTitle').textContent = 'Hourly movement: 2025 → 2026';
+  document.getElementById('modalTitle').textContent = 'Hourly movement: 2024 → 2025 → 2026';
   document.getElementById('modalBody').textContent = 'Loading…';
   try {
     const client = await DataSource.getClient();
-    // Pull all detail rows for 25+26, paginated
+    // Pull 24/25/26 detail rows, paginated
     const all = [];
     let page = 0; const PAGE = 1000;
     while (true) {
       const { data, error } = await client
-        .from('hr_staffing_pp_detail_v').select('*').gte('year', 2025).lte('year', 2026)
+        .from('hr_staffing_pp_detail_v').select('*').gte('year', 2024).lte('year', 2026)
         .order('check_date').range(page*PAGE, (page+1)*PAGE - 1);
       if (error) throw error;
       if (!data || !data.length) break;
@@ -676,31 +676,34 @@ async function openMovement() {
       if (data.length < PAGE) break;
       page++;
     }
-    // Build per-employee summary per year
-    const ppl = {};  // name -> { y2025: {firstPP, lastPP, dept, status}, y2026: {...} }
+    // Build per-employee per-year summary
+    const ppl = {};
     for (const r of all) {
       const k = r.employee_name;
       if (!ppl[k]) ppl[k] = {};
-      const slot = (r.year === 2025) ? 'y2025' : 'y2026';
+      const slot = 'y' + r.year;
       if (!ppl[k][slot]) ppl[k][slot] = { firstPP: r.pp, lastPP: r.pp, dept: r.hr_department_id, status: r.hr_work_authorization_id };
       else {
         ppl[k][slot].firstPP = Math.min(ppl[k][slot].firstPP, r.pp);
         ppl[k][slot].lastPP  = Math.max(ppl[k][slot].lastPP, r.pp);
       }
     }
-    const latestPP = currentPP[2026];
-    // Build set of names in the latest 2026 PP for fast lookup
-    const inLatest = new Set(all.filter(r => r.year === 2026 && r.pp === latestPP).map(r => r.employee_name));
+    const latestPP26 = currentPP[2026];
+    const inLatest26 = new Set(all.filter(r => r.year === 2026 && r.pp === latestPP26).map(r => r.employee_name));
+    const inLastPP25 = new Set(all.filter(r => r.year === 2025 && r.pp === 26).map(r => r.employee_name));
 
-    const joined = [], left = [];
+    const joined26 = [], left26 = [], joined25 = [], left25 = [];
     for (const name of Object.keys(ppl)) {
       const p = ppl[name];
-      if (p.y2026 && !p.y2025) joined.push({ name, ...p.y2026, firstPP: p.y2026.firstPP });
-      // Leaver: was in 2026 at some point but not in the latest PP
-      if (p.y2026 && !inLatest.has(name)) left.push({ name, ...p.y2026, lastPP: p.y2026.lastPP });
+      // 2026 movement
+      if (p.y2026 && !p.y2025) joined26.push({ name, ...p.y2026, firstPP: p.y2026.firstPP });
+      if (p.y2026 && !inLatest26.has(name)) left26.push({ name, ...p.y2026, lastPP: p.y2026.lastPP });
+      // 2025 movement
+      if (p.y2025 && !p.y2024) joined25.push({ name, ...p.y2025, firstPP: p.y2025.firstPP });
+      if (p.y2025 && !inLastPP25.has(name)) left25.push({ name, ...p.y2025, lastPP: p.y2025.lastPP });
     }
-    joined.sort((a,b) => a.firstPP - b.firstPP || a.name.localeCompare(b.name));
-    left.sort((a,b) => a.lastPP - b.lastPP || a.name.localeCompare(b.name));
+    [joined26, joined25].forEach(arr => arr.sort((a,b) => a.firstPP - b.firstPP || a.name.localeCompare(b.name)));
+    [left26, left25].forEach(arr => arr.sort((a,b) => a.lastPP - b.lastPP || a.name.localeCompare(b.name)));
 
     function tbl(title, rows, ppKey, ppLabel) {
       if (!rows.length) return `<h3 style="margin:14px 0 6px;color:#aaa;font-size:0.85rem">${title} (0)</h3>`;
@@ -715,8 +718,12 @@ async function openMovement() {
         <tbody>${body}</tbody></table>`;
     }
     document.getElementById('modalBody').innerHTML =
-      tbl('Joined in 2026 (not in 2025)', joined, 'firstPP', 'First PP') +
-      tbl(`Left during 2026 (in earlier '26 PP but not PP ${latestPP})`, left, 'lastPP', 'Last PP');
+      '<div style="color:#4ecca3;font-weight:600;margin-bottom:4px">2026</div>' +
+      tbl('Joined in 2026 (not in 2025)', joined26, 'firstPP', 'First PP') +
+      tbl(`Left during 2026 (not in PP ${latestPP26})`, left26, 'lastPP', 'Last PP') +
+      '<div style="color:#bbb;font-weight:600;margin:24px 0 4px;border-top:1px solid #2a3a5e;padding-top:14px">2025</div>' +
+      tbl('Joined in 2025 (not in 2024)', joined25, 'firstPP', 'First PP') +
+      tbl('Left during 2025 (not in PP 26)', left25, 'lastPP', 'Last PP');
   } catch (e) {
     document.getElementById('modalBody').innerHTML = '<div style="color:#e74c3c">Error: ' + e.message + '</div>';
   }
