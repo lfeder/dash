@@ -32,6 +32,10 @@ table { width:100%; border-collapse:collapse; font-size:0.78rem; table-layout:fi
 th, td { padding:4px 8px; text-align:right; border-bottom:1px solid #0f3460; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 col.col-pp     { width:80px; }
 col.col-data   { width:70px; }
+.sec-tot       { background:rgba(255,255,255,0.04); border-left:2px solid #2a3a5e; }
+th.sec-tot     { background:#1a2a40; color:#fff; }
+td.sec-tot     { font-size:0.72rem; }
+tr.totals td.sec-tot { font-size:0.78rem; font-weight:700; background:#0d2a4f !important; }
 th { background:#0f3460; color:#aaa; font-weight:600; font-size:0.72rem; }
 tr.totals td { background:#0d2a4f !important; font-weight:700; color:#fff; position:sticky; z-index:4; }
 tr.totals.tr-full td { top:0; }
@@ -330,48 +334,40 @@ function renderTable() {
     const cls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
     return ' <span class="delta ' + cls + '" style="font-size:0.68rem;font-weight:500">' + sign + d.toFixed(1) + '%</span>';
   }
-  function totalsRow(label, cls, t25, tB, tA, showDelta) {
+  function totalsRow(label, cls, t25, tB, tA) {
     let row = '<tr class="totals ' + cls + '"><td>' + label + '</td>';
-    for (const l of LABOR) row += '<td class="sec-25">' + (t25 ? fmt(t25.perLabor[l]) : '') + '</td>';
-    row += '<td class="sec-25 sec-end-25">' + (t25 ? fmt(t25.total) : '') + '</td>';
-    for (const l of LABOR) row += '<td class="sec-bdg">' + (tB ? fmt(tB.perLabor[l]) : '') + '</td>';
-    // 2026 Bdg Tot: show value + small "+X% vs 25" tag
-    const bdgPct = (tB && t25) ? pctTag(tB.total, t25.total) : '';
-    row += '<td class="sec-bdg sec-end-bdg">' + (tB ? fmt(tB.total) : '') + bdgPct + '</td>';
+    for (const l of LABOR) row += '<td class="sec-25' + (l==='fuerte'?' sec-end-25':'') + '">' + (t25 ? fmt(t25.perLabor[l]) : '') + '</td>';
+    for (const l of LABOR) row += '<td class="sec-bdg' + (l==='fuerte'?' sec-end-bdg':'') + '">' + (tB ? fmt(tB.perLabor[l]) : '') + '</td>';
     for (const l of LABOR) row += '<td class="sec-act">' + (tA ? fmt(tA.perLabor[l]) : '') + '</td>';
-    // 2026 Act Tot: show value + small "+X% vs bdg" tag
-    const actPct = (tA && tB) ? pctTag(tA.total, tB.total) : '';
-    row += '<td class="sec-act">' + (tA ? fmt(tA.total) : '') + actPct + '</td>';
-    if (showDelta && tA && tB) {
-      const d = tA.total - tB.total;
-      const dcls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
-      row += '<td class="sec-act delta ' + dcls + '">' + fmtDelta(d) + '</td>';
-    } else {
-      row += '<td class="sec-act"></td>';
-    }
+    // Single consolidated Total cell with the 3 grand totals + %s
+    let totHTML = '';
+    if (t25) totHTML += '<div><span style="color:#bbb">25:</span> ' + fmt(t25.total) + '</div>';
+    if (tB)  totHTML += '<div><span style="color:#c7a3e0">26B:</span> ' + fmt(tB.total) + (t25 ? pctTag(tB.total, t25.total) : '') + '</div>';
+    if (tA)  totHTML += '<div><span style="color:#9bdfc4">26A:</span> ' + fmt(tA.total) + (tB ? pctTag(tA.total, tB.total) : '') + '</div>';
+    row += '<td class="sec-tot" style="text-align:right;line-height:1.4">' + totHTML + '</td>';
     row += '</tr>';
     return row;
   }
 
   // Build the full HTML — totals rows live in thead so they sit ABOVE headers
   let html = '<colgroup><col class="col-pp">';
-  for (let i = 0; i < 19; i++) html += '<col class="col-data">';
+  // 5 labor x 3 sections + 1 final Total = 16 data cols
+  for (let i = 0; i < 16; i++) html += '<col class="col-data">';
   html += '</colgroup><thead>';
-  html += totalsRow('Full year', 'tr-full', tot25_full, totB26_full, null,       false);
-  html += totalsRow('YTD',       'tr-ytd',  tot25_ytd,  totB26_ytd,  totA26_ytd, true);
+  html += totalsRow('Full year', 'tr-full', tot25_full, totB26_full, null);
+  html += totalsRow('YTD',       'tr-ytd',  tot25_ytd,  totB26_ytd,  totA26_ytd);
   // Section header row
   html += '<tr class="hdr-section"><th rowspan="2"></th>';
-  html += '<th class="sec-25" colspan="6">2025 Actual</th>';
-  html += '<th class="sec-bdg" colspan="6">2026 Budget</th>';
-  html += '<th class="sec-act" colspan="7">2026 Actual</th></tr>';
+  html += '<th class="sec-25" colspan="5">2025 Actual</th>';
+  html += '<th class="sec-bdg" colspan="5">2026 Budget</th>';
+  html += '<th class="sec-act" colspan="5">2026 Actual</th>';
+  html += '<th rowspan="2" class="sec-tot">Total</th></tr>';
   // Column header row
   html += '<tr class="hdr-cols">';
-  for (const l of LABOR) html += '<th class="sec-25">' + LABOR_LABEL[l] + '</th>';
-  html += '<th class="sec-25 sec-end-25">Tot</th>';
-  for (const l of LABOR) html += '<th class="sec-bdg">' + LABOR_LABEL[l] + '</th>';
-  html += '<th class="sec-bdg sec-end-bdg">Tot</th>';
+  for (const l of LABOR) html += '<th class="sec-25' + (l==='fuerte'?' sec-end-25':'') + '">' + LABOR_LABEL[l] + '</th>';
+  for (const l of LABOR) html += '<th class="sec-bdg' + (l==='fuerte'?' sec-end-bdg':'') + '">' + LABOR_LABEL[l] + '</th>';
   for (const l of LABOR) html += '<th class="sec-act">' + LABOR_LABEL[l] + '</th>';
-  html += '<th class="sec-act">Tot</th><th class="sec-act">Δ</th></tr>';
+  html += '</tr>';
   html += '</thead><tbody>';
 
   for (let pp = 1; pp <= PP_COUNT; pp++) {
@@ -387,9 +383,8 @@ function renderTable() {
     for (const l of LABOR) {
       const v = actualMetricVal(2025, pp, l);
       if (v != null) { tot25row += v; any25 = true; }
-      html += '<td class="sec-25">' + (v != null ? fmt(v) : '') + '</td>';
+      html += '<td class="sec-25' + (l==='fuerte'?' sec-end-25':'') + '">' + (v != null ? fmt(v) : '') + '</td>';
     }
-    html += '<td class="sec-25 sec-end-25">' + (any25 ? fmt(tot25row) : '') + '</td>';
 
     let totB26row = 0, anyB = false;
     for (const l of LABOR) {
@@ -397,31 +392,34 @@ function renderTable() {
       if (v != null) { totB26row += v; anyB = true; }
       if (state.editMode && isHC) {
         const bHC = getBudgetHC(2026, pp, l) ?? 0;
-        html += '<td class="sec-bdg cell-edit"><input class="bdg-input" type="number" min="0" value="' + bHC + '" data-pp="' + pp + '" data-labor="' + l + '" /></td>';
+        html += '<td class="sec-bdg cell-edit' + (l==='fuerte'?' sec-end-bdg':'') + '"><input class="bdg-input" type="number" min="0" value="' + bHC + '" data-pp="' + pp + '" data-labor="' + l + '" /></td>';
       } else {
-        html += '<td class="sec-bdg">' + (v != null ? fmt(v) : '') + '</td>';
+        html += '<td class="sec-bdg' + (l==='fuerte'?' sec-end-bdg':'') + '">' + (v != null ? fmt(v) : '') + '</td>';
       }
     }
-    html += '<td class="sec-bdg sec-end-bdg">' + (anyB ? fmt(totB26row) : '') + '</td>';
 
+    let totA26row = 0, anyA = false;
     if (!isFuture26) {
-      let totA26row = 0, anyA = false;
       for (const l of LABOR) {
         const v = actualMetricVal(2026, pp, l);
         if (v != null) { totA26row += v; anyA = true; }
         html += '<td class="sec-act">' + (v != null ? fmt(v) : '') + '</td>';
       }
-      html += '<td class="sec-act">' + (anyA ? fmt(totA26row) : '') + '</td>';
-      if (anyA && anyB) {
-        const d = totA26row - totB26row;
-        const cls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
-        html += '<td class="sec-act delta ' + cls + '">' + fmtDelta(d) + '</td>';
-      } else {
-        html += '<td class="sec-act"></td>';
-      }
     } else {
-      for (let i = 0; i < 7; i++) html += '<td class="sec-act"></td>';
+      for (let i = 0; i < 5; i++) html += '<td class="sec-act"></td>';
     }
+
+    // Consolidated Total cell: stack 25 / 26B / 26A (when present)
+    let totHTML = '';
+    if (any25) totHTML += '<div><span style="color:#bbb">25:</span> ' + fmt(tot25row) + '</div>';
+    if (anyB)  totHTML += '<div><span style="color:#c7a3e0">26B:</span> ' + fmt(totB26row) + '</div>';
+    if (anyA)  {
+      const d = totA26row - totB26row;
+      const cls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
+      totHTML += '<div><span style="color:#9bdfc4">26A:</span> ' + fmt(totA26row) + (anyB ? ' <span class="delta ' + cls + '" style="font-size:0.68rem">' + fmtDelta(d) + '</span>' : '') + '</div>';
+    }
+    html += '<td class="sec-tot" style="text-align:right;line-height:1.3">' + totHTML + '</td>';
+
     html += '</tr>';
   }
   html += '</tbody>';
