@@ -328,39 +328,45 @@ function renderTable() {
     const d = (actual - base) / base * 100;
     const sign = d > 0 ? '+' : '';
     const cls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
-    return ' <span class="delta ' + cls + '" style="font-size:0.68rem;font-weight:500">' + sign + d.toFixed(1) + '%</span>';
+    return ' <span class="delta ' + cls + '" style="font-size:0.7rem;font-weight:500">' + sign + Math.round(d) + '%</span>';
   }
   function totalsRow(label, cls, t25, tB, tA) {
     let row = '<tr class="totals ' + cls + '"><td>' + label + '</td>';
-    // 2025: one cell spanning 5
-    row += '<td class="sec-25 sec-end-25" colspan="5" style="text-align:right">' + (t25 ? fmt(t25.total) : '') + '</td>';
-    // 2026 budget: one cell spanning 5, with +% vs 25
+    // 2025: 5 blank labor cells + 1 Tot
+    for (let i = 0; i < 5; i++) row += '<td class="sec-25"></td>';
+    row += '<td class="sec-25 sec-end-25">' + (t25 ? fmt(t25.total) : '') + '</td>';
+    // 2026 budget: 5 blank labor cells + Tot with +% vs 25
+    for (let i = 0; i < 5; i++) row += '<td class="sec-bdg"></td>';
     const bdgPct = (tB && t25) ? pctTag(tB.total, t25.total) : '';
-    row += '<td class="sec-bdg sec-end-bdg" colspan="5" style="text-align:right">' + (tB ? fmt(tB.total) : '') + bdgPct + '</td>';
-    // 2026 actual: one cell spanning 5, with +% vs 26B
+    row += '<td class="sec-bdg sec-end-bdg">' + (tB ? fmt(tB.total) : '') + bdgPct + '</td>';
+    // 2026 actual: 5 blank labor cells + Tot with +% vs 26B
+    for (let i = 0; i < 5; i++) row += '<td class="sec-act"></td>';
     const actPct = (tA && tB) ? pctTag(tA.total, tB.total) : '';
-    row += '<td class="sec-act" colspan="5" style="text-align:right">' + (tA ? fmt(tA.total) + actPct : '') + '</td>';
+    row += '<td class="sec-act">' + (tA ? fmt(tA.total) + actPct : '') + '</td>';
     row += '</tr>';
     return row;
   }
 
   // Build the full HTML — totals rows live in thead so they sit ABOVE headers
   let html = '<colgroup><col class="col-pp">';
-  // 5 labor x 3 sections = 15 data cols
-  for (let i = 0; i < 15; i++) html += '<col class="col-data">';
+  // 6 cols (5 labor + Tot) x 3 sections = 18 data cols
+  for (let i = 0; i < 18; i++) html += '<col class="col-data">';
   html += '</colgroup><thead>';
   html += totalsRow('Full year', 'tr-full', tot25_full, totB26_full, null);
   html += totalsRow('YTD',       'tr-ytd',  tot25_ytd,  totB26_ytd,  totA26_ytd);
   // Section header row
   html += '<tr class="hdr-section"><th rowspan="2"></th>';
-  html += '<th class="sec-25" colspan="5">2025 Actual</th>';
-  html += '<th class="sec-bdg" colspan="5">2026 Budget</th>';
-  html += '<th class="sec-act" colspan="5">2026 Actual</th></tr>';
+  html += '<th class="sec-25" colspan="6">2025 Actual</th>';
+  html += '<th class="sec-bdg" colspan="6">2026 Budget</th>';
+  html += '<th class="sec-act" colspan="6">2026 Actual</th></tr>';
   // Column header row
   html += '<tr class="hdr-cols">';
-  for (const l of LABOR) html += '<th class="sec-25' + (l==='fuerte'?' sec-end-25':'') + '">' + LABOR_LABEL[l] + '</th>';
-  for (const l of LABOR) html += '<th class="sec-bdg' + (l==='fuerte'?' sec-end-bdg':'') + '">' + LABOR_LABEL[l] + '</th>';
+  for (const l of LABOR) html += '<th class="sec-25">' + LABOR_LABEL[l] + '</th>';
+  html += '<th class="sec-25 sec-end-25">Tot</th>';
+  for (const l of LABOR) html += '<th class="sec-bdg">' + LABOR_LABEL[l] + '</th>';
+  html += '<th class="sec-bdg sec-end-bdg">Tot</th>';
   for (const l of LABOR) html += '<th class="sec-act">' + LABOR_LABEL[l] + '</th>';
+  html += '<th class="sec-act">Tot</th>';
   html += '</tr>';
   html += '</thead><tbody>';
 
@@ -377,8 +383,9 @@ function renderTable() {
     for (const l of LABOR) {
       const v = actualMetricVal(2025, pp, l);
       if (v != null) { tot25row += v; any25 = true; }
-      html += '<td class="sec-25' + (l==='fuerte'?' sec-end-25':'') + '">' + (v != null ? fmt(v) : '') + '</td>';
+      html += '<td class="sec-25">' + (v != null ? fmt(v) : '') + '</td>';
     }
+    html += '<td class="sec-25 sec-end-25">' + (any25 ? fmt(tot25row) : '') + '</td>';
 
     let totB26row = 0, anyB = false;
     for (const l of LABOR) {
@@ -386,19 +393,23 @@ function renderTable() {
       if (v != null) { totB26row += v; anyB = true; }
       if (state.editMode && isHC) {
         const bHC = getBudgetHC(2026, pp, l) ?? 0;
-        html += '<td class="sec-bdg cell-edit' + (l==='fuerte'?' sec-end-bdg':'') + '"><input class="bdg-input" type="number" min="0" value="' + bHC + '" data-pp="' + pp + '" data-labor="' + l + '" /></td>';
+        html += '<td class="sec-bdg cell-edit"><input class="bdg-input" type="number" min="0" value="' + bHC + '" data-pp="' + pp + '" data-labor="' + l + '" /></td>';
       } else {
-        html += '<td class="sec-bdg' + (l==='fuerte'?' sec-end-bdg':'') + '">' + (v != null ? fmt(v) : '') + '</td>';
+        html += '<td class="sec-bdg">' + (v != null ? fmt(v) : '') + '</td>';
       }
     }
+    html += '<td class="sec-bdg sec-end-bdg">' + (anyB ? fmt(totB26row) : '') + '</td>';
 
+    let totA26row = 0, anyA = false;
     if (!isFuture26) {
       for (const l of LABOR) {
         const v = actualMetricVal(2026, pp, l);
+        if (v != null) { totA26row += v; anyA = true; }
         html += '<td class="sec-act">' + (v != null ? fmt(v) : '') + '</td>';
       }
+      html += '<td class="sec-act">' + (anyA ? fmt(totA26row) : '') + '</td>';
     } else {
-      for (let i = 0; i < 5; i++) html += '<td class="sec-act"></td>';
+      for (let i = 0; i < 6; i++) html += '<td class="sec-act"></td>';
     }
     html += '</tr>';
   }
