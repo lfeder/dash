@@ -31,10 +31,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 table { width:100%; border-collapse:collapse; font-size:0.78rem; table-layout:fixed; }
 th, td { padding:4px 8px; text-align:right; border-bottom:1px solid #0f3460; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 col.col-pp     { width:90px; }
-col.col-data   { width:65px; }
-col.col-tot    { width:120px; }
-td.sec-end-25, td.sec-end-bdg, .sec-act:last-child,
-th.sec-end-25, th.sec-end-bdg { overflow:visible; }
+col.col-data   { width:70px; }
 th { background:#0f3460; color:#aaa; font-weight:600; font-size:0.72rem; }
 tr.totals td { background:#0d2a4f !important; font-weight:700; color:#fff; position:sticky; z-index:4; }
 tr.totals.tr-full td { top:0; }
@@ -73,6 +70,7 @@ input.bdg-input:focus { outline:none; border-color:#fff; background:#1c2a4a; }
       <button data-metric="headcount" class="active">Headcount</button>
       <button data-metric="hours">Hours</button>
       <button data-metric="cost_total">Total Cost</button>
+      <button data-metric="dollar_per_hour">$/hr</button>
     </div>
     <select id="versionSel" class="btn" title="Budget version" style="cursor:pointer"></select>
     <button id="editBtn" class="btn">Edit Budget</button>
@@ -251,6 +249,7 @@ function fmt(v) {
   if (v == null) return '';
   if (state.metric === 'headcount') return Math.round(v).toString();
   if (state.metric === 'hours')     return Math.round(v).toLocaleString();
+  if (state.metric === 'dollar_per_hour') return '$' + v.toFixed(2);
   // cost
   if (Math.abs(v) >= 1000) return '$' + Math.round(v / 1000).toLocaleString() + 'k';
   return '$' + Math.round(v).toLocaleString();
@@ -272,6 +271,7 @@ function actualMetricVal(year, pp, labor) {
   if (state.metric === 'hours')      return a.hours;
   if (state.metric === 'cost_total') return a.cost_total;
   if (state.metric === 'cost_gross') return a.cost_gross;
+  if (state.metric === 'dollar_per_hour') return a.hours > 0 ? a.cost_total / a.hours : null;
   return null;
 }
 function budgetMetricVal(pp, labor) {
@@ -280,26 +280,51 @@ function budgetMetricVal(pp, labor) {
   if (state.metric === 'headcount') return bHC;
   const r = rates[labor];
   if (!r) return null;
+  if (state.metric === 'dollar_per_hour') return r.dollar_per_hour_total;
   const fHours = bHC * r.hours_per_head_pp;
   if (state.metric === 'hours')      return fHours;
   if (state.metric === 'cost_total') return fHours * r.dollar_per_hour_total;
   if (state.metric === 'cost_gross') return fHours * r.dollar_per_hour_gross;
   return null;
 }
+// Raw cost & hours accessors used to compute weighted-avg $/hr for Tot cells
+function actualCostHours(year, pp, labor) {
+  const a = actuals[year]?.[pp]?.[labor];
+  if (!a) return null;
+  return { cost: a.cost_total, hours: a.hours };
+}
+function budgetCostHours(pp, labor) {
+  const bHC = getBudgetHC(2026, pp, labor);
+  if (bHC == null) return null;
+  const r = rates[labor];
+  if (!r) return null;
+  const hrs = bHC * r.hours_per_head_pp;
+  return { cost: hrs * r.dollar_per_hour_total, hours: hrs };
+}
 
 // ========= Combined PP table: 2025 act | 2026 bdg | 2026 act+Δ =========
 function renderTable() {
   const isHC = state.metric === 'headcount';
-  const Q = (s) => s; // identity, kept for readability
+  const isRate = state.metric === 'dollar_per_hour';
 
   function yrAgg(year, mode, ppMin, ppMax) {
-    const perLabor = {}; for (const l of LABOR) perLabor[l] = { sum:0, count:0 };
-    let totVal = 0, ppCount = 0;
+    const perLabor = {}; for (const l of LABOR) perLabor[l] = { sum:0, count:0, cost:0, hrs:0 };
+    let totVal = 0, ppCount = 0, totCost = 0, totHrs = 0;
     const lo = ppMin || 1;
     const hi = ppMax || PP_COUNT;
     for (let pp = lo; pp <= hi; pp++) {
       let ppHas = false, ppTot = 0;
       for (const l of LABOR) {
+        // For rate metric, accumulate raw cost+hours per labor for weighted avg
+        if (isRate) {
+          const ch = (mode === 'actual') ? actualCostHours(year, pp, l) : budgetCostHours(pp, l);
+          if (ch && ch.hours > 0) {
+            perLabor[l].cost += ch.cost; perLabor[l].hrs += ch.hours;
+            totCost += ch.cost; totHrs += ch.hours;
+            ppHas = true;
+          }
+          continue;
+        }
         const v = (mode === 'actual') ? actualMetricVal(year, pp, l) : budgetMetricVal(pp, l);
         if (v == null) continue;
         perLabor[l].sum += v; perLabor[l].count++;
@@ -308,11 +333,16 @@ function renderTable() {
       if (ppHas) { totVal += ppTot; ppCount++; }
     }
     const out = { perLabor: {}, total: 0, pp_count: ppCount };
-    for (const l of LABOR) {
-      const c = perLabor[l].count;
-      out.perLabor[l] = isHC ? (c ? perLabor[l].sum / c : 0) : perLabor[l].sum;
+    if (isRate) {
+      for (const l of LABOR) out.perLabor[l] = perLabor[l].hrs > 0 ? perLabor[l].cost / perLabor[l].hrs : 0;
+      out.total = totHrs > 0 ? totCost / totHrs : 0;
+    } else {
+      for (const l of LABOR) {
+        const c = perLabor[l].count;
+        out.perLabor[l] = isHC ? (c ? perLabor[l].sum / c : 0) : perLabor[l].sum;
+      }
+      out.total = isHC ? (ppCount ? totVal / ppCount : 0) : totVal;
     }
-    out.total = isHC ? (ppCount ? totVal / ppCount : 0) : totVal;
     return out;
   }
 
@@ -335,28 +365,21 @@ function renderTable() {
   }
   function totalsRow(label, cls, t25, tB, tA) {
     let row = '<tr class="totals ' + cls + '"><td>' + label + '</td>';
-    // 2025: 5 blank labor cells + 1 Tot
-    for (let i = 0; i < 5; i++) row += '<td class="sec-25"></td>';
-    row += '<td class="sec-25 sec-end-25">' + (t25 ? fmt(t25.total) : '') + '</td>';
-    // 2026 budget: 5 blank labor cells + Tot with +% vs 25
-    for (let i = 0; i < 5; i++) row += '<td class="sec-bdg"></td>';
+    // Each section: one cell colspan=6, right-aligned so value+% spills
+    // leftward into the empty labor-col space.
+    row += '<td class="sec-25 sec-end-25" colspan="6" style="text-align:right">' + (t25 ? fmt(t25.total) : '') + '</td>';
     const bdgPct = (tB && t25) ? pctTag(tB.total, t25.total) : '';
-    row += '<td class="sec-bdg sec-end-bdg">' + (tB ? fmt(tB.total) : '') + bdgPct + '</td>';
-    // 2026 actual: 5 blank labor cells + Tot with +% vs 26B
-    for (let i = 0; i < 5; i++) row += '<td class="sec-act"></td>';
+    row += '<td class="sec-bdg sec-end-bdg" colspan="6" style="text-align:right">' + (tB ? fmt(tB.total) : '') + bdgPct + '</td>';
     const actPct = (tA && tB) ? pctTag(tA.total, tB.total) : '';
-    row += '<td class="sec-act">' + (tA ? fmt(tA.total) + actPct : '') + '</td>';
+    row += '<td class="sec-act" colspan="6" style="text-align:right">' + (tA ? fmt(tA.total) + actPct : '') + '</td>';
     row += '</tr>';
     return row;
   }
 
   // Build the full HTML — totals rows live in thead so they sit ABOVE headers
   let html = '<colgroup><col class="col-pp">';
-  // 3 sections of (5 labor + 1 Tot)
-  for (let s = 0; s < 3; s++) {
-    for (let i = 0; i < 5; i++) html += '<col class="col-data">';
-    html += '<col class="col-tot">';
-  }
+  // 6 cols (5 labor + Tot) x 3 sections = 18 data cols
+  for (let i = 0; i < 18; i++) html += '<col class="col-data">';
   html += '</colgroup><thead>';
   html += totalsRow('Full year', 'tr-full', tot25_full, totB26_full, null);
   html += totalsRow('YTD',       'tr-ytd',  tot25_ytd,  totB26_ytd,  totA26_ytd);
