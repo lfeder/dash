@@ -788,10 +788,10 @@
  "2026": {
   "4": {
    "local": {
-    "headcount": 23,
-    "hours": 1695.11,
-    "cost_total": 37215.79,
-    "cost_gross": 37215.79
+    "headcount": 22,
+    "hours": 1613.11,
+    "cost_total": 34887.37,
+    "cost_gross": 34887.37
    },
    "wfe": {
     "headcount": 19,
@@ -814,10 +814,10 @@
     "cost_gross": 38136.6
    },
    "local": {
-    "headcount": 25,
-    "hours": 1605.01,
-    "cost_total": 34948.42,
-    "cost_gross": 34948.42
+    "headcount": 24,
+    "hours": 1537.51,
+    "cost_total": 33004.77,
+    "cost_gross": 33004.77
    },
    "f_local": {
     "headcount": 6,
@@ -834,10 +834,10 @@
     "cost_gross": 40285.93
    },
    "local": {
-    "headcount": 23,
-    "hours": 1748.2,
-    "cost_total": 38158.17,
-    "cost_gross": 38158.17
+    "headcount": 22,
+    "hours": 1664.7,
+    "cost_total": 35772.6,
+    "cost_gross": 35772.6
    },
    "f_local": {
     "headcount": 5,
@@ -854,10 +854,10 @@
     "cost_gross": 39748.73
    },
    "local": {
-    "headcount": 24,
-    "hours": 1704.91,
-    "cost_total": 37387.1,
-    "cost_gross": 37387.1
+    "headcount": 23,
+    "hours": 1621.91,
+    "cost_total": 35031.61,
+    "cost_gross": 35031.61
    },
    "f_local": {
     "headcount": 6,
@@ -874,10 +874,10 @@
     "cost_gross": 39747.21
    },
    "local": {
-    "headcount": 25,
-    "hours": 1821.14,
-    "cost_total": 39197.74,
-    "cost_gross": 39197.74
+    "headcount": 24,
+    "hours": 1738.64,
+    "cost_total": 36849.51,
+    "cost_gross": 36849.51
    },
    "f_local": {
     "headcount": 6,
