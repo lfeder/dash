@@ -31,11 +31,15 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 #layout { display:flex; gap:12px; align-items:stretch; }
 #tableWrap { background:#16213e; border:1px solid #2a3a5e; border-radius:6px; overflow:auto; max-height:calc(100vh - 130px); flex:1; }
 #chartWrap { background:#16213e; border:1px solid #2a3a5e; border-radius:6px; padding:10px; flex:1; min-height:520px; height:calc(100vh - 130px); }
+body.collapsed table#grid { table-layout:auto; }
+body.collapsed table#grid colgroup { display:none; }
 body.collapsed .sec-25:not(.sec-end-25),
 body.collapsed .sec-bdg:not(.sec-end-bdg),
-body.collapsed td.sec-act:not(:last-child):not([colspan]),
+body.collapsed td.sec-act:not(:last-child),
 body.collapsed th.sec-act:not(:last-child) { display:none; }
-body.collapsed col.col-data { width:0; }
+body.collapsed tr.hdr-section th.sec-25,
+body.collapsed tr.hdr-section th.sec-bdg,
+body.collapsed tr.hdr-section th.sec-act { display:table-cell !important; }
 table { width:100%; border-collapse:collapse; font-size:0.78rem; table-layout:fixed; }
 th, td { padding:4px 8px; text-align:right; border-bottom:1px solid #0f3460; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 col.col-pp     { width:90px; }
