@@ -413,14 +413,14 @@ function renderTable() {
       for (let i = 0; i < 5; i++) row += '<td class="sec-25"></td>';
       row += '<td class="sec-25 sec-end-25"></td>';
     }
-    // 2026 budget: blank labor cells, one Tot with +% vs 25
-    for (let i = 0; i < 5; i++) row += '<td class="sec-bdg"></td>';
+    // 2026 budget: 4 blank labor cells + 1 Tot cell spanning the last two cols (Fuerte+Tot)
+    for (let i = 0; i < 4; i++) row += '<td class="sec-bdg"></td>';
     const bdgPct = (tB && t25) ? pctTag(tB.total, t25.total) : '';
-    row += '<td class="sec-bdg sec-end-bdg">' + (tB ? fmt(tB.total) : '') + bdgPct + '</td>';
-    // 2026 actual: blank labor cells, one Tot with +% vs 26B
-    for (let i = 0; i < 5; i++) row += '<td class="sec-act"></td>';
+    row += '<td class="sec-bdg sec-end-bdg" colspan="2" style="text-align:right">' + (tB ? fmt(tB.total) : '') + bdgPct + '</td>';
+    // 2026 actual: 4 blank labor cells + 1 Tot cell spanning the last two cols
+    for (let i = 0; i < 4; i++) row += '<td class="sec-act"></td>';
     const actPct = (tA && tB) ? pctTag(tA.total, tB.total) : '';
-    row += '<td class="sec-act">' + (tA ? fmt(tA.total) + actPct : '') + '</td>';
+    row += '<td class="sec-act" colspan="2" style="text-align:right">' + (tA ? fmt(tA.total) + actPct : '') + '</td>';
     row += '</tr>';
     return row;
   }
