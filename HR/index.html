@@ -28,14 +28,18 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 #main { padding:14px 20px 60px; }
 #chartBox { background:#16213e; border:1px solid #2a3a5e; border-radius:6px; padding:10px; height:340px; margin-bottom:14px; }
 #tableWrap { background:#16213e; border:1px solid #2a3a5e; border-radius:6px; overflow:auto; max-height:calc(100vh - 130px); }
-table { width:100%; border-collapse:collapse; font-size:0.78rem; }
-th, td { padding:4px 8px; text-align:right; border-bottom:1px solid #0f3460; white-space:nowrap; }
+table { width:100%; border-collapse:collapse; font-size:0.78rem; table-layout:fixed; }
+th, td { padding:4px 8px; text-align:right; border-bottom:1px solid #0f3460; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+col.col-pp     { width:80px; }
+col.col-data   { width:70px; }
 th { background:#0f3460; color:#aaa; font-weight:600; font-size:0.72rem; }
-thead tr:nth-child(1) th { position:sticky; top:0; z-index:3; background:#0a2440; font-size:0.78rem; }
-thead tr:nth-child(2) th { position:sticky; top:28px; z-index:3; }
-tr.totals td { background:#0d2a4f !important; font-weight:700; color:#fff; border-bottom:2px solid #4ecca3; position:sticky; top:54px; z-index:2; }
+thead tr:nth-child(1) th { position:sticky; top:0; z-index:3; background:#0a2440; font-size:0.78rem; text-align:center; }
+thead tr:nth-child(2) th { position:sticky; top:28px; z-index:3; text-align:right; }
+tr.totals td { background:#0d2a4f !important; font-weight:700; color:#fff; position:sticky; z-index:2; }
+tr.totals.tr-full td { top:54px; }
+tr.totals.tr-ytd td  { top:80px; border-bottom:2px solid #4ecca3; }
 th:first-child, td:first-child { text-align:left; padding-left:12px; position:sticky; left:0; background:#0f3460; z-index:1; }
-tr.totals td:first-child { background:#0d2a4f !important; z-index:4; }
+tr.totals td:first-child { background:#0d2a4f !important; z-index:4; font-size:0.7rem; color:#aaa; font-weight:600; }
 td:first-child { background:#16213e; color:#888; }
 .sec-25  { background:rgba(135,135,135,0.05); }
 .sec-bdg { background:rgba(155,89,182,0.06); }
@@ -285,7 +289,11 @@ function renderTable() {
   const isHC = state.metric === 'headcount';
   const Q = (s) => s; // identity, kept for readability
 
-  let html = '<thead><tr><th rowspan="2"></th>';
+  let html = '<colgroup><col class="col-pp">';
+  // 2025 (6) + 2026 bdg (6) + 2026 act (7) = 19 data cols
+  for (let i = 0; i < 19; i++) html += '<col class="col-data">';
+  html += '</colgroup>';
+  html += '<thead><tr><th rowspan="2"></th>';
   html += '<th class="sec-25" colspan="6">2025 Actual</th>';
   html += '<th class="sec-bdg" colspan="6">2026 Budget</th>';
   html += '<th class="sec-act" colspan="7">2026 Actual</th></tr><tr>';
@@ -296,11 +304,12 @@ function renderTable() {
   for (const l of LABOR) html += '<th class="sec-act">' + LABOR_LABEL[l] + '</th>';
   html += '<th class="sec-act">Tot</th><th class="sec-act">Δ</th></tr></thead><tbody>';
 
-  function yrAgg(year, mode, ppMax) {
+  function yrAgg(year, mode, ppMin, ppMax) {
     const perLabor = {}; for (const l of LABOR) perLabor[l] = { sum:0, count:0 };
     let totVal = 0, ppCount = 0;
-    for (let pp = 1; pp <= PP_COUNT; pp++) {
-      if (ppMax != null && pp > ppMax) break;
+    const lo = ppMin || 1;
+    const hi = ppMax || PP_COUNT;
+    for (let pp = lo; pp <= hi; pp++) {
       let ppHas = false, ppTot = 0;
       for (const l of LABOR) {
         const v = (mode === 'actual') ? actualMetricVal(year, pp, l) : budgetMetricVal(pp, l);
@@ -319,26 +328,37 @@ function renderTable() {
     return out;
   }
 
-  const tot25     = yrAgg(2025, 'actual');
-  const totB26    = yrAgg(2026, 'budget');
-  const totA26    = yrAgg(2026, 'actual', currentPP[2026]);
-  const totB26ytd = yrAgg(2026, 'budget', currentPP[2026]);
-  const totDelta  = (totA26.total != null && totB26ytd.total != null) ? totA26.total - totB26ytd.total : null;
+  const ppA = currentPP[2026];
 
-  html += '<tr class="totals"><td>' + (isHC ? 'Avg/PP' : 'Total') + '</td>';
-  for (const l of LABOR) html += '<td class="sec-25">' + fmt(tot25.perLabor[l]) + '</td>';
-  html += '<td class="sec-25 sec-end-25">' + fmt(tot25.total) + '</td>';
-  for (const l of LABOR) html += '<td class="sec-bdg">' + fmt(totB26.perLabor[l]) + '</td>';
-  html += '<td class="sec-bdg sec-end-bdg">' + fmt(totB26.total) + '</td>';
-  for (const l of LABOR) html += '<td class="sec-act">' + fmt(totA26.perLabor[l]) + '</td>';
-  html += '<td class="sec-act">' + fmt(totA26.total) + '</td>';
-  if (totDelta != null) {
-    const cls = totDelta > 0 ? 'pos' : totDelta < 0 ? 'neg' : 'zero';
-    html += '<td class="sec-act delta ' + cls + '">' + fmtDelta(totDelta) + '</td>';
-  } else {
-    html += '<td class="sec-act"></td>';
+  // Full year
+  const tot25_full  = yrAgg(2025, 'actual');
+  const totB26_full = yrAgg(2026, 'budget');
+  // YTD (1..ppA)
+  const tot25_ytd   = yrAgg(2025, 'actual', 1, ppA);
+  const totB26_ytd  = yrAgg(2026, 'budget', 1, ppA);
+  const totA26_ytd  = yrAgg(2026, 'actual', 1, ppA);
+
+  function totalsRow(label, cls, t25, tB, tA, showDelta) {
+    let row = '<tr class="totals ' + cls + '"><td>' + label + '</td>';
+    for (const l of LABOR) row += '<td class="sec-25">' + (t25 ? fmt(t25.perLabor[l]) : '') + '</td>';
+    row += '<td class="sec-25 sec-end-25">' + (t25 ? fmt(t25.total) : '') + '</td>';
+    for (const l of LABOR) row += '<td class="sec-bdg">' + (tB ? fmt(tB.perLabor[l]) : '') + '</td>';
+    row += '<td class="sec-bdg sec-end-bdg">' + (tB ? fmt(tB.total) : '') + '</td>';
+    for (const l of LABOR) row += '<td class="sec-act">' + (tA ? fmt(tA.perLabor[l]) : '') + '</td>';
+    row += '<td class="sec-act">' + (tA ? fmt(tA.total) : '') + '</td>';
+    if (showDelta && tA && tB) {
+      const d = tA.total - tB.total;
+      const cls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
+      row += '<td class="sec-act delta ' + cls + '">' + fmtDelta(d) + '</td>';
+    } else {
+      row += '<td class="sec-act"></td>';
+    }
+    row += '</tr>';
+    return row;
   }
-  html += '</tr>';
+
+  html += totalsRow('Full year', 'tr-full', tot25_full, totB26_full, null,       false);
+  html += totalsRow('YTD',       'tr-ytd',  tot25_ytd,  totB26_ytd,  totA26_ytd, true);
 
   for (let pp = 1; pp <= PP_COUNT; pp++) {
     const date25 = ppDates[2025][pp - 1] || '';
