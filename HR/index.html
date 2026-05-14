@@ -371,19 +371,17 @@ function renderTable() {
       }
       if (ppHas) { totVal += ppTot; ppCount++; }
     }
-    const out = { perLabor: {}, total: 0, pp_count: ppCount };
+    const out = { perLabor: {}, perLaborAvg: {}, total: 0, pp_count: ppCount };
     if (isRate) {
-      for (const l of LABOR) out.perLabor[l] = perLabor[l].hrs > 0 ? perLabor[l].cost / perLabor[l].hrs : 0;
+      for (const l of LABOR) out.perLabor[l] = out.perLaborAvg[l] = perLabor[l].hrs > 0 ? perLabor[l].cost / perLabor[l].hrs : 0;
       out.total = totHrs > 0 ? totCost / totHrs : 0;
     } else {
-      // 2025 always displayed as avg/PP for any sum-metric (hours/cost).
-      // HC is always avg/PP. 2026 hours/cost remain as sums.
-      const asAvg = isHC || (year === 2025);
       for (const l of LABOR) {
         const c = perLabor[l].count;
-        out.perLabor[l] = asAvg ? (c ? perLabor[l].sum / c : 0) : perLabor[l].sum;
+        out.perLabor[l]    = isHC ? (c ? perLabor[l].sum / c : 0) : perLabor[l].sum;
+        out.perLaborAvg[l] =        (c ? perLabor[l].sum / c : 0);
       }
-      out.total = asAvg ? (ppCount ? totVal / ppCount : 0) : totVal;
+      out.total = isHC ? (ppCount ? totVal / ppCount : 0) : totVal;
     }
     return out;
   }
@@ -407,13 +405,22 @@ function renderTable() {
   }
   function totalsRow(label, cls, t25, tB, tA) {
     let row = '<tr class="totals ' + cls + '"><td>' + label + '</td>';
-    // Each section: one cell colspan=6, right-aligned so value+% spills
-    // leftward into the empty labor-col space.
-    row += '<td class="sec-25 sec-end-25" colspan="6" style="text-align:right">' + (t25 ? fmt(t25.total) : '') + '</td>';
+    // 2025: 5 per-labor avg/PP cells + Tot cell (sum, or avg for HC)
+    if (t25) {
+      for (const l of LABOR) row += '<td class="sec-25">' + fmt(t25.perLaborAvg[l]) + '</td>';
+      row += '<td class="sec-25 sec-end-25">' + fmt(t25.total) + '</td>';
+    } else {
+      for (let i = 0; i < 5; i++) row += '<td class="sec-25"></td>';
+      row += '<td class="sec-25 sec-end-25"></td>';
+    }
+    // 2026 budget: blank labor cells, one Tot with +% vs 25
+    for (let i = 0; i < 5; i++) row += '<td class="sec-bdg"></td>';
     const bdgPct = (tB && t25) ? pctTag(tB.total, t25.total) : '';
-    row += '<td class="sec-bdg sec-end-bdg" colspan="6" style="text-align:right">' + (tB ? fmt(tB.total) : '') + bdgPct + '</td>';
+    row += '<td class="sec-bdg sec-end-bdg">' + (tB ? fmt(tB.total) : '') + bdgPct + '</td>';
+    // 2026 actual: blank labor cells, one Tot with +% vs 26B
+    for (let i = 0; i < 5; i++) row += '<td class="sec-act"></td>';
     const actPct = (tA && tB) ? pctTag(tA.total, tB.total) : '';
-    row += '<td class="sec-act" colspan="6" style="text-align:right">' + (tA ? fmt(tA.total) + actPct : '') + '</td>';
+    row += '<td class="sec-act">' + (tA ? fmt(tA.total) + actPct : '') + '</td>';
     row += '</tr>';
     return row;
   }
