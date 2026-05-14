@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Staffing</title>
 <script src="../lib/data-source.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#1a1a2e; color:#e0e0e0; }
@@ -28,23 +27,25 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .delta.zero { color:#888; }
 #main { padding:14px 20px 60px; }
 #chartBox { background:#16213e; border:1px solid #2a3a5e; border-radius:6px; padding:10px; height:340px; margin-bottom:14px; }
-#tablesRow { display:flex; gap:14px; align-items:flex-start; }
-#tableWrap { background:#16213e; border:1px solid #2a3a5e; border-radius:6px; overflow:auto; flex:0 0 50%; max-height:70vh; }
-#summaryWrap { background:#16213e; border:1px solid #2a3a5e; border-radius:6px; overflow:auto; flex:1; }
-#summary { width:100%; border-collapse:collapse; font-size:0.82rem; }
-#summary th, #summary td { padding:8px 12px; text-align:right; border-bottom:1px solid #0f3460; white-space:nowrap; }
-#summary th { background:#0f3460; color:#aaa; font-weight:600; font-size:0.75rem; }
-#summary th:first-child, #summary td:first-child { text-align:left; color:#888; font-weight:600; }
-#summary td.col-actual26 { color:#4ecca3; font-weight:600; }
-@media(max-width:1100px) { #tablesRow { flex-direction:column; } #tableWrap { flex:1 1 auto; max-width:100%; } }
+#tableWrap { background:#16213e; border:1px solid #2a3a5e; border-radius:6px; overflow:auto; max-height:calc(100vh - 130px); }
 table { width:100%; border-collapse:collapse; font-size:0.78rem; }
-th, td { padding:5px 8px; text-align:right; border-bottom:1px solid #0f3460; white-space:nowrap; }
-th { background:#0f3460; color:#aaa; font-weight:600; position:sticky; top:0; font-size:0.72rem; }
-th:first-child, td:first-child { text-align:left; padding-left:14px; position:sticky; left:0; background:#0f3460; }
+th, td { padding:4px 8px; text-align:right; border-bottom:1px solid #0f3460; white-space:nowrap; }
+th { background:#0f3460; color:#aaa; font-weight:600; font-size:0.72rem; }
+thead tr:nth-child(1) th { position:sticky; top:0; z-index:3; background:#0a2440; font-size:0.78rem; }
+thead tr:nth-child(2) th { position:sticky; top:28px; z-index:3; }
+tr.totals td { background:#0d2a4f !important; font-weight:700; color:#fff; border-bottom:2px solid #4ecca3; position:sticky; top:54px; z-index:2; }
+th:first-child, td:first-child { text-align:left; padding-left:12px; position:sticky; left:0; background:#0f3460; z-index:1; }
+tr.totals td:first-child { background:#0d2a4f !important; z-index:4; }
 td:first-child { background:#16213e; color:#888; }
-tr.future td:first-child { color:#666; }
-tr:hover td { background:#1c2a4a; }
-tr:hover td:first-child { background:#1c2a4a; }
+.sec-25  { background:rgba(135,135,135,0.05); }
+.sec-bdg { background:rgba(155,89,182,0.06); }
+.sec-act { background:rgba(78,204,163,0.05); }
+th.sec-25  { background:#0a2a3a; color:#bbb; }
+th.sec-bdg { background:#241834; color:#c7a3e0; }
+th.sec-act { background:#0a3525; color:#9bdfc4; }
+.sec-end-25, .sec-end-bdg { border-right:2px solid #2a3a5e; }
+tr.future td.sec-act { color:#444; }
+tr:hover td:not(.totals) { filter:brightness(1.15); }
 .cell-val { color:#e0e0e0; }
 .cell-bdg { color:#666; font-size:0.7rem; }
 .cell-delta { font-size:0.7rem; margin-left:4px; }
@@ -61,18 +62,12 @@ input.bdg-input:focus { outline:none; border-color:#fff; background:#1c2a4a; }
 <div id="header">
   <h1>Staffing</h1>
   <div class="controls">
-    <div class="toggle-group" id="yearToggle">
-      <button data-year="2025">2025</button>
-      <button data-year="2026" class="active">2026</button>
-    </div>
     <div class="toggle-group" id="metricToggle">
       <button data-metric="headcount" class="active">Headcount</button>
       <button data-metric="hours">Hours</button>
       <button data-metric="cost_total">Total Cost</button>
-      <button data-metric="cost_gross">Gross Wages</button>
     </div>
     <select id="versionSel" class="btn" title="Budget version" style="cursor:pointer"></select>
-    <button id="compare25" class="btn">Overlay 2025</button>
     <button id="editBtn" class="btn">Edit Budget</button>
     <button id="saveBtn" class="btn primary" style="display:none">Save Budget</button>
     <span id="status">Loading…</span>
@@ -80,15 +75,8 @@ input.bdg-input:focus { outline:none; border-color:#fff; background:#1c2a4a; }
   </div>
 </div>
 
-<div id="issue"></div>
-<div id="chips"></div>
-
 <div id="main">
-  <div id="chartBox"><canvas id="chart"></canvas></div>
-  <div id="tablesRow">
-    <div id="tableWrap"><table id="grid"></table></div>
-    <div id="summaryWrap"><table id="summary"></table></div>
-  </div>
+  <div id="tableWrap"><table id="grid"></table></div>
 </div>
 
 <script>
@@ -103,9 +91,7 @@ const PP_COUNT = 26;
 
 // ========= State =========
 let state = {
-  year: 2026,
   metric: 'headcount',
-  showOverlay: false,
   editMode: false,
   budgetDirty: false,
 };
@@ -115,7 +101,6 @@ let activeVersion = null;   // string date of the currently selected version
 let actuals = { 2025: null, 2026: null }; // [pp][labor] = {headcount, hours, cost_total, cost_gross}
 let ppDates = { 2025: [], 2026: [] }; // [pp-1] = check_date string
 let currentPP = { 2025: 26, 2026: 1 };
-let chart = null;
 
 // ========= Loaders =========
 async function loadBudget() {
@@ -272,230 +257,144 @@ function fmtDelta(v) {
   return sign + '$' + Math.round(v).toLocaleString();
 }
 
-// ========= Chips (current PP) =========
-function renderChips() {
-  const yr = state.year;
-  const pp = currentPP[yr];
-  const chipsEl = document.getElementById('chips');
-  const ppDate = ppDates[yr][pp - 1];
-  let html = `<div class="chip"><span class="lbl">${yr} PP</span><span class="val">${pp}</span><span class="lbl">${ppDate || ''}</span></div>`;
-  for (const labor of LABOR) {
-    const a = metricValue(yr, pp, labor, false);
-    const b = budgetValue(yr, pp, labor);
-    let deltaHTML = '';
-    if (yr === 2026 && a != null && b != null) {
-      const d = a - b;
-      const cls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
-      deltaHTML = `<span class="delta ${cls}">${fmtDelta(d)}</span>`;
-    }
-    html += `<div class="chip"><span class="dot" style="background:${LABOR_COLOR[labor]}"></span><span class="lbl">${LABOR_LABEL[labor]}</span><span class="val">${fmt(a)}</span>${deltaHTML}</div>`;
-  }
-  chipsEl.innerHTML = html;
+// ========= Cell value helpers (year-agnostic) =========
+function actualMetricVal(year, pp, labor) {
+  const a = actuals[year]?.[pp]?.[labor];
+  if (!a) return null;
+  if (state.metric === 'headcount')  return a.headcount;
+  if (state.metric === 'hours')      return a.hours;
+  if (state.metric === 'cost_total') return a.cost_total;
+  if (state.metric === 'cost_gross') return a.cost_gross;
+  return null;
+}
+function budgetMetricVal(pp, labor) {
+  const bHC = getBudgetHC(2026, pp, labor);
+  if (bHC == null) return null;
+  if (state.metric === 'headcount') return bHC;
+  const r = rates[labor];
+  if (!r) return null;
+  const fHours = bHC * r.hours_per_head_pp;
+  if (state.metric === 'hours')      return fHours;
+  if (state.metric === 'cost_total') return fHours * r.dollar_per_hour_total;
+  if (state.metric === 'cost_gross') return fHours * r.dollar_per_hour_gross;
+  return null;
 }
 
-// ========= Chart =========
-function renderChart() {
-  const yr = state.year;
-  const labels = [];
-  for (let pp = 1; pp <= PP_COUNT; pp++) labels.push('PP' + pp);
-
-  const datasets = [];
-  // Stacked actual bars per labor type — actual on past PPs only
-  for (const labor of LABOR) {
-    const data = [];
-    for (let pp = 1; pp <= PP_COUNT; pp++) {
-      const isFuture = yr === 2026 && pp > currentPP[2026];
-      if (isFuture) {
-        data.push(null);
-      } else {
-        const v = metricValue(yr, pp, labor, false);
-        data.push(v == null ? 0 : v);
-      }
-    }
-    datasets.push({
-      type: 'bar',
-      label: LABOR_LABEL[labor],
-      data,
-      backgroundColor: LABOR_COLOR[labor],
-      borderColor: LABOR_COLOR[labor],
-      stack: 'actual',
-      order: 2,
-    });
-  }
-  // Forecast (lighter) bars on future PPs (2026 only)
-  if (yr === 2026) {
-    for (const labor of LABOR) {
-      const data = [];
-      for (let pp = 1; pp <= PP_COUNT; pp++) {
-        const isFuture = pp > currentPP[2026];
-        if (!isFuture) { data.push(null); continue; }
-        const v = budgetValue(yr, pp, labor);
-        data.push(v == null ? 0 : v);
-      }
-      datasets.push({
-        type: 'bar',
-        label: LABOR_LABEL[labor] + ' (bdg)',
-        data,
-        backgroundColor: LABOR_COLOR[labor] + '55',
-        borderColor: LABOR_COLOR[labor] + '88',
-        borderWidth: 1,
-        stack: 'actual',
-        order: 2,
-      });
-    }
-    // Budget total line overlay
-    const bdgTotal = [];
-    for (let pp = 1; pp <= PP_COUNT; pp++) {
-      let s = 0; let any = false;
-      for (const labor of LABOR) {
-        const b = budgetValue(yr, pp, labor);
-        if (b != null) { s += b; any = true; }
-      }
-      bdgTotal.push(any ? s : null);
-    }
-    datasets.push({
-      type: 'line',
-      label: 'Budget total',
-      data: bdgTotal,
-      borderColor: '#ffffff',
-      backgroundColor: '#ffffff',
-      borderWidth: 1.5,
-      borderDash: [4, 4],
-      pointRadius: 0,
-      stepped: 'before',
-      stack: 'line',
-      order: 1,
-    });
-  }
-  // 2025 overlay
-  if (state.showOverlay && yr === 2026 && actuals[2025]) {
-    const totalBy25 = [];
-    for (let pp = 1; pp <= PP_COUNT; pp++) {
-      let s = 0; let any = false;
-      for (const labor of LABOR) {
-        const a = actuals[2025][pp]?.[labor];
-        if (a) {
-          let v = state.metric === 'headcount' ? a.headcount
-                : state.metric === 'hours' ? a.hours
-                : state.metric === 'cost_total' ? a.cost_total
-                : a.cost_gross;
-          s += v; any = true;
-        }
-      }
-      totalBy25.push(any ? s : null);
-    }
-    datasets.push({
-      type: 'line',
-      label: '2025 actual (total)',
-      data: totalBy25,
-      borderColor: '#888',
-      backgroundColor: '#888',
-      borderWidth: 1.5,
-      pointRadius: 0,
-      stack: 'line25',
-      order: 0,
-    });
-  }
-
-  const cvs = document.getElementById('chart');
-  if (chart) chart.destroy();
-  chart = new Chart(cvs, {
-    data: { labels, datasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { labels: { color:'#aaa', font:{ size:11 }, usePointStyle:true, pointStyle:'circle', boxWidth:8,
-          generateLabels(ch) {
-            const items = Chart.defaults.plugins.legend.labels.generateLabels(ch);
-            return items.map(it => {
-              if (it.hidden) it.fontColor = 'rgba(170,170,170,0.4)';
-              return it;
-            });
-          }
-        } },
-        tooltip: {
-          bodyFont:{size:11}, titleFont:{size:12},
-          callbacks: {
-            title(items) {
-              const pp = items[0].dataIndex + 1;
-              const d = ppDates[state.year][pp - 1];
-              return `PP ${pp}` + (d ? `  (paid ${d})` : '');
-            }
-          }
-        }
-      },
-      scales: {
-        x: {
-          stacked: true,
-          ticks: { color:'#888', font:{size:11} },
-          grid:  { display:false }
-        },
-        y: {
-          stacked: true,
-          ticks: { color:'#888', font:{size:11},
-            callback: v => state.metric === 'cost_total' || state.metric === 'cost_gross' ? '$' + (v/1000).toFixed(0) + 'k' : v
-          },
-          grid:  { color:'rgba(255,255,255,0.05)' }
-        }
-      }
-    }
-  });
-}
-
-// ========= Variance table =========
+// ========= Combined PP table: 2025 act | 2026 bdg | 2026 act+Δ =========
 function renderTable() {
-  const yr = state.year;
-  let html = '<thead><tr><th>PP</th>';
-  for (const labor of LABOR) html += `<th>${LABOR_LABEL[labor]}</th>`;
-  html += '<th>Total</th></tr></thead><tbody>';
-  for (let pp = 1; pp <= PP_COUNT; pp++) {
-    const isFuture = yr === 2026 && pp > currentPP[2026];
-    const ppDate = ppDates[yr][pp - 1] || '';
-    html += `<tr class="${isFuture ? 'future' : ''}" data-pp="${pp}"><td>${pp}${ppDate ? ' <span style="color:#555;font-size:0.65rem">'+ppDate.slice(5)+'</span>' : ''}</td>`;
-    let totA = 0, totB = 0, anyA = false, anyB = false;
-    for (const labor of LABOR) {
-      const a = metricValue(yr, pp, labor, false);
-      const b = budgetValue(yr, pp, labor);
-      if (a != null) { totA += a; anyA = true; }
-      if (b != null) { totB += b; anyB = true; }
-      let cellHTML = '';
-      if (state.editMode && yr === 2026 && state.metric === 'headcount') {
-        const cur = b ?? 0;
-        cellHTML = `<td class="cell-edit"><input class="bdg-input" type="number" min="0" value="${cur}" data-pp="${pp}" data-labor="${labor}" /></td>`;
-      } else if (a == null && b == null) {
-        cellHTML = '<td></td>';
-      } else if (yr !== 2026 || b == null) {
-        cellHTML = `<td><span class="cell-val">${fmt(a)}</span></td>`;
-      } else if (a == null) {
-        cellHTML = `<td><span class="cell-bdg">[${fmt(b)}]</span></td>`;
-      } else {
-        const d = a - b;
-        const cls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
-        const showActual = !isFuture;
-        cellHTML = `<td><span class="cell-val">${fmt(showActual ? a : b)}</span>${showActual ? ` <span class="cell-bdg">[${fmt(b)}]</span><span class="cell-delta delta ${cls}">${fmtDelta(d)}</span>` : ''}</td>`;
+  const isHC = state.metric === 'headcount';
+  const Q = (s) => s; // identity, kept for readability
+
+  let html = '<thead><tr><th rowspan="2"></th>';
+  html += '<th class="sec-25" colspan="6">2025 Actual</th>';
+  html += '<th class="sec-bdg" colspan="6">2026 Budget</th>';
+  html += '<th class="sec-act" colspan="7">2026 Actual</th></tr><tr>';
+  for (const l of LABOR) html += '<th class="sec-25">' + LABOR_LABEL[l] + '</th>';
+  html += '<th class="sec-25 sec-end-25">Tot</th>';
+  for (const l of LABOR) html += '<th class="sec-bdg">' + LABOR_LABEL[l] + '</th>';
+  html += '<th class="sec-bdg sec-end-bdg">Tot</th>';
+  for (const l of LABOR) html += '<th class="sec-act">' + LABOR_LABEL[l] + '</th>';
+  html += '<th class="sec-act">Tot</th><th class="sec-act">Δ</th></tr></thead><tbody>';
+
+  function yrAgg(year, mode, ppMax) {
+    const perLabor = {}; for (const l of LABOR) perLabor[l] = { sum:0, count:0 };
+    let totVal = 0, ppCount = 0;
+    for (let pp = 1; pp <= PP_COUNT; pp++) {
+      if (ppMax != null && pp > ppMax) break;
+      let ppHas = false, ppTot = 0;
+      for (const l of LABOR) {
+        const v = (mode === 'actual') ? actualMetricVal(year, pp, l) : budgetMetricVal(pp, l);
+        if (v == null) continue;
+        perLabor[l].sum += v; perLabor[l].count++;
+        ppTot += v; ppHas = true;
       }
-      html += cellHTML;
+      if (ppHas) { totVal += ppTot; ppCount++; }
     }
-    // Total
-    if (anyA || anyB) {
-      const showActual = !isFuture && anyA;
-      let totHTML = `<span class="cell-val">${fmt(showActual ? totA : (yr === 2026 ? totB : totA))}</span>`;
-      if (yr === 2026 && anyA && anyB && !isFuture) {
-        const d = totA - totB;
-        const cls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
-        totHTML += ` <span class="cell-bdg">[${fmt(totB)}]</span><span class="cell-delta delta ${cls}">${fmtDelta(d)}</span>`;
+    const out = { perLabor: {}, total: 0, pp_count: ppCount };
+    for (const l of LABOR) {
+      const c = perLabor[l].count;
+      out.perLabor[l] = isHC ? (c ? perLabor[l].sum / c : 0) : perLabor[l].sum;
+    }
+    out.total = isHC ? (ppCount ? totVal / ppCount : 0) : totVal;
+    return out;
+  }
+
+  const tot25     = yrAgg(2025, 'actual');
+  const totB26    = yrAgg(2026, 'budget');
+  const totA26    = yrAgg(2026, 'actual', currentPP[2026]);
+  const totB26ytd = yrAgg(2026, 'budget', currentPP[2026]);
+  const totDelta  = (totA26.total != null && totB26ytd.total != null) ? totA26.total - totB26ytd.total : null;
+
+  html += '<tr class="totals"><td>' + (isHC ? 'Avg/PP' : 'Total') + '</td>';
+  for (const l of LABOR) html += '<td class="sec-25">' + fmt(tot25.perLabor[l]) + '</td>';
+  html += '<td class="sec-25 sec-end-25">' + fmt(tot25.total) + '</td>';
+  for (const l of LABOR) html += '<td class="sec-bdg">' + fmt(totB26.perLabor[l]) + '</td>';
+  html += '<td class="sec-bdg sec-end-bdg">' + fmt(totB26.total) + '</td>';
+  for (const l of LABOR) html += '<td class="sec-act">' + fmt(totA26.perLabor[l]) + '</td>';
+  html += '<td class="sec-act">' + fmt(totA26.total) + '</td>';
+  if (totDelta != null) {
+    const cls = totDelta > 0 ? 'pos' : totDelta < 0 ? 'neg' : 'zero';
+    html += '<td class="sec-act delta ' + cls + '">' + fmtDelta(totDelta) + '</td>';
+  } else {
+    html += '<td class="sec-act"></td>';
+  }
+  html += '</tr>';
+
+  for (let pp = 1; pp <= PP_COUNT; pp++) {
+    const date25 = ppDates[2025][pp - 1] || '';
+    const date26 = ppDates[2026][pp - 1] || '';
+    const isFuture26 = pp > currentPP[2026];
+    const dateLbl = date26 ? date26.slice(5) : (date25 ? date25.slice(5) : '');
+    html += '<tr class="' + (isFuture26 ? 'future' : '') + '" data-pp="' + pp + '"><td>' + pp;
+    if (dateLbl) html += ' <span style="color:#555;font-size:0.65rem">' + dateLbl + '</span>';
+    html += '</td>';
+
+    let tot25row = 0, any25 = false;
+    for (const l of LABOR) {
+      const v = actualMetricVal(2025, pp, l);
+      if (v != null) { tot25row += v; any25 = true; }
+      html += '<td class="sec-25">' + (v != null ? fmt(v) : '') + '</td>';
+    }
+    html += '<td class="sec-25 sec-end-25">' + (any25 ? fmt(tot25row) : '') + '</td>';
+
+    let totB26row = 0, anyB = false;
+    for (const l of LABOR) {
+      const v = budgetMetricVal(pp, l);
+      if (v != null) { totB26row += v; anyB = true; }
+      if (state.editMode && isHC) {
+        const bHC = getBudgetHC(2026, pp, l) ?? 0;
+        html += '<td class="sec-bdg cell-edit"><input class="bdg-input" type="number" min="0" value="' + bHC + '" data-pp="' + pp + '" data-labor="' + l + '" /></td>';
+      } else {
+        html += '<td class="sec-bdg">' + (v != null ? fmt(v) : '') + '</td>';
       }
-      html += `<td>${totHTML}</td>`;
-    } else html += '<td></td>';
+    }
+    html += '<td class="sec-bdg sec-end-bdg">' + (anyB ? fmt(totB26row) : '') + '</td>';
+
+    if (!isFuture26) {
+      let totA26row = 0, anyA = false;
+      for (const l of LABOR) {
+        const v = actualMetricVal(2026, pp, l);
+        if (v != null) { totA26row += v; anyA = true; }
+        html += '<td class="sec-act">' + (v != null ? fmt(v) : '') + '</td>';
+      }
+      html += '<td class="sec-act">' + (anyA ? fmt(totA26row) : '') + '</td>';
+      if (anyA && anyB) {
+        const d = totA26row - totB26row;
+        const cls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
+        html += '<td class="sec-act delta ' + cls + '">' + fmtDelta(d) + '</td>';
+      } else {
+        html += '<td class="sec-act"></td>';
+      }
+    } else {
+      for (let i = 0; i < 7; i++) html += '<td class="sec-act"></td>';
+    }
     html += '</tr>';
   }
   html += '</tbody>';
-  const t = document.getElementById('grid');
-  t.innerHTML = html;
-  if (state.editMode && state.metric === 'headcount') wireBudgetInputs();
+  document.getElementById('grid').innerHTML = html;
+  if (state.editMode && isHC) wireBudgetInputs();
 }
+
 
 function wireBudgetInputs() {
   document.querySelectorAll('input.bdg-input').forEach(inp => {
@@ -568,141 +467,10 @@ function saveBudget() {
 // ========= Wire UI =========
 function rerender() {
   computeRates();
-  renderChips();
-  renderChart();
   renderTable();
-  renderSummary();
 }
 
-// ========= Summary table (year totals) =========
-function fmtNum(v, kind) {
-  if (v == null || isNaN(v)) return '—';
-  if (kind === 'hc')    return Math.round(v).toLocaleString();
-  if (kind === 'hours') return Math.round(v).toLocaleString();
-  if (kind === '$')     return '$' + (v/1000).toLocaleString(undefined, { maximumFractionDigits: 0 }) + 'k';
-  return v;
-}
-function pctDelta(actual, base) {
-  if (base == null || base === 0 || actual == null) return '';
-  const d = (actual - base) / base * 100;
-  const sign = d > 0 ? '+' : '';
-  const cls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
-  return ` <span class="delta ${cls}" style="font-size:0.7rem">${sign}${d.toFixed(1)}%</span>`;
-}
 
-function yearTotals(year, mode, ppMax) {
-  // mode: 'actual' (sum from actuals) or 'budget' (forecast using budget HC + 2026 rates).
-  // ppMax: optional cap (e.g. for YTD-bound budget). Defaults to PP_COUNT for budget mode.
-  const out = { hc_avg: 0, hours: 0, cost_total: 0, cost_gross: 0, pp_count: 0 };
-  if (mode === 'actual') {
-    const data = actuals[year];
-    if (!data) return null;
-    let hcSum = 0, ppCount = 0;
-    for (const pp of Object.keys(data)) {
-      const ppN = parseInt(pp, 10);
-      if (ppMax != null && ppN > ppMax) continue;
-      let ppHC = 0, any = false;
-      for (const labor of LABOR) {
-        const a = data[pp][labor];
-        if (!a) continue;
-        ppHC += a.headcount;
-        out.hours      += a.hours;
-        out.cost_total += a.cost_total;
-        out.cost_gross += a.cost_gross;
-        any = true;
-      }
-      if (any) { hcSum += ppHC; ppCount++; }
-    }
-    out.hc_avg = ppCount ? hcSum / ppCount : 0;
-    out.pp_count = ppCount;
-    return out;
-  }
-  // budget forecast: PPs 1..ppMax (default full year)
-  if (year !== 2026 || !budgets[2026]) return null;
-  const cap = ppMax || PP_COUNT;
-  let hcSum = 0, ppCount = 0;
-  for (let pp = 1; pp <= cap; pp++) {
-    const b = budgets[2026][pp];
-    if (!b) continue;
-    let ppHC = 0;
-    for (const labor of LABOR) {
-      const r = rates[labor] || { hours_per_head_pp:0, dollar_per_hour_total:0, dollar_per_hour_gross:0 };
-      const hc = b[labor] || 0;
-      const hrs = hc * r.hours_per_head_pp;
-      ppHC += hc;
-      out.hours      += hrs;
-      out.cost_total += hrs * r.dollar_per_hour_total;
-      out.cost_gross += hrs * r.dollar_per_hour_gross;
-    }
-    hcSum += ppHC; ppCount++;
-  }
-  out.hc_avg = ppCount ? hcSum / ppCount : 0;
-  out.pp_count = ppCount;
-  return out;
-}
-
-function renderSummary() {
-  const t25         = yearTotals(2025, 'actual') || {};
-  const t26b_full   = yearTotals(2026, 'budget') || {};
-  const t26a        = yearTotals(2026, 'actual') || {};
-  const ppA         = t26a.pp_count || 0;
-  const t26b_ytd    = yearTotals(2026, 'budget', ppA) || {};
-
-  const rows = [
-    { label: 'Avg headcount / PP', kind: 'hc',    a25: t25.hc_avg,     b26f: t26b_full.hc_avg,     a26: t26a.hc_avg,     b26y: t26b_ytd.hc_avg     },
-    { label: 'Total hours',        kind: 'hours', a25: t25.hours,      b26f: t26b_full.hours,      a26: t26a.hours,      b26y: t26b_ytd.hours      },
-    { label: 'Total cost',         kind: '$',     a25: t25.cost_total, b26f: t26b_full.cost_total, a26: t26a.cost_total, b26y: t26b_ytd.cost_total },
-  ];
-
-  let html = `<thead><tr>
-    <th></th>
-    <th>2025 act</th>
-    <th>2026 bdg<div style="color:#666;font-weight:400;font-size:0.65rem">full year</div></th>
-    <th>vs 25</th>
-    <th>2026 YTD bdg<div style="color:#666;font-weight:400;font-size:0.65rem">PP 1–${ppA}</div></th>
-    <th>2026 YTD act<div style="color:#666;font-weight:400;font-size:0.65rem">PP 1–${ppA}</div></th>
-  </tr></thead><tbody>`;
-
-  function pctCellHTML(actual, base) {
-    if (base == null || base === 0 || actual == null) return '<td>—</td>';
-    const d = (actual - base) / base * 100;
-    const sign = d > 0 ? '+' : '';
-    const cls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
-    return `<td class="delta ${cls}">${sign}${d.toFixed(1)}%</td>`;
-  }
-
-  for (const r of rows) {
-    // % vs 25: full-year 26 budget compared to 25 actual
-    const vsCell = pctCellHTML(r.b26f, r.a25);
-    // YTD act with inline % vs YTD bdg
-    let ytdActHTML = fmtNum(r.a26, r.kind);
-    if (r.b26y != null && r.b26y !== 0 && r.a26 != null) {
-      const d = (r.a26 - r.b26y) / r.b26y * 100;
-      const sign = d > 0 ? '+' : '';
-      const cls = d > 0 ? 'pos' : d < 0 ? 'neg' : 'zero';
-      ytdActHTML += ` <span class="delta ${cls}" style="font-size:0.72rem;font-weight:500">${sign}${d.toFixed(1)}%</span>`;
-    }
-
-    html += `<tr>
-      <td>${r.label}</td>
-      <td>${fmtNum(r.a25, r.kind)}</td>
-      <td>${fmtNum(r.b26f, r.kind)}</td>
-      ${vsCell}
-      <td>${fmtNum(r.b26y, r.kind)}</td>
-      <td class="col-actual26">${ytdActHTML}</td>
-    </tr>`;
-  }
-  html += '</tbody>';
-  document.getElementById('summary').innerHTML = html;
-}
-
-document.querySelectorAll('#yearToggle button').forEach(b => {
-  b.onclick = () => {
-    state.year = parseInt(b.dataset.year, 10);
-    document.querySelectorAll('#yearToggle button').forEach(x => x.classList.toggle('active', x === b));
-    rerender();
-  };
-});
 document.querySelectorAll('#metricToggle button').forEach(b => {
   b.onclick = () => {
     state.metric = b.dataset.metric;
@@ -710,11 +478,6 @@ document.querySelectorAll('#metricToggle button').forEach(b => {
     rerender();
   };
 });
-document.getElementById('compare25').onclick = () => {
-  state.showOverlay = !state.showOverlay;
-  document.getElementById('compare25').classList.toggle('primary', state.showOverlay);
-  rerender();
-};
 document.getElementById('editBtn').onclick = () => {
   state.editMode = !state.editMode;
   const b = document.getElementById('editBtn');
