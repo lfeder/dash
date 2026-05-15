@@ -246,6 +246,7 @@ function makeChart(ctx, label) {
         },
         tooltip: {
           mode: 'nearest', intersect: false,
+          itemSort: (a, b) => b.parsed.y - a.parsed.y,
           callbacks: {
             label: (ctx) => `${ctx.dataset.label}: ${Math.round(ctx.parsed.y).toLocaleString()} lb`,
             title: (items) => items.length ? `Week ${items[0].parsed.x.toFixed(1)}` : '',
