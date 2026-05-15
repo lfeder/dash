@@ -278,6 +278,12 @@ function renderCharts(series) {
   cumChart.data.datasets   = buildDatasets('dataCum');
   dailyChart.options.plugins.legend.display = showLegend;
   cumChart.options.plugins.legend.display   = showLegend;
+  // Show all lines in tooltip when <12 series, otherwise just nearest.
+  const tipMode = series.length < 12 ? 'index' : 'nearest';
+  dailyChart.options.plugins.tooltip.mode = tipMode;
+  cumChart.options.plugins.tooltip.mode   = tipMode;
+  dailyChart.options.interaction = { mode: tipMode, intersect: false };
+  cumChart.options.interaction   = { mode: tipMode, intersect: false };
   dailyChart.update();
   cumChart.update();
 }
