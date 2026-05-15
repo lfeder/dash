@@ -74,7 +74,9 @@
 <script>
 // ── State ──
 let rows = [];      // raw harvest rows
-let filters = { year: new Set(), month: new Set(), gh: new Set(), variety: new Set(), grade: new Set() };
+let loadedYears = new Set(); // seed-years already fetched
+const CURRENT_YEAR = new Date().getFullYear();
+let filters = { year: new Set([CURRENT_YEAR]), month: new Set(), gh: new Set(), variety: new Set(), grade: new Set() };
 let view = 'individual';
 let dailyChart = null, cumChart = null;
 
@@ -120,10 +122,11 @@ function dayToWeek(d) { return (d - PLANT_DAY) / 7; }
 function renderChips(containerId, key, values, formatLabel) {
   const c = document.getElementById(containerId);
   c.innerHTML = '';
+  const onChange = (key === 'year') ? ensureAndRender : render;
   const all = document.createElement('span');
   all.className = 'chip all active';
   all.textContent = 'All';
-  all.onclick = () => { filters[key].clear(); refreshChipState(containerId, key); render(); };
+  all.onclick = () => { filters[key].clear(); refreshChipState(containerId, key); onChange(); };
   c.appendChild(all);
   values.forEach(v => {
     const el = document.createElement('span');
@@ -133,7 +136,7 @@ function renderChips(containerId, key, values, formatLabel) {
     el.onclick = () => {
       if (filters[key].has(v)) filters[key].delete(v); else filters[key].add(v);
       refreshChipState(containerId, key);
-      render();
+      onChange();
     };
     c.appendChild(el);
   });
@@ -241,7 +244,13 @@ function makeChart(ctx, label) {
           display: true, position: 'top',
           labels: { boxWidth: 8, boxHeight: 8, usePointStyle: true, pointStyle: 'circle', font: { size: 10 } },
         },
-        tooltip: { mode: 'nearest', intersect: false },
+        tooltip: {
+          mode: 'nearest', intersect: false,
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ${Math.round(ctx.parsed.y).toLocaleString()} lb`,
+            title: (items) => items.length ? `Week ${items[0].parsed.x.toFixed(1)}` : '',
+          },
+        },
       },
       scales: {
         x: { type: 'linear', title: { display: true, text: 'Weeks in greenhouse', font: { size: 11 } }, ticks: { font: { size: 11 } } },
@@ -290,26 +299,73 @@ function render() {
   renderCharts(series);
 }
 
+// Fetch rows for a set of seed-years directly via Supabase client.
+async function fetchYears(years) {
+  const toFetch = years.filter(y => !loadedYears.has(y));
+  if (!toFetch.length) return;
+  document.getElementById('status').textContent = `Loading ${toFetch.join(', ')}…`;
+  const client = await DataSource.getClient();
+  for (const y of toFetch) {
+    const start = `${y}-01-01`;
+    const end = `${y + 1}-01-01`;
+    const { data, error } = await client
+      .from('grow_cuke_harvest')
+      .select('harvest_date,seeding_date,greenhouse,variety,grade,greenhouse_net_weight,days_since_seed')
+      .gte('seeding_date', start)
+      .lt('seeding_date', end)
+      .range(0, 99999);
+    if (error) throw error;
+    if (data) {
+      for (const r of data) {
+        rows.push({
+          HarvestDate: r.harvest_date ? parseDateStr(r.harvest_date) : null,
+          SeedingDate: r.seeding_date ? parseDateStr(r.seeding_date) : null,
+          Greenhouse: r.greenhouse,
+          Variety: r.variety,
+          Grade: r.grade,
+          GreenhouseNetWeight: r.greenhouse_net_weight,
+          DaysSinceSeed: r.days_since_seed,
+        });
+      }
+    }
+    loadedYears.add(y);
+  }
+}
+
+function parseDateStr(s) {
+  const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? { y: +m[1], m: +m[2], d: +m[3] } : null;
+}
+
+// Re-render after ensuring required years are loaded.
+async function ensureAndRender() {
+  const wantYears = filters.year.size ? [...filters.year] : YEAR_RANGE;
+  if (wantYears.some(y => !loadedYears.has(y))) {
+    await fetchYears(wantYears);
+  }
+  render();
+}
+
+// Year range to enumerate when filter is "All" — derived from DB span.
+const YEAR_RANGE = [];
+for (let y = 2019; y <= CURRENT_YEAR; y++) YEAR_RANGE.push(y);
+
 // ── Boot ──
 (async () => {
   try {
-    const t = await DataSource.fetchTable('cuke_harvest');
-    rows = parseGvizTable(t);
+    await fetchYears([CURRENT_YEAR]);
 
-    // Distinct values for filter chips (sorted) — from raw rows.
-    const years = [...new Set(rows.map(r => r.SeedingDate && r.SeedingDate.y).filter(Boolean))].sort((a,b)=>a-b);
     const months = [1,2,3,4,5,6,7,8,9,10,11,12];
-    const ghs = [...new Set(rows.map(r => r.Greenhouse).filter(Boolean))].sort();
-    const vars = [...new Set(rows.map(r => r.Variety).filter(Boolean))].sort();
-    const grades = [...new Set(rows.map(r => r.Grade).filter(Boolean))].sort();
+    const ghs = ['GH1','GH2','GH3','GH4','GH5','GH6','GH7','GH8','HK','Hilo','Kona','Waimea'];
+    const vars = ['E','J','K'];
+    const grades = ['1','2'];
 
-    renderChips('f-year', 'year', years);
+    renderChips('f-year', 'year', YEAR_RANGE);
     renderChips('f-month', 'month', months, m => String(m).padStart(2,'0'));
     renderChips('f-gh', 'gh', ghs);
     renderChips('f-variety', 'variety', vars);
     renderChips('f-grade', 'grade', grades);
 
-    // View toggle
     document.querySelectorAll('#view-toggle .chip').forEach(el => {
       el.onclick = () => {
         view = el.dataset.view;
