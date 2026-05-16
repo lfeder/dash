@@ -280,7 +280,7 @@ function renderCharts(series) {
   dailyChart.options.plugins.legend.display = showLegend;
   cumChart.options.plugins.legend.display   = showLegend;
   // Show all lines in tooltip when <12 series, otherwise just nearest.
-  const tipMode = series.length < 13 ? 'index' : 'nearest';
+  const tipMode = series.length < 13 ? 'x' : 'nearest';
   dailyChart.options.plugins.tooltip.mode = tipMode;
   cumChart.options.plugins.tooltip.mode   = tipMode;
   dailyChart.options.interaction = { mode: tipMode, intersect: false };
