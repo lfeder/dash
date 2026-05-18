@@ -485,6 +485,7 @@ function renderTable() {
   html += '</tr>';
   html += totalsRow('Full year', 'tr-full', tot25_full, totB26_full, null);
   html += totalsRow('YTD',       'tr-ytd',  tot25_ytd,  totB26_ytd,  totA26_ytd);
+  html += '<tr class="spacer"><td colspan="19" style="height:10px;background:transparent;border:none"></td></tr>';
   html += '</thead><tbody>';
 
   for (let pp = 1; pp <= PP_COUNT; pp++) {
