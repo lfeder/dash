@@ -91,6 +91,8 @@ tbody tr:hover td.sec-25, tbody tr:hover td.sec-act { background:rgba(78,204,163
 #modal tfoot td { font-weight:700; color:#fff; border-top:2px solid #4ecca3; }
 /* ===== By Task view ===== */
 body.task-view .labor-only { display:none !important; }
+.task-only { display:none; }
+body.task-view .task-only { display:flex; }
 #grid.task thead th { position:sticky; top:0; z-index:3; background:#0f3460; }
 #grid.task tr.ttot td { position:sticky; top:27px; z-index:4; background:#0d2a4f !important; color:#fff; font-weight:700; box-shadow: inset 0 -2px 0 #4ecca3; }
 #grid.task tr.ttot td:first-child { z-index:6; }
@@ -106,6 +108,10 @@ body.task-view .labor-only { display:none !important; }
     <div class="toggle-group" id="viewToggle">
       <button data-view="labor" class="active">By Labor</button>
       <button data-view="task">By Task</button>
+    </div>
+    <div class="toggle-group task-only" id="taskMetricToggle">
+      <button data-tmetric="hours" class="active">Hours</button>
+      <button data-tmetric="prodhours">ProdHours</button>
     </div>
     <div class="toggle-group labor-only" id="metricToggle">
       <button data-metric="headcount" class="active">Headcount</button>
@@ -159,11 +165,12 @@ const TASK_COLOR = { GH:'#4ecca3', PH:'#3498db', Lettuce:'#f39c12' };
 let state = {
   view: 'labor',     // 'labor' | 'task'
   metric: 'headcount',
+  taskMetric: 'hours', // task view: 'hours' | 'prodhours'
   editMode: false,
   budgetDirty: false,
   collapsed: false,
 };
-let taskData = null;   // { dates:[...], rows:[{GH,PH,...,_total}], byYear:{2025:[idx],2026:[idx]} }
+let taskData = null;   // { dates:[...], rows:[{h:{task},p:{task},_th,_tp}], byYear:{2025:[idx],2026:[idx]} }
 let chart = null;
 let budgets = { 2026: null }; // 2025 has no budget; 2026 = expanded selected version
 let budgetVersionsRaw = {}; // raw {versionDate: sparseObj} loaded from JSON
@@ -811,7 +818,7 @@ async function loadTaskData() {
   while (true) {
     const { data, error } = await client
       .from('hr_payroll_by_task')
-      .select('check_date, task, total_hours')
+      .select('check_date, task, total_hours, status')
       .order('check_date').range(page * PAGE, (page + 1) * PAGE - 1);
     if (error) throw error;
     if (!data || !data.length) break;
@@ -820,20 +827,25 @@ async function loadTaskData() {
     page++;
   }
   const TASK_SET = new Set(TASK);
-  const byDate = new Map(); // date -> { task: hours, _total }
+  // Productive-hours multiplier by work authorization (matches PROD_MULT in
+  // the labor view): foreign labor counts 1.2x, local/unknown 1x.
+  const PROD_MULT_BY_STATUS = { 'Local':1, 'WFE':1.2, 'H2A':1.2, 'FUERTE (Local)':1.2, 'FUERTE':1.2 };
+  const byDate = new Map(); // date -> { h:{task}, p:{task}, _th, _tp }
   for (const r of all) {
     if (!TASK_SET.has(r.task)) continue; // skip tasks not shown (e.g. Maint, Corp)
     const d = r.check_date;
-    if (!byDate.has(d)) byDate.set(d, { _total: 0 });
+    if (!byDate.has(d)) byDate.set(d, { h: {}, p: {}, _th: 0, _tp: 0 });
     const o = byDate.get(d);
     const h = parseFloat(r.total_hours) || 0;
-    o[r.task] = (o[r.task] || 0) + h;
-    o._total += h;
+    const ph = h * (PROD_MULT_BY_STATUS[r.status] ?? 1);
+    o.h[r.task] = (o.h[r.task] || 0) + h;
+    o.p[r.task] = (o.p[r.task] || 0) + ph;
+    o._th += h; o._tp += ph;
   }
   // Drop off-cycle supplemental checks (totals far below the regular biweekly run).
-  const totals = [...byDate.values()].map(o => o._total).sort((a,b) => a - b);
+  const totals = [...byDate.values()].map(o => o._th).sort((a,b) => a - b);
   const median = totals.length ? totals[Math.floor(totals.length / 2)] : 0;
-  const dates = [...byDate.keys()].filter(d => byDate.get(d)._total >= median * 0.5).sort();
+  const dates = [...byDate.keys()].filter(d => byDate.get(d)._th >= median * 0.5).sort();
   const rows = dates.map(d => byDate.get(d));
   const byYear = { 2025: [], 2026: [] };
   dates.forEach((d, i) => { const y = +d.slice(0, 4); if (byYear[y]) byYear[y].push(i); });
@@ -848,18 +860,21 @@ function renderTaskView() {
 
   const fmtH = v => v == null ? '' : Math.round(v).toLocaleString();
   const ppLbl = d => d.slice(5) + " '" + d.slice(2, 4); // MM-DD 'YY
+  const m = state.taskMetric;                       // 'hours' | 'prodhours'
+  const cell = (r, t) => (m === 'hours' ? r.h : r.p)[t]; // metric value for a task
+  const tot  = r => m === 'hours' ? r._th : r._tp;       // metric row total
 
   // Per-year avg/PP per task (denominator = # pay periods that year)
   function avgRow(label, idxs) {
     const n = idxs.length;
     let row = '<tr class="ttot"><td>' + label + '</td>';
-    let tot = 0;
+    let total = 0;
     for (const t of TASK) {
-      const sum = idxs.reduce((s, i) => s + (taskData.rows[i][t] || 0), 0);
-      const avg = n ? sum / n : 0; tot += avg;
+      const sum = idxs.reduce((s, i) => s + (cell(taskData.rows[i], t) || 0), 0);
+      const avg = n ? sum / n : 0; total += avg;
       row += '<td class="sec-act">' + fmtH(avg) + '</td>';
     }
-    row += '<td class="sec-act">' + fmtH(tot) + '</td></tr>';
+    row += '<td class="sec-act">' + fmtH(total) + '</td></tr>';
     return row;
   }
 
@@ -875,8 +890,8 @@ function renderTaskView() {
   taskData.dates.forEach((d, i) => {
     const r = taskData.rows[i];
     html += '<tr><td>' + ppLbl(d) + '</td>';
-    for (const t of TASK) html += '<td class="sec-act">' + fmtH(r[t]) + '</td>';
-    html += '<td class="sec-act" style="font-weight:600">' + fmtH(r._total) + '</td></tr>';
+    for (const t of TASK) html += '<td class="sec-act">' + fmtH(cell(r, t)) + '</td>';
+    html += '<td class="sec-act" style="font-weight:600">' + fmtH(tot(r)) + '</td></tr>';
   });
   html += '</tbody>';
   grid.innerHTML = html;
@@ -886,12 +901,13 @@ function renderTaskView() {
 function renderTaskChart() {
   const wrap = document.getElementById('chartWrap');
   wrap.style.display = '';
+  const m = state.taskMetric;
   const labels = taskData.dates.map(d => d.slice(5) + "/" + d.slice(2, 4));
   const datasets = TASK.map(t => ({
     label: TASK_LABEL[t],
-    data: taskData.rows.map(r => r[t] ?? 0),
-    borderColor: TASK_COLOR[t], backgroundColor: TASK_COLOR[t] + '55',
-    borderWidth: 1.5, pointRadius: 0, fill: true, tension: 0.25,
+    data: taskData.rows.map(r => (m === 'hours' ? r.h : r.p)[t] ?? 0),
+    borderColor: TASK_COLOR[t], backgroundColor: TASK_COLOR[t],
+    borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.25,
   }));
   const cvs = document.getElementById('chart');
   if (chart) chart.destroy();
@@ -904,11 +920,11 @@ function renderTaskChart() {
       plugins: {
         legend: { labels: { color: '#aaa', font: { size: 11 }, usePointStyle: true, pointStyle: 'circle', boxWidth: 8 } },
         tooltip: { bodyFont: { size: 11 }, titleFont: { size: 12 } },
-        title: { display: true, color: '#aaa', text: 'Hours by task per pay period (stacked)' }
+        title: { display: true, color: '#aaa', text: (m === 'hours' ? 'Hours' : 'Productive hours') + ' by task per pay period' }
       },
       scales: {
         x: { ticks: { color: '#888', font: { size: 11 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 }, grid: { display: false } },
-        y: { stacked: true, beginAtZero: true, ticks: { color: '#888', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+        y: { beginAtZero: true, ticks: { color: '#888', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
       }
     }
   });
@@ -1001,6 +1017,13 @@ document.querySelectorAll('#metricToggle button').forEach(b => {
   b.onclick = () => {
     state.metric = b.dataset.metric;
     document.querySelectorAll('#metricToggle button').forEach(x => x.classList.toggle('active', x === b));
+    rerender();
+  };
+});
+document.querySelectorAll('#taskMetricToggle button').forEach(b => {
+  b.onclick = () => {
+    state.taskMetric = b.dataset.tmetric;
+    document.querySelectorAll('#taskMetricToggle button').forEach(x => x.classList.toggle('active', x === b));
     rerender();
   };
 });
