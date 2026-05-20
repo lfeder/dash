@@ -151,9 +151,9 @@ const PP_COUNT = 26;
 
 // By-task view: 5 QB-account buckets, hours only (allocated from schedule).
 // Data begins Jan 2025 — when the task-scheduling system came into use.
-const TASK = ['GH','PH','Lettuce','Maintenance','Corp'];
-const TASK_LABEL = { GH:'GH', PH:'PH', Lettuce:'Lettuce', Maintenance:'Maint', Corp:'Corp' };
-const TASK_COLOR = { GH:'#4ecca3', PH:'#3498db', Lettuce:'#f39c12', Maintenance:'#9b59b6', Corp:'#e74c3c' };
+const TASK = ['GH','PH','Lettuce'];
+const TASK_LABEL = { GH:'GH', PH:'PH', Lettuce:'Lettuce' };
+const TASK_COLOR = { GH:'#4ecca3', PH:'#3498db', Lettuce:'#f39c12' };
 
 // ========= State =========
 let state = {
@@ -819,8 +819,10 @@ async function loadTaskData() {
     if (data.length < PAGE) break;
     page++;
   }
+  const TASK_SET = new Set(TASK);
   const byDate = new Map(); // date -> { task: hours, _total }
   for (const r of all) {
+    if (!TASK_SET.has(r.task)) continue; // skip tasks not shown (e.g. Maint, Corp)
     const d = r.check_date;
     if (!byDate.has(d)) byDate.set(d, { _total: 0 });
     const o = byDate.get(d);
