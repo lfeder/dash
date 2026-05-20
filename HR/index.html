@@ -99,6 +99,8 @@ body.task-view .task-only { display:flex; }
 #grid.task td.sec-act { color:#9bdfc4; }
 #grid.task tr.ttot .pp-chg { font-size:0.9em; font-weight:400; color:#8fa6c2; margin-right:5px; }
 #grid.task tr:hover td:not(.ttot) { filter:brightness(1.15); }
+#grid.task td.tcell { cursor:pointer; }
+#grid.task td.tcell:hover { background:#13325a; }
 </style>
 </head>
 <body>
@@ -659,6 +661,46 @@ async function openDetail(year, pp) {
   }
 }
 
+async function openTaskDetail(checkDate, task) {
+  document.getElementById('modal').classList.add('show');
+  const ppLabel = checkDate.slice(5) + " '" + checkDate.slice(2, 4);
+  const scope = task ? TASK_LABEL[task] : 'All tasks';
+  document.getElementById('modalTitle').textContent = `${ppLabel} · ${scope} — people`;
+  document.getElementById('modalBody').textContent = 'Loading…';
+  try {
+    const client = await DataSource.getClient();
+    let q = client.from('hr_payroll_by_task_detail').select('*').eq('check_date', checkDate);
+    if (task) q = q.eq('task', task);
+    const { data, error } = await q;
+    if (error) throw error;
+    if (!data || !data.length) {
+      document.getElementById('modalBody').innerHTML = '<div style="color:#888">No people.</div>';
+      return;
+    }
+    // Sum hours per person (Total cell spans multiple task rows per person).
+    const byPerson = new Map();
+    for (const r of data) {
+      const k = r.employee_name || '';
+      if (!byPerson.has(k)) byPerson.set(k, { name: k, status: r.status, h: 0 });
+      byPerson.get(k).h += parseFloat(r.total_hours) || 0;
+    }
+    const people = [...byPerson.values()].sort((a, b) => b.h - a.h);
+    let rows = '', totH = 0;
+    for (const p of people) {
+      totH += p.h;
+      rows += `<tr><td>${p.name}</td><td>${p.status || ''}</td><td class="num">${p.h.toFixed(1)}</td></tr>`;
+    }
+    document.getElementById('modalBody').innerHTML = `
+      <table>
+        <thead><tr><th>Name</th><th>Status</th><th class="num">Hours</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr><td colspan="2">${people.length} people</td><td class="num">${totH.toFixed(1)}</td></tr></tfoot>
+      </table>`;
+  } catch (e) {
+    document.getElementById('modalBody').innerHTML = '<div style="color:#e74c3c">Error: ' + e.message + '</div>';
+  }
+}
+
 function closeModal() {
   document.getElementById('modal').classList.remove('show');
 }
@@ -906,11 +948,14 @@ function renderTaskView() {
   taskData.dates.forEach((d, i) => {
     const r = taskData.rows[i];
     html += '<tr><td>' + ppLbl(d) + '</td>';
-    for (const t of TASK) html += '<td class="sec-act">' + fmtH(cell(r, t)) + '</td>';
-    html += '<td class="sec-act" style="font-weight:600">' + fmtH(tot(r)) + '</td></tr>';
+    for (const t of TASK) html += `<td class="sec-act tcell" data-d="${d}" data-task="${t}">` + fmtH(cell(r, t)) + '</td>';
+    html += `<td class="sec-act tcell" data-d="${d}" data-task="" style="font-weight:600">` + fmtH(tot(r)) + '</td></tr>';
   });
   html += '</tbody>';
   grid.innerHTML = html;
+  grid.querySelectorAll('td.tcell').forEach(td => {
+    td.onclick = () => openTaskDetail(td.dataset.d, td.dataset.task);
+  });
   renderTaskChart();
 }
 
