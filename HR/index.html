@@ -89,6 +89,13 @@ tbody tr:hover td.sec-25, tbody tr:hover td.sec-act { background:rgba(78,204,163
 #modal td { padding:5px 10px; border-bottom:1px solid #0f3460; text-align:left; }
 #modal th.num, #modal td.num { text-align:right; font-variant-numeric:tabular-nums; }
 #modal tfoot td { font-weight:700; color:#fff; border-top:2px solid #4ecca3; }
+/* ===== By Task view ===== */
+body.task-view .labor-only { display:none !important; }
+#grid.task thead th { position:sticky; top:0; z-index:3; background:#0f3460; }
+#grid.task tr.ttot td { position:sticky; top:27px; z-index:4; background:#0d2a4f !important; color:#fff; font-weight:700; box-shadow: inset 0 -2px 0 #4ecca3; }
+#grid.task tr.ttot td:first-child { z-index:6; }
+#grid.task td.sec-act { color:#9bdfc4; }
+#grid.task tr:hover td:not(.ttot) { filter:brightness(1.15); }
 </style>
 </head>
 <body>
@@ -96,7 +103,11 @@ tbody tr:hover td.sec-25, tbody tr:hover td.sec-act { background:rgba(78,204,163
 <div id="header">
   <h1>Staffing</h1>
   <div class="controls">
-    <div class="toggle-group" id="metricToggle">
+    <div class="toggle-group" id="viewToggle">
+      <button data-view="labor" class="active">By Labor</button>
+      <button data-view="task">By Task</button>
+    </div>
+    <div class="toggle-group labor-only" id="metricToggle">
       <button data-metric="headcount" class="active">Headcount</button>
       <button data-metric="hours">Hours</button>
       <button data-metric="prodhours">ProdHours</button>
@@ -104,11 +115,11 @@ tbody tr:hover td.sec-25, tbody tr:hover td.sec-act { background:rgba(78,204,163
       <button data-metric="cost_total">Total Cost</button>
       <button data-metric="dollar_per_hour">$/hr</button>
     </div>
-    <select id="versionSel" class="btn" title="Budget version" style="cursor:pointer"></select>
-    <button id="movementBtn" class="btn">Joined / Left</button>
-    <button id="collapseBtn" class="btn">Focus Totals</button>
-    <button id="editBtn" class="btn">Edit Budget</button>
-    <button id="saveBtn" class="btn primary" style="display:none">Save Budget</button>
+    <select id="versionSel" class="btn labor-only" title="Budget version" style="cursor:pointer"></select>
+    <button id="movementBtn" class="btn labor-only">Joined / Left</button>
+    <button id="collapseBtn" class="btn labor-only">Focus Totals</button>
+    <button id="editBtn" class="btn labor-only">Edit Budget</button>
+    <button id="saveBtn" class="btn primary labor-only" style="display:none">Save Budget</button>
     <span id="status">Loading…</span>
     <span id="version" style="font-size:0.7rem;color:#e0e0e0"></span>
   </div>
@@ -138,13 +149,21 @@ const AUTH_TO_LABOR = {
 };
 const PP_COUNT = 26;
 
+// By-task view: 5 QB-account buckets, hours only (allocated from schedule).
+// Data begins Jan 2025 — when the task-scheduling system came into use.
+const TASK = ['GH','PH','Lettuce','Maintenance','Corp'];
+const TASK_LABEL = { GH:'GH', PH:'PH', Lettuce:'Lettuce', Maintenance:'Maint', Corp:'Corp' };
+const TASK_COLOR = { GH:'#4ecca3', PH:'#3498db', Lettuce:'#f39c12', Maintenance:'#9b59b6', Corp:'#e74c3c' };
+
 // ========= State =========
 let state = {
+  view: 'labor',     // 'labor' | 'task'
   metric: 'headcount',
   editMode: false,
   budgetDirty: false,
   collapsed: false,
 };
+let taskData = null;   // { dates:[...], rows:[{GH,PH,...,_total}], byYear:{2025:[idx],2026:[idx]} }
 let chart = null;
 let budgets = { 2026: null }; // 2025 has no budget; 2026 = expanded selected version
 let budgetVersionsRaw = {}; // raw {versionDate: sparseObj} loaded from JSON
@@ -784,8 +803,125 @@ function saveBudget() {
   state.budgetDirty = false;
 }
 
+// ========= By Task view =========
+async function loadTaskData() {
+  const client = await DataSource.getClient();
+  const all = [];
+  let page = 0; const PAGE = 1000;
+  while (true) {
+    const { data, error } = await client
+      .from('hr_payroll_by_task')
+      .select('check_date, task, total_hours')
+      .order('check_date').range(page * PAGE, (page + 1) * PAGE - 1);
+    if (error) throw error;
+    if (!data || !data.length) break;
+    all.push(...data);
+    if (data.length < PAGE) break;
+    page++;
+  }
+  const byDate = new Map(); // date -> { task: hours, _total }
+  for (const r of all) {
+    const d = r.check_date;
+    if (!byDate.has(d)) byDate.set(d, { _total: 0 });
+    const o = byDate.get(d);
+    const h = parseFloat(r.total_hours) || 0;
+    o[r.task] = (o[r.task] || 0) + h;
+    o._total += h;
+  }
+  // Drop off-cycle supplemental checks (totals far below the regular biweekly run).
+  const totals = [...byDate.values()].map(o => o._total).sort((a,b) => a - b);
+  const median = totals.length ? totals[Math.floor(totals.length / 2)] : 0;
+  const dates = [...byDate.keys()].filter(d => byDate.get(d)._total >= median * 0.5).sort();
+  const rows = dates.map(d => byDate.get(d));
+  const byYear = { 2025: [], 2026: [] };
+  dates.forEach((d, i) => { const y = +d.slice(0, 4); if (byYear[y]) byYear[y].push(i); });
+  taskData = { dates, rows, byYear };
+}
+
+function renderTaskView() {
+  document.body.classList.add('task-view');
+  const grid = document.getElementById('grid');
+  grid.classList.add('task');
+  if (!taskData) { grid.innerHTML = '<tbody><tr><td style="padding:14px;color:#888">Loading…</td></tr></tbody>'; return; }
+
+  const fmtH = v => v == null ? '' : Math.round(v).toLocaleString();
+  const ppLbl = d => d.slice(5) + " '" + d.slice(2, 4); // MM-DD 'YY
+
+  // Per-year avg/PP per task (denominator = # pay periods that year)
+  function avgRow(label, idxs) {
+    const n = idxs.length;
+    let row = '<tr class="ttot"><td>' + label + '</td>';
+    let tot = 0;
+    for (const t of TASK) {
+      const sum = idxs.reduce((s, i) => s + (taskData.rows[i][t] || 0), 0);
+      const avg = n ? sum / n : 0; tot += avg;
+      row += '<td class="sec-act">' + fmtH(avg) + '</td>';
+    }
+    row += '<td class="sec-act">' + fmtH(tot) + '</td></tr>';
+    return row;
+  }
+
+  let html = '<colgroup><col class="col-pp">';
+  for (let i = 0; i < TASK.length; i++) html += '<col class="col-data">';
+  html += '<col class="col-tot"></colgroup><thead>';
+  html += '<tr class="hdr-cols"><th>Pay period</th>';
+  for (const t of TASK) html += '<th>' + TASK_LABEL[t] + '</th>';
+  html += '<th>Total</th></tr>';
+  if (taskData.byYear[2025].length) html += avgRow('2025 avg/PP', taskData.byYear[2025]);
+  if (taskData.byYear[2026].length) html += avgRow('2026 avg/PP', taskData.byYear[2026]);
+  html += '</thead><tbody>';
+  taskData.dates.forEach((d, i) => {
+    const r = taskData.rows[i];
+    html += '<tr><td>' + ppLbl(d) + '</td>';
+    for (const t of TASK) html += '<td class="sec-act">' + fmtH(r[t]) + '</td>';
+    html += '<td class="sec-act" style="font-weight:600">' + fmtH(r._total) + '</td></tr>';
+  });
+  html += '</tbody>';
+  grid.innerHTML = html;
+  renderTaskChart();
+}
+
+function renderTaskChart() {
+  const wrap = document.getElementById('chartWrap');
+  wrap.style.display = '';
+  const labels = taskData.dates.map(d => d.slice(5) + "/" + d.slice(2, 4));
+  const datasets = TASK.map(t => ({
+    label: TASK_LABEL[t],
+    data: taskData.rows.map(r => r[t] ?? 0),
+    borderColor: TASK_COLOR[t], backgroundColor: TASK_COLOR[t] + '55',
+    borderWidth: 1.5, pointRadius: 0, fill: true, tension: 0.25,
+  }));
+  const cvs = document.getElementById('chart');
+  if (chart) chart.destroy();
+  chart = new Chart(cvs, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: '#aaa', font: { size: 11 }, usePointStyle: true, pointStyle: 'circle', boxWidth: 8 } },
+        tooltip: { bodyFont: { size: 11 }, titleFont: { size: 12 } },
+        title: { display: true, color: '#aaa', text: 'Hours by task per pay period (stacked)' }
+      },
+      scales: {
+        x: { ticks: { color: '#888', font: { size: 11 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 }, grid: { display: false } },
+        y: { stacked: true, ticks: { color: '#888', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+      }
+    }
+  });
+}
+
 // ========= Wire UI =========
-function rerender() {
+async function rerender() {
+  if (state.view === 'task') {
+    if (!taskData) { try { await loadTaskData(); } catch (e) { document.getElementById('status').textContent = 'Error: ' + e.message; return; } }
+    renderTaskView();
+    return;
+  }
+  document.body.classList.remove('task-view');
+  const grid = document.getElementById('grid');
+  grid.classList.remove('task');
   computeRates();
   renderTable();
   renderChart();
@@ -852,6 +988,13 @@ function renderChart() {
 }
 
 
+document.querySelectorAll('#viewToggle button').forEach(b => {
+  b.onclick = () => {
+    state.view = b.dataset.view;
+    document.querySelectorAll('#viewToggle button').forEach(x => x.classList.toggle('active', x === b));
+    rerender();
+  };
+});
 document.querySelectorAll('#metricToggle button').forEach(b => {
   b.onclick = () => {
     state.metric = b.dataset.metric;
