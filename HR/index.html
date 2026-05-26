@@ -796,6 +796,15 @@ function wireBudgetInputs() {
       if (!budgets[2026][pp]) budgets[2026][pp] = {};
       if (budgets[2026][pp][labor] === v) return;
       budgets[2026][pp][labor] = v;
+      // Auto-fill forward: propagate this value to all later PPs for the
+      // same labor type, and update their inputs in place.
+      for (let p = pp + 1; p <= PP_COUNT; p++) {
+        if (!budgets[2026][p]) budgets[2026][p] = {};
+        budgets[2026][p][labor] = v;
+        const fwd = document.querySelector(
+          `input.bdg-input[data-pp="${p}"][data-labor="${labor}"]`);
+        if (fwd && document.activeElement !== fwd) fwd.value = v;
+      }
       state.budgetDirty = true;
       document.getElementById('saveBtn').style.display = '';
     };
