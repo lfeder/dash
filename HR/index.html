@@ -182,6 +182,19 @@ let actuals = { 2025: null, 2026: null }; // [pp][labor] = {headcount, hours, co
 let ppDates = { 2025: [], 2026: [] }; // [pp-1] = check_date string
 let currentPP = { 2025: 26, 2026: 1 };
 
+// ========= Draft persistence (survives reload) =========
+const DRAFT_KEY = 'hr_budget_draft_2026';
+function saveDraft() {
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify({
+    ts: Date.now(), basedOn: activeVersion, budget: budgets[2026]
+  })); } catch {}
+}
+function loadDraft() {
+  try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); }
+  catch { return null; }
+}
+function clearDraft() { try { localStorage.removeItem(DRAFT_KEY); } catch {} }
+
 // ========= Loaders =========
 async function loadBudget() {
   const r = await fetch('hr_budgets_2026.json?t=' + Date.now(), { cache: 'no-store' });
@@ -807,6 +820,7 @@ function wireBudgetInputs() {
       }
       state.budgetDirty = true;
       document.getElementById('saveBtn').style.display = '';
+      saveDraft();
     };
     // Write on every keystroke so values can never be lost
     inp.addEventListener('input', writeValue);
@@ -860,6 +874,7 @@ function saveBudget() {
   activeVersion = today;
   renderVersionDropdown();
   state.budgetDirty = false;
+  clearDraft();
 }
 
 // ========= By Task view =========
@@ -1139,7 +1154,18 @@ async function init() {
     // The known issue: 2026 PP6/PP7 share check_date. Since we now key by
     // check_date, both rows merge into one PP automatically — but flag it.
     // (Skipping a runtime check; detection lives at the source.)
-    document.getElementById('status').textContent = '';
+    // Restore unsaved edits from a previous session, if any
+    const draft = loadDraft();
+    if (draft && draft.budget) {
+      budgets[2026] = draft.budget;
+      state.budgetDirty = true;
+      const ageMin = Math.round((Date.now() - draft.ts) / 60000);
+      document.getElementById('status').textContent =
+        `Restored unsaved edits (${ageMin}m ago) — click Save Budget to export`;
+      setTimeout(() => { document.getElementById('saveBtn').style.display = ''; }, 0);
+    } else {
+      document.getElementById('status').textContent = '';
+    }
     renderVersionDropdown();
     rerender();
   } catch (e) {
