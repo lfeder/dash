@@ -204,10 +204,11 @@ async function loadBudget() {
   budgetVersionsRaw = {};
   for (const r of data || []) {
     const key = r.saved_at;
+    const pp = Number(r.pp);
     if (!budgetVersionsRaw[key]) budgetVersionsRaw[key] = {};
     const sp = budgetVersionsRaw[key];
-    if (!sp[r.pp]) sp[r.pp] = {};
-    sp[r.pp][r.labor_type] = r.headcount;
+    if (!sp[pp]) sp[pp] = {};
+    sp[pp][r.labor_type] = Number(r.headcount);
   }
   const keys = Object.keys(budgetVersionsRaw).sort();
   if (!keys.length) throw new Error('no budget versions in hr_budgets table');
@@ -856,6 +857,14 @@ function wireBudgetInputs() {
 
 // ========= Save (Supabase, 60-min rolling window) =========
 async function saveBudget() {
+  // Safety: only save when we have a fully-expanded budget across all 26 PPs.
+  // Otherwise a partially-populated budgets[2026] would erase the saved version.
+  let populated = 0;
+  for (let pp = 1; pp <= PP_COUNT; pp++) if (budgets[2026]?.[pp]) populated++;
+  if (populated < PP_COUNT) {
+    console.warn('saveBudget skipped — budgets[2026] missing PPs', populated);
+    return;
+  }
   // Compress current expanded budget to sparse (only PPs where the row changes)
   const sparse = {};
   let prev = null;
@@ -884,10 +893,11 @@ async function saveBudget() {
     if (delErr) throw delErr;
     const { error: insErr } = await client.from('hr_budgets').insert(rows);
     if (insErr) throw insErr;
-    // Reload versions from DB so the dropdown reflects the rolling-window state
+    // Reload versions from DB so the dropdown reflects the rolling-window state.
+    // loadBudget() sets activeVersion to whatever the latest key in the DB is
+    // (using the DB's own timestamp formatting, which won't match our local
+    // ISO string). Trust it — don't override.
     await loadBudget();
-    activeVersion = savedAt;
-    applyActiveVersion();
     renderVersionDropdown();
     state.budgetDirty = false;
     clearDraft();
