@@ -128,7 +128,6 @@ body.task-view .task-only { display:flex; }
     <button id="movementBtn" class="btn labor-only">Joined / Left</button>
     <button id="collapseBtn" class="btn labor-only">Focus Totals</button>
     <button id="editBtn" class="btn labor-only">Edit Budget</button>
-    <button id="saveBtn" class="btn primary labor-only" style="display:none">Save Budget</button>
     <span id="status">Loading…</span>
     <span id="version" style="font-size:0.7rem;color:#e0e0e0"></span>
   </div>
@@ -197,15 +196,31 @@ function clearDraft() { try { localStorage.removeItem(DRAFT_KEY); } catch {} }
 
 // ========= Loaders =========
 async function loadBudget() {
-  const r = await fetch('hr_budgets_2026.json?t=' + Date.now(), { cache: 'no-store' });
-  if (!r.ok) throw new Error('hr_budgets_2026.json missing');
-  const j = await r.json();
-  budgetVersionsRaw = j.versions || {};
-  // Pick latest version by date
-  const dates = Object.keys(budgetVersionsRaw).sort();
-  if (!dates.length) throw new Error('no budget versions in file');
-  activeVersion = dates[dates.length - 1];
+  const client = await DataSource.getClient();
+  const { data, error } = await client
+    .from('hr_budgets').select('*').eq('year', 2026);
+  if (error) throw error;
+  // Group rows by saved_at into sparse {pp: {labor: hc}}
+  budgetVersionsRaw = {};
+  for (const r of data || []) {
+    const key = r.saved_at;
+    if (!budgetVersionsRaw[key]) budgetVersionsRaw[key] = {};
+    const sp = budgetVersionsRaw[key];
+    if (!sp[r.pp]) sp[r.pp] = {};
+    sp[r.pp][r.labor_type] = r.headcount;
+  }
+  const keys = Object.keys(budgetVersionsRaw).sort();
+  if (!keys.length) throw new Error('no budget versions in hr_budgets table');
+  activeVersion = keys[keys.length - 1];
   applyActiveVersion();
+}
+
+// Pretty-print an ISO timestamp version key as "MM-DD HH:MM HST"
+function fmtVersion(iso) {
+  const d = new Date(iso);
+  const hst = new Date(d.getTime() - 10 * 3600 * 1000);
+  const p = n => String(n).padStart(2, '0');
+  return `${hst.getUTCFullYear()}-${p(hst.getUTCMonth()+1)}-${p(hst.getUTCDate())} ${p(hst.getUTCHours())}:${p(hst.getUTCMinutes())}`;
 }
 
 function applyActiveVersion() {
@@ -224,7 +239,7 @@ function renderVersionDropdown() {
   const dates = Object.keys(budgetVersionsRaw).sort();
   sel.innerHTML = dates.map(d => {
     const isLatest = d === dates[dates.length - 1];
-    return `<option value="${d}"${d === activeVersion ? ' selected' : ''}>${d}${isLatest ? ' (latest)' : ''}</option>`;
+    return `<option value="${d}"${d === activeVersion ? ' selected' : ''}>${fmtVersion(d)}${isLatest ? ' (latest)' : ''}</option>`;
   }).join('');
 }
 
@@ -819,8 +834,8 @@ function wireBudgetInputs() {
         if (fwd && document.activeElement !== fwd) fwd.value = v;
       }
       state.budgetDirty = true;
-      document.getElementById('saveBtn').style.display = '';
       saveDraft();
+      scheduleAutosave();
     };
     // Write on every keystroke so values can never be lost
     inp.addEventListener('input', writeValue);
@@ -839,9 +854,9 @@ function wireBudgetInputs() {
 }
 
 
-// ========= Save (download JSON) =========
-function saveBudget() {
-  // Compress current expanded budget back to sparse (only PPs where it changes)
+// ========= Save (Supabase, 60-min rolling window) =========
+async function saveBudget() {
+  // Compress current expanded budget to sparse (only PPs where the row changes)
   const sparse = {};
   let prev = null;
   for (let pp = 1; pp <= PP_COUNT; pp++) {
@@ -850,31 +865,44 @@ function saveBudget() {
     const sig = LABOR.map(l => r[l]).join(',');
     if (sig !== prev) { sparse[pp] = { ...r }; prev = sig; }
   }
-  // Stamp with today's date in HST as a new version. If a version with
-  // today's date already exists, it overwrites — same-day edits roll up.
-  const now = new Date();
-  const hst = new Date(now.getTime() - 10 * 3600 * 1000);
-  const today = `${hst.getUTCFullYear()}-${String(hst.getUTCMonth()+1).padStart(2,'0')}-${String(hst.getUTCDate()).padStart(2,'0')}`;
-  const versions = { ...budgetVersionsRaw, [today]: sparse };
-  // Sort versions by date for stable file order
-  const sorted = {};
-  Object.keys(versions).sort().forEach(d => { sorted[d] = versions[d]; });
-  const out = {
-    year: 2026,
-    labor_types: LABOR,
-    versions: sorted,
-  };
-  const blob = new Blob([JSON.stringify(out, null, 2)], { type:'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'hr_budgets_2026.json'; a.click();
-  URL.revokeObjectURL(url);
-  // Reflect the new version locally so the dropdown updates without reload
-  budgetVersionsRaw = sorted;
-  activeVersion = today;
-  renderVersionDropdown();
-  state.budgetDirty = false;
-  clearDraft();
+  // Build rows: one per (pp, labor) in the sparse set
+  const savedAt = new Date().toISOString();
+  const rows = [];
+  for (const [pp, r] of Object.entries(sparse)) {
+    for (const l of LABOR) {
+      rows.push({ year: 2026, saved_at: savedAt, pp: +pp, labor_type: l, headcount: r[l] ?? 0 });
+    }
+  }
+  const client = await DataSource.getClient();
+  // Drop any version saved within the last 60 minutes, then insert this one.
+  const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const setStatus = (t) => { document.getElementById('status').textContent = t; };
+  setStatus('Saving…');
+  try {
+    const { error: delErr } = await client.from('hr_budgets')
+      .delete().eq('year', 2026).gt('saved_at', cutoff);
+    if (delErr) throw delErr;
+    const { error: insErr } = await client.from('hr_budgets').insert(rows);
+    if (insErr) throw insErr;
+    // Reload versions from DB so the dropdown reflects the rolling-window state
+    await loadBudget();
+    activeVersion = savedAt;
+    applyActiveVersion();
+    renderVersionDropdown();
+    state.budgetDirty = false;
+    clearDraft();
+    setStatus('Saved ' + fmtVersion(savedAt));
+    setTimeout(() => { if (document.getElementById('status').textContent.startsWith('Saved')) setStatus(''); }, 3000);
+  } catch (e) {
+    setStatus('Save failed: ' + e.message);
+  }
+}
+
+// Debounced autosave — fires 5s after last edit
+let autosaveTimer = null;
+function scheduleAutosave() {
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(() => { saveBudget(); }, 5000);
 }
 
 // ========= By Task view =========
@@ -1122,10 +1150,10 @@ document.getElementById('editBtn').onclick = () => {
     state.metric = 'headcount';
     document.querySelectorAll('#metricToggle button').forEach(x => x.classList.toggle('active', x.dataset.metric === 'headcount'));
   }
-  if (!state.editMode && !state.budgetDirty) document.getElementById('saveBtn').style.display = 'none';
+  // If leaving edit mode with pending edits, flush immediately
+  if (!state.editMode && state.budgetDirty) { clearTimeout(autosaveTimer); saveBudget(); }
   rerender();
 };
-document.getElementById('saveBtn').onclick = saveBudget;
 document.getElementById('collapseBtn').onclick = () => {
   state.collapsed = !state.collapsed;
   document.body.classList.toggle('collapsed', state.collapsed);
@@ -1154,16 +1182,19 @@ async function init() {
     // The known issue: 2026 PP6/PP7 share check_date. Since we now key by
     // check_date, both rows merge into one PP automatically — but flag it.
     // (Skipping a runtime check; detection lives at the source.)
-    // Restore unsaved edits from a previous session, if any
+    // Restore unsaved edits from a previous session (only if newer than the
+    // latest saved version). The autosave will flush them shortly after.
     const draft = loadDraft();
-    if (draft && draft.budget) {
+    const latestTs = activeVersion ? new Date(activeVersion).getTime() : 0;
+    if (draft && draft.budget && draft.ts > latestTs) {
       budgets[2026] = draft.budget;
       state.budgetDirty = true;
       const ageMin = Math.round((Date.now() - draft.ts) / 60000);
       document.getElementById('status').textContent =
-        `Restored unsaved edits (${ageMin}m ago) — click Save Budget to export`;
-      setTimeout(() => { document.getElementById('saveBtn').style.display = ''; }, 0);
+        `Restored unsaved edits (${ageMin}m ago) — autosaving…`;
+      scheduleAutosave();
     } else {
+      clearDraft();
       document.getElementById('status').textContent = '';
     }
     renderVersionDropdown();
