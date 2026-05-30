@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Food Safety</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="../lib/data-source.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; }
+  #header { background: #16213e; padding: 12px 24px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid #0f3460; flex-wrap: wrap; }
+  #header h1 { font-size: 1.3rem; color: #4ecca3; flex: 1; }
+  #version { font-size: 0.7rem; color: #e0e0e0; }
+
+  #loading { display: flex; align-items: center; justify-content: center; height: 80vh; font-size: 1.2rem; color: #4ecca3; }
+  #content { display: none; padding: 16px 24px; }
+  .chart-card { background: #16213e; border-radius: 8px; padding: 16px; border: 1px solid #0f3460; }
+  .chart-card h2 { font-size: 1rem; color: #ccc; margin-bottom: 12px; }
+  .chart-wrap { position: relative; height: 420px; }
+  .legend-note { font-size: 0.75rem; color: #888; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>Food Safety</h1>
+  <span id="version">05-29 10:35</span>
+</div>
+
+<div id="loading">Loading data…</div>
+
+<div id="content">
+  <div class="chart-card">
+    <h2>Shelf Life vs APC — Monthly</h2>
+    <div class="chart-wrap"><canvas id="chart"></canvas></div>
+    <div class="legend-note">Shelf life = avg final shelf life days (good trials only). APC = median aerobic plate count (initial tests only, CFU/g ÷ 1,000).</div>
+  </div>
+</div>
+
+<script>
+let chart = null;
+
+async function load() {
+  const client = await DataSource.getClient();
+
+  const [slResp, apcResp] = await Promise.all([
+    client.from('pack_shelf_life')
+      .select('final_shelf_life_day, pack_session(pack_date, farm_id)')
+      .eq('is_good_data', true)
+      .eq('is_deleted', false)
+      .not('final_shelf_life_day', 'is', null),
+
+    client.from('fsafe_result')
+      .select('result_numeric, fsafe_test_hold(pack_date, farm_id)')
+      .eq('fsafe_lab_test_id', 'APC')
+      .eq('is_deleted', false)
+      .not('result_numeric', 'is', null)
+      .neq('initial_retest_vector', 'Retest'),
+  ]);
+
+  if (slResp.error) { console.error('SL error', slResp.error); }
+  if (apcResp.error) { console.error('APC error', apcResp.error); }
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('content').style.display = 'block';
+
+  const FARM = 'Lettuce';
+
+  function aggregate(slRows, apcRows, farm) {
+    // Shelf life by month
+    const slByMonth = {};
+    for (const r of slRows) {
+      const pd = r.pack_session?.pack_date;
+      const f  = r.pack_session?.farm_id;
+      if (!pd) continue;
+      if (farm && f !== farm) continue;
+      const mo = pd.slice(0, 7); // "YYYY-MM"
+      if (!slByMonth[mo]) slByMonth[mo] = [];
+      slByMonth[mo].push(r.final_shelf_life_day);
+    }
+
+    // APC by month — median
+    const apcByMonth = {};
+    for (const r of apcResp.data || []) {
+      const pd = r.fsafe_test_hold?.pack_date;
+      const f  = r.fsafe_test_hold?.farm_id;
+      if (!pd) continue;
+      if (farm && f !== farm) continue;
+      const mo = pd.slice(0, 7);
+      if (!apcByMonth[mo]) apcByMonth[mo] = [];
+      apcByMonth[mo].push(r.result_numeric);
+    }
+
+    // Union of months, sorted
+    const months = [...new Set([...Object.keys(slByMonth), ...Object.keys(apcByMonth)])].sort();
+
+    const slAvg = months.map(mo => {
+      const arr = slByMonth[mo];
+      if (!arr || !arr.length) return null;
+      return +(arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1);
+    });
+
+    const apcMedian = months.map(mo => {
+      const arr = apcByMonth[mo];
+      if (!arr || !arr.length) return null;
+      const sorted = [...arr].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      const med = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+      return +(med / 1000).toFixed(1); // CFU/g ÷ 1000
+    });
+
+    // Format labels as "Jan 24"
+    const labels = months.map(mo => {
+      const [y, m] = mo.split('-');
+      return new Date(+y, +m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    });
+
+    return { labels, slAvg, apcMedian };
+  }
+
+  function render(farm) {
+    const { labels, slAvg, apcMedian } = aggregate(slResp.data || [], apcResp.data || [], farm);
+
+    if (chart) chart.destroy();
+    chart = new Chart(document.getElementById('chart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Shelf Life (days)',
+            data: slAvg,
+            yAxisID: 'ySL',
+            borderColor: '#4ecca3',
+            backgroundColor: '#4ecca3',
+            pointStyle: 'circle',
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            tension: 0.3,
+            spanGaps: true,
+          },
+          {
+            label: 'APC (1k CFU/g)',
+            data: apcMedian,
+            yAxisID: 'yAPC',
+            borderColor: '#f39c12',
+            backgroundColor: '#f39c12',
+            pointStyle: 'circle',
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            tension: 0.3,
+            spanGaps: true,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            labels: {
+              usePointStyle: true,
+              pointStyle: 'circle',
+              font: { size: 11 },
+              color: '#ccc',
+              generateLabels(chart) {
+                return Chart.defaults.plugins.legend.labels.generateLabels(chart).map(l => ({
+                  ...l,
+                  fontColor: '#ccc',
+                }));
+              },
+            },
+          },
+          tooltip: {
+            callbacks: {
+              label(ctx) {
+                if (ctx.parsed.y === null) return null;
+                if (ctx.dataset.yAxisID === 'ySL') return `Shelf Life: ${ctx.parsed.y} days`;
+                return `APC: ${ctx.parsed.y}k CFU/g`;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            ticks: { font: { size: 11 }, color: '#aaa', maxRotation: 45 },
+            grid: { color: 'rgba(255,255,255,0.05)' },
+          },
+          ySL: {
+            type: 'linear',
+            position: 'left',
+            title: { display: true, text: 'Shelf Life (days)', color: '#4ecca3', font: { size: 11 } },
+            ticks: { font: { size: 11 }, color: '#4ecca3' },
+            grid: { color: 'rgba(78,204,163,0.1)' },
+            min: 0,
+          },
+          yAPC: {
+            type: 'linear',
+            position: 'right',
+            title: { display: true, text: 'APC (1k CFU/g)', color: '#f39c12', font: { size: 11 } },
+            ticks: { font: { size: 11 }, color: '#f39c12' },
+            grid: { drawOnChartArea: false },
+            min: 0,
+          },
+        },
+      },
+    });
+  }
+
+  render(FARM);
+}
+
+load().catch(err => {
+  document.getElementById('loading').textContent = 'Error: ' + (err.message || err);
+  console.error(err);
+});
+</script>
+</body>
+</html>
