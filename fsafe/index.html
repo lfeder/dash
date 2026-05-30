@@ -46,7 +46,7 @@
 
   <div class="ctrl-group">
     <label>From</label>
-    <input type="date" id="dateFrom" value="2025-01-01">
+    <input type="date" id="dateFrom">
     <label>To</label>
     <input type="date" id="dateTo">
   </div>
@@ -120,7 +120,7 @@ function getSelectedProducts() {
   return new Set([...checksEl.querySelectorAll('input:checked')].map(c => c.value));
 }
 
-// Default dateTo = today
+// Default: no from bound, to = today
 document.getElementById('dateTo').value = new Date().toISOString().slice(0, 10);
 
 document.getElementById('dateFrom').addEventListener('change', render);
@@ -165,11 +165,11 @@ function render() {
 
   // Filter SL by date and selected products
   const sl = slRaw.filter(r =>
-    r.pack_date >= from && r.pack_date <= to &&
+    (!from || r.pack_date >= from) && r.pack_date <= to &&
     selectedProducts.has(r.sales_product_id)
   );
   // Filter APC by date
-  const apc = apcRaw.filter(r => r.pack_date >= from && r.pack_date <= to);
+  const apc = apcRaw.filter(r => (!from || r.pack_date >= from) && r.pack_date <= to);
 
   if (apcMode === 'monthly') {
     renderMonthly(sl, apc);
@@ -376,20 +376,19 @@ function buildChart(labels, slVals, apcVals) {
 }
 
 function renderTable(sl, apc, from, to) {
-  // Always monthly, Jan 2025+ within selected range
-  const tableFrom = from > '2025-01' ? from.slice(0, 7) : '2025-01';
+  const tableFrom = from ? from.slice(0, 7) : null;
 
   const slByMo = {};
   for (const r of sl) {
     const mo = r.pack_date.slice(0, 7);
-    if (mo < tableFrom) continue;
+    if (tableFrom && mo < tableFrom) continue;
     if (!slByMo[mo]) slByMo[mo] = [];
     slByMo[mo].push(r.final_shelf_life_day);
   }
   const apcByMo = {};
   for (const r of apc) {
     const mo = r.pack_date.slice(0, 7);
-    if (mo < tableFrom) continue;
+    if (tableFrom && mo < tableFrom) continue;
     if (!apcByMo[mo]) apcByMo[mo] = [];
     apcByMo[mo].push(r.avg_apc);
   }
