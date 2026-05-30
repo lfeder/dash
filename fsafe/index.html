@@ -145,6 +145,12 @@ async function load() {
   slRaw  = slResp.data  || [];
   apcRaw = apcResp.data || [];
 
+  // Set From to earliest date in data
+  const allDates = [...slRaw.map(r => r.pack_date), ...apcRaw.map(r => r.pack_date)];
+  if (allDates.length) {
+    document.getElementById('dateFrom').value = allDates.reduce((a, b) => a < b ? a : b);
+  }
+
   document.getElementById('loading').style.display = 'none';
   document.getElementById('content').style.display = 'block';
   render();
