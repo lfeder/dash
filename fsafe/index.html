@@ -64,6 +64,7 @@
     <label>APC view:</label>
     <div class="toggle-group">
       <button id="btnMonthly" class="active" onclick="setApcMode('monthly')">Monthly avg</button>
+      <button id="btnWeekly"           onclick="setApcMode('weekly')">Weekly avg</button>
       <button id="btnDaily"            onclick="setApcMode('daily')">Per pack date</button>
     </div>
   </div>
@@ -128,6 +129,7 @@ document.getElementById('dateTo').addEventListener('change', render);
 function setApcMode(mode) {
   apcMode = mode;
   document.getElementById('btnMonthly').classList.toggle('active', mode === 'monthly');
+  document.getElementById('btnWeekly').classList.toggle('active', mode === 'weekly');
   document.getElementById('btnDaily').classList.toggle('active', mode === 'daily');
   render();
 }
@@ -171,6 +173,8 @@ function render() {
 
   if (apcMode === 'monthly') {
     renderMonthly(sl, apc);
+  } else if (apcMode === 'weekly') {
+    renderWeekly(sl, apc);
   } else {
     renderDaily(sl, apc);
   }
@@ -207,6 +211,56 @@ function renderMonthly(sl, apc) {
     if (!arr) return null;
     const s = [...arr].sort((a,b)=>a-b);
     return s.length % 2 ? s[Math.floor(s.length/2)] : (s[s.length/2-1]+s[s.length/2])/2;
+  });
+
+  buildChart(labels, slVals, apcVals);
+}
+
+function isoWeekKey(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay() || 7;
+  d.setDate(d.getDate() + 4 - day);
+  const jan4 = new Date(d.getFullYear(), 0, 4);
+  const week = Math.ceil(((d - jan4) / 86400000 + 1) / 7);
+  return `${d.getFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+function isoWeekLabel(key) {
+  // Show as "Mon DD" of the Monday that starts the week
+  const [year, w] = key.split('-W');
+  const jan4 = new Date(+year, 0, 4);
+  const monday = new Date(jan4);
+  monday.setDate(jan4.getDate() - ((jan4.getDay() || 7) - 1) + (w - 1) * 7);
+  return monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function renderWeekly(sl, apc) {
+  document.getElementById('chartTitle').textContent = 'Shelf Life vs APC — Weekly Average';
+
+  const slByWk = {};
+  for (const r of sl) {
+    const wk = isoWeekKey(r.pack_date);
+    if (!slByWk[wk]) slByWk[wk] = [];
+    slByWk[wk].push(r.final_shelf_life_day);
+  }
+  const apcByWk = {};
+  for (const r of apc) {
+    const wk = isoWeekKey(r.pack_date);
+    if (!apcByWk[wk]) apcByWk[wk] = [];
+    apcByWk[wk].push(r.avg_apc);
+  }
+
+  const weeks = [...new Set([...Object.keys(slByWk), ...Object.keys(apcByWk)])].sort();
+  const labels  = weeks.map(isoWeekLabel);
+  const slVals  = weeks.map(wk => {
+    const arr = slByWk[wk];
+    if (!arr) return null;
+    return +(arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(1);
+  });
+  const apcVals = weeks.map(wk => {
+    const arr = apcByWk[wk];
+    if (!arr) return null;
+    return arr.reduce((a,b)=>a+b,0)/arr.length;
   });
 
   buildChart(labels, slVals, apcVals);
