@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pack Plan</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#1a1a2e; color:#e0e0e0; min-height:100vh; }
+header { background:#16213e; padding:10px 20px; display:flex; align-items:center; gap:12px; border-bottom:1px solid #0f3460; }
+header h1 { font-size:1.1rem; color:#4ecca3; }
+#version { margin-left:auto; font-size:0.7rem; color:#e0e0e0; }
+main { padding:14px 18px; display:flex; flex-direction:column; gap:12px; }
+
+.card { background:#16213e; border-radius:8px; border:1px solid #0f3460; padding:12px 14px; }
+.card-title { font-size:0.72rem; color:#555; text-transform:uppercase; letter-spacing:.06em; margin-bottom:10px; }
+
+/* Conditions */
+.cond-row { display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
+.cond-item { display:flex; align-items:center; gap:8px; font-size:0.82rem; }
+.cond-item span { color:#888; }
+.seg { display:flex; border:1px solid #2a3a5e; border-radius:4px; overflow:hidden; }
+.seg button { padding:4px 13px; font-size:0.8rem; background:transparent; color:#555; border:none; cursor:pointer; transition:color .15s,background .15s; }
+.seg button[data-val="wet"].active    { background:rgba(52,152,219,.2);  color:#6ab4f5; }
+.seg button[data-val="avg"].active    { background:rgba(241,196,15,.18); color:#f1c40f; }
+.seg button[data-val="dry"].active    { background:rgba(78,204,163,.18); color:#4ecca3; }
+.seg button[data-val="better"].active { background:rgba(78,204,163,.18); color:#4ecca3; }
+.seg button[data-val="same"].active   { background:rgba(241,196,15,.18); color:#f1c40f; }
+.seg button[data-val="worse"].active  { background:rgba(231,76,60,.18);  color:#e07070; }
+.seg button[data-val="hi"].active,
+.seg button[data-val="med"].active,
+.seg button[data-val="lo"].active,
+.seg button[data-val="y"].active,
+.seg button[data-val="n"].active      { background:#0f3460; color:#e0e0e0; }
+
+/* Two columns */
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+/* Day card */
+.day-card { background:#16213e; border-radius:8px; border:1px solid #0f3460; padding:12px 14px; display:flex; flex-direction:column; gap:12px; }
+.day-title { font-size:1rem; font-weight:600; color:#ccc; border-bottom:1px solid #0f3460; padding-bottom:8px; }
+
+/* SKU table */
+.sku-table { width:100%; border-collapse:collapse; font-size:0.83rem; }
+.sku-table th { color:#555; font-weight:500; padding:2px 6px 5px; }
+.sku-table th:first-child { text-align:left; }
+.sku-table th:not(:first-child) { text-align:right; }
+.sku-table td { padding:3px 6px; }
+.sku-table td:first-child { color:#bbb; }
+.sku-table td:not(:first-child) { text-align:right; }
+.sku-table input[type=number] { width:68px; text-align:right; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:2px 5px; font-size:0.83rem; }
+.sku-table input[type=number]:focus { outline:none; border-color:#4ecca3; }
+.sku-table .lb-cell { color:#888; font-variant-numeric:tabular-nums; }
+.sku-table .total-row td { border-top:1px solid #0f3460; padding-top:5px; color:#e0e0e0; font-weight:600; }
+
+/* Harvest */
+.harvest-row { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; }
+.hf { display:flex; flex-direction:column; gap:3px; }
+.hf label { font-size:0.72rem; color:#666; }
+.hf input { width:88px; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:4px 7px; font-size:0.88rem; }
+.hf input:focus { outline:none; border-color:#4ecca3; }
+.hf .derived { font-size:0.75rem; color:#555; }
+
+/* Fill rate */
+.fill-header { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
+.fill-pct { font-size:1.1rem; font-weight:700; }
+.badge { display:inline-block; padding:2px 9px; border-radius:10px; font-size:0.73rem; font-weight:600; }
+.badge-full { background:rgba(78,204,163,.18); color:#4ecca3; }
+.badge-sel  { background:rgba(241,196,15,.18); color:#f1c40f; }
+.badge-lite { background:rgba(52,152,219,.18); color:#6ab4f5; }
+.badge-store{ background:rgba(52,152,219,.18); color:#6ab4f5; }
+.fill-track { background:#0a1428; border-radius:3px; height:5px; overflow:hidden; }
+.fill-bar   { height:100%; border-radius:3px; transition:width .35s,background .35s; }
+
+/* Row plan */
+.row-plan-header { display:flex; align-items:center; justify-content:space-between; }
+.reset-btn { font-size:0.72rem; color:#555; background:none; border:none; cursor:pointer; padding:2px 4px; }
+.reset-btn:hover { color:#4ecca3; }
+.row-plan { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin-top:6px; }
+.rbox { border-radius:6px; padding:8px 6px; text-align:center; }
+.rbox .rbox-label { font-size:0.68rem; color:#aaa; margin-bottom:3px; }
+.rbox input { width:46px; font-size:1.25rem; font-weight:700; text-align:center; background:transparent; border:none; border-bottom:1px solid rgba(255,255,255,.2); color:inherit; padding:0; }
+.rbox input:focus { outline:none; border-bottom-color:rgba(255,255,255,.45); }
+.rbox .rec { font-size:0.68rem; color:rgba(255,255,255,.3); margin-top:3px; }
+.rbox-d { background:rgba(231,76,60,.1);  border:1px solid rgba(231,76,60,.22); color:#e07070; }
+.rbox-s { background:rgba(52,152,219,.1); border:1px solid rgba(52,152,219,.22); color:#6ab4f5; }
+.rbox-p { background:rgba(78,204,163,.1); border:1px solid rgba(78,204,163,.22); color:#4ecca3; }
+.row-check { font-size:0.72rem; margin-top:4px; text-align:right; }
+
+/* Storage note */
+.storage-note { background:rgba(52,152,219,.08); border:1px solid rgba(52,152,219,.2); border-radius:5px; padding:7px 10px; font-size:0.8rem; }
+.storage-pull { font-size:0.78rem; margin-top:4px; }
+
+/* Settings */
+.settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px 16px; }
+.sf { display:flex; flex-direction:column; gap:3px; }
+.sf label { font-size:0.72rem; color:#666; }
+.sf input[type=time] { width:105px; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:3px 6px; font-size:0.82rem; }
+.sf input[type=time]:focus { outline:none; border-color:#4ecca3; }
+.dryer-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.dryer-item { display:flex; align-items:center; gap:5px; font-size:0.78rem; color:#888; }
+.full-col { grid-column:1/-1; }
+
+/* Protocol */
+.proto-card { background:#0d1527; border-radius:8px; border:1px solid #0f3460; padding:14px 18px; }
+.proto-card .card-title { margin-bottom:10px; }
+#protocol { font-size:0.82rem; line-height:1.75; white-space:pre-wrap; font-family:'Courier New',monospace; color:#b8d4f0; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Lettuce Pack Plan</h1>
+  <span id="version"></span>
+</header>
+
+<main>
+
+<!-- Conditions -->
+<div class="card">
+  <div class="cond-row">
+    <div class="cond-item">
+      <span>Today:</span>
+      <div class="seg" id="seg-today">
+        <button data-val="wet">Wet</button>
+        <button data-val="avg" class="active">Avg</button>
+        <button data-val="dry">Dry</button>
+      </div>
+    </div>
+    <div class="cond-item">
+      <span>Tomorrow:</span>
+      <div class="seg" id="seg-tomorrow">
+        <button data-val="better">Better</button>
+        <button data-val="same" class="active">Same</button>
+        <button data-val="worse">Worse</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Day cards -->
+<div class="grid-2">
+
+  <!-- DAY 1 -->
+  <div class="day-card">
+    <div class="day-title">Day 1</div>
+
+    <div>
+      <div class="card-title">Orders</div>
+      <table class="sku-table">
+        <thead><tr><th>SKU</th><th>Cases</th><th>Lb</th></tr></thead>
+        <tbody>
+          <tr><td>LW</td><td><input type="number" id="d1-lw" min="0" value="0"></td><td class="lb-cell" id="d1-lw-lb">0</td></tr>
+          <tr><td>LR</td><td><input type="number" id="d1-lr" min="0" value="0"></td><td class="lb-cell" id="d1-lr-lb">0</td></tr>
+          <tr><td>LF</td><td><input type="number" id="d1-lf" min="0" value="0"></td><td class="lb-cell" id="d1-lf-lb">0</td></tr>
+          <tr><td>WR</td><td><input type="number" id="d1-wr" min="0" value="0"></td><td class="lb-cell" id="d1-wr-lb">0</td></tr>
+          <tr class="total-row"><td>Total</td><td></td><td class="lb-cell" id="d1-order-total">0</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div>
+      <div class="card-title">Harvest</div>
+      <div class="harvest-row">
+        <div class="hf"><label>Expected lb</label><input type="number" id="d1-hlb" value="3500" min="0"></div>
+        <div class="hf"><label>Rows available</label><input type="number" id="d1-rows" value="9" min="1"></div>
+        <div class="hf"><label>&nbsp;</label><div class="derived" id="d1-lbrow">389 lb/row</div></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="fill-header">
+        <span class="fill-pct" id="d1-fillpct">0%</span>
+        <span class="badge badge-lite" id="d1-badge">—</span>
+      </div>
+      <div class="fill-track"><div class="fill-bar" id="d1-fillbar" style="width:0%"></div></div>
+    </div>
+
+    <div>
+      <div class="row-plan-header">
+        <div class="card-title" style="margin-bottom:0">Row Plan</div>
+        <button class="reset-btn" onclick="resetDirty('d1')">↺ reset to rec</button>
+      </div>
+      <div class="row-plan">
+        <div class="rbox rbox-d"><div class="rbox-label">Dispose</div><input type="number" id="d1-dispose" min="0" value="0"><div class="rec" id="d1-dispose-rec">rec: 0</div></div>
+        <div class="rbox rbox-s"><div class="rbox-label">Cold Store</div><input type="number" id="d1-store" min="0" value="0"><div class="rec" id="d1-store-rec">rec: 0</div></div>
+        <div class="rbox rbox-p"><div class="rbox-label">Pack House</div><input type="number" id="d1-ph" min="0" value="0"><div class="rec" id="d1-ph-rec">rec: 0</div></div>
+      </div>
+      <div class="row-check" id="d1-rowcheck"></div>
+    </div>
+
+    <div>
+      <div class="card-title">Settings</div>
+      <div class="settings-grid">
+        <div class="sf"><label>Harvest start</label><input type="time" id="d1-hstart"></div>
+        <div class="sf"><label>Cut height</label>
+          <div class="seg" id="seg-d1-cut"><button data-val="hi">Hi</button><button data-val="med" class="active">Med</button><button data-val="lo">Lo</button></div>
+        </div>
+        <div class="sf"><label>PH start</label><input type="time" id="d1-phstart"></div>
+        <div class="sf"><label>PH fans</label>
+          <div class="seg" id="seg-d1-fans"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div>
+        </div>
+        <div class="sf full-col"><label>Dryer</label>
+          <div class="dryer-row">
+            <div class="dryer-item"><span>Heat</span><div class="seg" id="seg-d1-heat"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div></div>
+            <div class="dryer-item"><span>Blowers</span><div class="seg" id="seg-d1-blow"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div></div>
+            <div class="dryer-item"><span>Speed</span><div class="seg" id="seg-d1-speed"><button data-val="lo">Lo</button><button data-val="med" class="active">Med</button><button data-val="hi">Hi</button></div></div>
+          </div>
+        </div>
+        <div class="sf"><label>Cool room + temp check</label>
+          <div class="seg" id="seg-d1-cool"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DAY 2 -->
+  <div class="day-card">
+    <div class="day-title">Day 2</div>
+
+    <div class="storage-note">
+      <div style="color:#6ab4f5">Day 1 cold storage: <strong id="d2-store-lb">0 lb</strong> (<span id="d2-store-rows">0</span> rows)</div>
+      <div class="storage-pull" id="d2-pull-note" style="color:#555">No Day 1 storage yet</div>
+    </div>
+
+    <div>
+      <div class="card-title">Orders</div>
+      <table class="sku-table">
+        <thead><tr><th>SKU</th><th>Cases</th><th>Lb</th></tr></thead>
+        <tbody>
+          <tr><td>LW</td><td><input type="number" id="d2-lw" min="0" value="0"></td><td class="lb-cell" id="d2-lw-lb">0</td></tr>
+          <tr><td>LR</td><td><input type="number" id="d2-lr" min="0" value="0"></td><td class="lb-cell" id="d2-lr-lb">0</td></tr>
+          <tr><td>LF</td><td><input type="number" id="d2-lf" min="0" value="0"></td><td class="lb-cell" id="d2-lf-lb">0</td></tr>
+          <tr><td>WR</td><td><input type="number" id="d2-wr" min="0" value="0"></td><td class="lb-cell" id="d2-wr-lb">0</td></tr>
+          <tr class="total-row"><td>Total</td><td></td><td class="lb-cell" id="d2-order-total">0</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div>
+      <div class="card-title">Harvest</div>
+      <div class="harvest-row">
+        <div class="hf"><label>Expected lb</label><input type="number" id="d2-hlb" value="2500" min="0"></div>
+        <div class="hf"><label>Rows available</label><input type="number" id="d2-rows" value="6" min="1"></div>
+        <div class="hf"><label>&nbsp;</label><div class="derived" id="d2-lbrow">417 lb/row</div></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="fill-header">
+        <span class="fill-pct" id="d2-fillpct">0%</span>
+        <span class="badge badge-lite" id="d2-badge">—</span>
+      </div>
+      <div class="fill-track"><div class="fill-bar" id="d2-fillbar" style="width:0%"></div></div>
+    </div>
+
+    <div>
+      <div class="row-plan-header">
+        <div class="card-title" style="margin-bottom:0">Row Plan</div>
+        <button class="reset-btn" onclick="resetDirty('d2')">↺ reset to rec</button>
+      </div>
+      <div class="row-plan">
+        <div class="rbox rbox-d"><div class="rbox-label">Dispose</div><input type="number" id="d2-dispose" min="0" value="0"><div class="rec" id="d2-dispose-rec">rec: 0</div></div>
+        <div class="rbox rbox-s"><div class="rbox-label">Cold Store</div><input type="number" id="d2-store" min="0" value="0"><div class="rec" id="d2-store-rec">rec: 0</div></div>
+        <div class="rbox rbox-p"><div class="rbox-label">Pack House</div><input type="number" id="d2-ph" min="0" value="0"><div class="rec" id="d2-ph-rec">rec: 0</div></div>
+      </div>
+      <div class="row-check" id="d2-rowcheck"></div>
+    </div>
+
+    <div>
+      <div class="card-title">Settings</div>
+      <div class="settings-grid">
+        <div class="sf"><label>Harvest start</label><input type="time" id="d2-hstart"></div>
+        <div class="sf"><label>Cut height</label>
+          <div class="seg" id="seg-d2-cut"><button data-val="hi">Hi</button><button data-val="med" class="active">Med</button><button data-val="lo">Lo</button></div>
+        </div>
+        <div class="sf"><label>PH start</label><input type="time" id="d2-phstart"></div>
+        <div class="sf"><label>PH fans</label>
+          <div class="seg" id="seg-d2-fans"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div>
+        </div>
+        <div class="sf full-col"><label>Dryer</label>
+          <div class="dryer-row">
+            <div class="dryer-item"><span>Heat</span><div class="seg" id="seg-d2-heat"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div></div>
+            <div class="dryer-item"><span>Blowers</span><div class="seg" id="seg-d2-blow"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div></div>
+            <div class="dryer-item"><span>Speed</span><div class="seg" id="seg-d2-speed"><button data-val="lo">Lo</button><button data-val="med" class="active">Med</button><button data-val="hi">Hi</button></div></div>
+          </div>
+        </div>
+        <div class="sf"><label>Cool room + temp check</label>
+          <div class="seg" id="seg-d2-cool"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Protocol -->
+<div class="proto-card">
+  <div class="card-title">Crew Protocol</div>
+  <div id="protocol"></div>
+</div>
+
+</main>
+
+<script>
+const SKU_LB = {LW:10.5, LR:2.25, LF:10.0, WR:2.25};
+const SKUS = ['LW','LR','LF','WR'];
+
+let weatherToday = 'avg', tomorrowTrend = 'same';
+const dirty = {d1:{dispose:false,store:false,ph:false}, d2:{dispose:false,store:false,ph:false}};
+
+function $id(id) { return document.getElementById(id); }
+function numVal(id) { return parseFloat($id(id).value) || 0; }
+function segVal(id) { const b = document.querySelector(`#${id} button.active`); return b ? b.dataset.val : null; }
+function fmt(n) { return Math.round(n).toLocaleString(); }
+function fmtLb(n) { return fmt(n) + ' lb'; }
+
+function orderLb(day) {
+  return SKUS.reduce((s, sku) => s + numVal(`${day}-${sku.toLowerCase()}`) * SKU_LB[sku], 0);
+}
+
+function recPlan(orderLb, harvestLb, rows, weather, tomorrow, storageLb) {
+  if (rows === 0 || harvestLb === 0) return {dispose:0, store:0, ph:0, mode:'—', fillRate:0, lbRow:0};
+  const lbRow    = harvestLb / rows;
+  const fillRate = harvestLb > 0 ? orderLb / harvestLb : 0;
+  const wet      = weather === 'wet';
+  const better   = tomorrow === 'better';
+  const worse    = tomorrow === 'worse';
+
+  let dispose, store, ph, mode;
+  // net lb still needed after storage covers some
+  const netOrderLb  = Math.max(0, orderLb - storageLb);
+  const rowsForPH   = Math.ceil(netOrderLb / lbRow);
+
+  if (fillRate > 0.9) {
+    mode    = 'Full send';
+    dispose = wet ? 1 : 0;
+    store   = 0;
+    ph      = rows - dispose;
+  } else if (fillRate > 0.6) {
+    mode    = 'Selective';
+    dispose = wet ? 2 : 1;
+    const remaining = rows - dispose;
+    if (wet && better) {
+      // bias toward storing — delay to tomorrow
+      ph    = Math.max(0, Math.min(rowsForPH - 1, remaining));
+      store = Math.max(0, remaining - ph);
+    } else if (worse) {
+      // pack everything today — tomorrow worse
+      ph    = remaining;
+      store = 0;
+    } else {
+      ph    = Math.min(rowsForPH, remaining);
+      store = Math.max(0, remaining - ph);
+    }
+  } else {
+    // light day
+    dispose = wet ? 3 : 2;
+    dispose = Math.min(dispose, rows - 1);
+    const remaining = rows - dispose;
+    if (wet && better) {
+      mode  = 'Store all';
+      ph    = 0;
+      store = remaining;
+    } else {
+      mode  = 'Light';
+      ph    = Math.min(rowsForPH, remaining);
+      store = Math.max(0, remaining - ph);
+    }
+  }
+
+  // Clamp and rebalance to total
+  dispose = Math.max(0, dispose);
+  store   = Math.max(0, store);
+  ph      = Math.max(0, ph);
+  const sum = dispose + store + ph;
+  if (sum !== rows) {
+    const diff = rows - sum;
+    store = Math.max(0, store + diff); // absorb remainder into store
+  }
+
+  return {dispose, store, ph, mode, fillRate, lbRow};
+}
+
+function fillColor(rate) {
+  if (rate > 0.9) return '#4ecca3';
+  if (rate > 0.6) return '#f1c40f';
+  return '#6ab4f5';
+}
+function badgeClass(mode) {
+  if (mode === 'Full send') return 'badge badge-full';
+  if (mode === 'Selective')  return 'badge badge-sel';
+  return 'badge badge-lite';
+}
+function rowCheckHtml(actual, total) {
+  const diff = actual - total;
+  if (diff === 0) return `<span style="color:#4ecca3">✓ ${total} rows assigned</span>`;
+  if (diff > 0)   return `<span style="color:#e07070">Over by ${diff} — reduce row count</span>`;
+  return `<span style="color:#f1c40f">${Math.abs(diff)} row${Math.abs(diff)>1?'s':''} unassigned</span>`;
+}
+
+function applyRec(day, rec) {
+  ['dispose','store','ph'].forEach(f => {
+    if (!dirty[day][f]) {
+      $id(`${day}-${f}`).value = rec[f];
+    }
+    $id(`${day}-${f}-rec`).textContent = `rec: ${rec[f]}`;
+  });
+}
+
+function resetDirty(day) {
+  dirty[day] = {dispose:false, store:false, ph:false};
+  update();
+}
+
+function update() {
+  // Day 1 orders
+  let d1Total = 0;
+  SKUS.forEach(sku => {
+    const cases = numVal(`d1-${sku.toLowerCase()}`);
+    const lb = cases * SKU_LB[sku];
+    d1Total += lb;
+    $id(`d1-${sku.toLowerCase()}-lb`).textContent = fmt(lb);
+  });
+  $id('d1-order-total').textContent = fmt(d1Total);
+
+  // Day 1 harvest
+  const d1hlb  = numVal('d1-hlb');
+  const d1rows = numVal('d1-rows');
+  const d1lbr  = d1rows > 0 ? d1hlb / d1rows : 0;
+  $id('d1-lbrow').textContent = d1lbr > 0 ? fmt(d1lbr) + ' lb/row' : '—';
+
+  // Day 1 rec
+  const d1rec = recPlan(d1Total, d1hlb, d1rows, weatherToday, tomorrowTrend, 0);
+  const d1fp  = d1rec.fillRate;
+  $id('d1-fillpct').textContent  = Math.round(d1fp * 100) + '%';
+  $id('d1-fillbar').style.width  = Math.min(100, d1fp * 100) + '%';
+  $id('d1-fillbar').style.background = fillColor(d1fp);
+  const d1b = $id('d1-badge');
+  d1b.textContent = d1rec.mode; d1b.className = badgeClass(d1rec.mode);
+  applyRec('d1', d1rec);
+
+  const d1actDispose = numVal('d1-dispose');
+  const d1actStore   = numVal('d1-store');
+  const d1actPH      = numVal('d1-ph');
+  $id('d1-rowcheck').innerHTML = rowCheckHtml(d1actDispose + d1actStore + d1actPH, d1rows);
+
+  // Day 1 → Day 2 storage
+  const d1storeLb = d1actStore * d1lbr;
+
+  // Day 2 orders
+  let d2Total = 0;
+  SKUS.forEach(sku => {
+    const cases = numVal(`d2-${sku.toLowerCase()}`);
+    const lb = cases * SKU_LB[sku];
+    d2Total += lb;
+    $id(`d2-${sku.toLowerCase()}-lb`).textContent = fmt(lb);
+  });
+  $id('d2-order-total').textContent = fmt(d2Total);
+
+  // Storage note
+  $id('d2-store-lb').textContent   = fmtLb(d1storeLb);
+  $id('d2-store-rows').textContent = d1actStore;
+  const pullNote = $id('d2-pull-note');
+  if (d1actStore === 0) {
+    pullNote.textContent = 'No Day 1 storage'; pullNote.style.color = '#555';
+  } else if (d2Total > numVal('d2-hlb')) {
+    const short = d2Total - numVal('d2-hlb');
+    pullNote.textContent = `Pull needed — Day 2 fresh short by ~${fmtLb(short)}`;
+    pullNote.style.color = '#f1c40f';
+  } else {
+    pullNote.textContent = 'Day 2 fresh covers orders — no pull needed';
+    pullNote.style.color = '#4ecca3';
+  }
+
+  // Day 2 harvest
+  const d2hlb  = numVal('d2-hlb');
+  const d2rows = numVal('d2-rows');
+  const d2lbr  = d2rows > 0 ? d2hlb / d2rows : 0;
+  $id('d2-lbrow').textContent = d2lbr > 0 ? fmt(d2lbr) + ' lb/row' : '—';
+
+  // Day 2 weather proxy: better tomorrow = better conditions day2
+  const d2weather = tomorrowTrend === 'better' ? 'dry' : tomorrowTrend === 'worse' ? 'wet' : 'avg';
+  const d2rec = recPlan(d2Total, d2hlb, d2rows, d2weather, 'same', d1storeLb);
+  const d2fp  = d2rec.fillRate;
+  $id('d2-fillpct').textContent  = Math.round(d2fp * 100) + '%';
+  $id('d2-fillbar').style.width  = Math.min(100, d2fp * 100) + '%';
+  $id('d2-fillbar').style.background = fillColor(d2fp);
+  const d2b = $id('d2-badge');
+  d2b.textContent = d2rec.mode; d2b.className = badgeClass(d2rec.mode);
+  applyRec('d2', d2rec);
+
+  const d2actDispose = numVal('d2-dispose');
+  const d2actStore   = numVal('d2-store');
+  const d2actPH      = numVal('d2-ph');
+  $id('d2-rowcheck').innerHTML = rowCheckHtml(d2actDispose + d2actStore + d2actPH, d2rows);
+
+  renderProtocol({
+    d1Total, d1hlb, d1rows, d1lbr, d1fp,
+    d1actDispose, d1actStore, d1actPH, d1storeLb,
+    d2Total, d2hlb, d2rows, d2lbr, d2fp,
+    d2actDispose, d2actStore, d2actPH,
+  });
+}
+
+function skuBreakdown(day) {
+  return SKUS.map(sku => {
+    const c = numVal(`${day}-${sku.toLowerCase()}`);
+    return c > 0 ? `${sku} ${c}cs` : null;
+  }).filter(Boolean).join(' + ') || 'none';
+}
+
+function renderProtocol(d) {
+  const weatherLabel = {wet:'Wet (bad)', avg:'Average', dry:'Dry (good)'}[weatherToday];
+  const tmrwLabel    = {better:'Better ↑', same:'Same →', worse:'Worse ↓'}[tomorrowTrend];
+
+  function daySettings(day) {
+    const hs   = $id(`${day}-hstart`).value || '—';
+    const cut  = segVal(`seg-${day}-cut`) || '—';
+    const phs  = $id(`${day}-phstart`).value || '—';
+    const fans = segVal(`seg-${day}-fans`) === 'y' ? 'Yes' : 'No';
+    const heat = segVal(`seg-${day}-heat`) === 'y' ? 'Yes' : 'No';
+    const blow = segVal(`seg-${day}-blow`) === 'y' ? 'Yes' : 'No';
+    const spd  = segVal(`seg-${day}-speed`) || '—';
+    const cool = segVal(`seg-${day}-cool`) === 'y' ? 'Yes' : 'No';
+    return [
+      `  Harvest start: ${hs}   Cut height: ${cut.toUpperCase()}`,
+      `  PH start: ${phs}   PH fans: ${fans}   (use P7 first — fans available)`,
+      `  Dryer — heat: ${heat}  blowers: ${blow}  speed: ${spd.toUpperCase()}`,
+      `  Cool room + temp before sealing: ${cool}`,
+    ].join('\n');
+  }
+
+  function rowNote(dispose, store, ph) {
+    const parts = [];
+    if (dispose > 0) parts.push(`rows 1–${dispose}: dispose (first harvested, lowest quality)`);
+    if (store > 0) {
+      const s = dispose + 1, e = dispose + store;
+      parts.push(`rows ${s}${e>s?'–'+e:''}: cold storage`);
+    }
+    if (ph > 0) {
+      const s = dispose + store + 1, e = dispose + store + ph;
+      parts.push(`rows ${s}${e>s?'–'+e:''}: pack house (best quality)`);
+    }
+    return parts.map(p => `  • ${p}`).join('\n');
+  }
+
+  const d1storePull = d.d2Total > d.d2hlb && d.d1storeLb > 0
+    ? `  ⚠ Pull ${fmt(Math.min(d.d1storeLb, d.d2Total - d.d2hlb))} lb from Day 1 storage (shortfall)`
+    : d.d1storeLb > 0
+    ? '  ✓ Skip Day 1 storage — Day 2 fresh covers orders'
+    : '';
+
+  const text = [
+    `TODAY: ${weatherLabel}   TOMORROW: ${tmrwLabel}`,
+    '',
+    '══ DAY 1 ══════════════════════════════════════',
+    `Orders:  ${skuBreakdown('d1')} = ${fmt(d.d1Total)} lb`,
+    `Harvest: ${fmt(d.d1hlb)} lb | ${d.d1rows} rows | ${fmt(d.d1lbr)} lb/row`,
+    `Fill rate: ${Math.round(d.d1fp*100)}%`,
+    '',
+    'ROW PLAN',
+    rowNote(d.d1actDispose, d.d1actStore, d.d1actPH),
+    `  → ${fmt(d.d1actStore * d.d1lbr)} lb into cold storage`,
+    '',
+    daySettings('d1'),
+    '',
+    '══ DAY 2 ══════════════════════════════════════',
+    `Day 1 cold storage: ${fmt(d.d1storeLb)} lb (${d.d1actStore} rows)`,
+    d1storePull,
+    `Orders:  ${skuBreakdown('d2')} = ${fmt(d.d2Total)} lb`,
+    `Harvest: ${fmt(d.d2hlb)} lb | ${d.d2rows} rows | ${fmt(d.d2lbr)} lb/row`,
+    `Fill rate: ${Math.round(d.d2fp*100)}% (fresh only)`,
+    '',
+    'ROW PLAN',
+    rowNote(d.d2actDispose, d.d2actStore, d.d2actPH),
+    '',
+    daySettings('d2'),
+  ].join('\n');
+
+  $id('protocol').textContent = text;
+}
+
+// Wire segment toggles
+function wireSeg(id, onChange) {
+  const el = $id(id);
+  if (!el) return;
+  el.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      el.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (onChange) onChange(btn.dataset.val);
+      update();
+    });
+  });
+}
+
+wireSeg('seg-today',    v => { weatherToday = v; });
+wireSeg('seg-tomorrow', v => { tomorrowTrend = v; });
+['d1','d2'].forEach(day => {
+  ['cut','fans','heat','blow','speed','cool'].forEach(ctrl => wireSeg(`seg-${day}-${ctrl}`));
+});
+
+// Wire row plan inputs as dirty
+['dispose','store','ph'].forEach(f => {
+  ['d1','d2'].forEach(day => {
+    $id(`${day}-${f}`).addEventListener('input', () => {
+      dirty[day][f] = true;
+      update();
+    });
+  });
+});
+
+// Wire all other number + time inputs
+document.querySelectorAll('input[type=number]:not([id$=dispose]):not([id$=store]):not([id$=ph]), input[type=time]').forEach(el => {
+  el.addEventListener('input', update);
+});
+
+// Version stamp
+fetch('', {method:'HEAD'}).then(r => {
+  const d = new Date(r.headers.get('last-modified'));
+  if (!d || isNaN(d)) return;
+  const hst = new Date(d.getTime() - 10*60*60*1000);
+  const p = n => String(n).padStart(2,'0');
+  $id('version').textContent = `${p(hst.getUTCMonth()+1)}-${p(hst.getUTCDate())} ${p(hst.getUTCHours())}:${p(hst.getUTCMinutes())}`;
+}).catch(()=>{});
+
+update();
+</script>
+</body>
+</html>
