@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pack Plan</title>
+<script src="../lib/data-source.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#1a1a2e; color:#e0e0e0; min-height:100vh; }
@@ -101,6 +102,15 @@ main { padding:14px 18px; display:flex; flex-direction:column; gap:12px; }
 .dryer-item { display:flex; align-items:center; gap:5px; font-size:0.78rem; color:#888; }
 .full-col { grid-column:1/-1; }
 
+/* Date inputs */
+input[type=date] { background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:3px 7px; font-size:0.82rem; }
+input[type=date]:focus { outline:none; border-color:#4ecca3; }
+.data-status { font-size:0.75rem; color:#555; margin-left:4px; }
+.data-status.loading { color:#f1c40f; }
+.data-status.loaded  { color:#4ecca3; }
+.data-status.error   { color:#e07070; }
+.auto-badge { font-size:0.68rem; color:#4ecca3; margin-left:4px; vertical-align:middle; }
+
 /* Protocol */
 .proto-card { background:#0d1527; border-radius:8px; border:1px solid #0f3460; padding:14px 18px; }
 .proto-card .card-title { margin-bottom:10px; }
@@ -119,6 +129,16 @@ main { padding:14px 18px; display:flex; flex-direction:column; gap:12px; }
 <!-- Conditions -->
 <div class="card">
   <div class="cond-row">
+    <div class="cond-item">
+      <span>Day 1:</span>
+      <input type="date" id="date-d1">
+    </div>
+    <div class="cond-item">
+      <span>Day 2:</span>
+      <input type="date" id="date-d2">
+    </div>
+    <span class="data-status" id="data-status">loading…</span>
+    <div style="width:1px;height:20px;background:#2a3a5e;margin:0 4px"></div>
     <div class="cond-item">
       <span>Today:</span>
       <div class="seg" id="seg-today">
@@ -615,6 +635,138 @@ wireSeg('seg-tomorrow', v => { tomorrowTrend = v; });
 document.querySelectorAll('input[type=number]:not([id$=dispose]):not([id$=store]):not([id$=ph]), input[type=time]').forEach(el => {
   el.addEventListener('input', update);
 });
+
+// ── Data loading ─────────────────────────────────────────────────────────────
+
+let cachedInvoices = null;   // {cols, rows}
+let cachedHarvest  = null;   // {cols, rows}
+
+function isoToday() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function isoAddDays(iso, n) {
+  const d = new Date(iso + 'T12:00:00');
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function gvizCellToISO(cell) {
+  if (!cell || cell.v === null || cell.v === undefined) return null;
+  const m = String(cell.v).match(/Date\((\d+),(\d+),(\d+)\)/);
+  if (!m) return null;
+  return `${m[1]}-${String(parseInt(m[2])+1).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
+}
+
+function colIdx(cols, label) { return cols.findIndex(c => c.label === label); }
+
+function ordersByDate(dateISO) {
+  if (!cachedInvoices) return null;
+  const {cols, rows} = cachedInvoices;
+  const di = colIdx(cols, 'InvoiceDate');
+  const si = colIdx(cols, 'ProductCode');
+  const ci = colIdx(cols, 'Cases');
+  if (di < 0 || si < 0 || ci < 0) return null;
+  const result = {LW:0, LR:0, LF:0, WR:0};
+  rows.forEach(row => {
+    if (gvizCellToISO(row.c[di]) !== dateISO) return;
+    const sku = row.c[si] && row.c[si].v;
+    if (Object.prototype.hasOwnProperty.call(result, sku)) {
+      result[sku] += (row.c[ci] && row.c[ci].v) || 0;
+    }
+  });
+  return result;
+}
+
+function harvestByDate(dateISO) {
+  if (!cachedHarvest) return null;
+  const {cols, rows} = cachedHarvest;
+  const di   = colIdx(cols, 'HarvestDate');
+  const bppi = colIdx(cols, 'BoardsPerPond');
+  const plbi = colIdx(cols, 'PoundsPerBoard');
+  const gnwi = colIdx(cols, 'GreenhouseNetWeight');
+  if (di < 0) return null;
+  const matching = rows.filter(r => gvizCellToISO(r.c[di]) === dateISO);
+  if (!matching.length) return null;
+  const totalLb = matching.reduce((sum, r) => {
+    const gnw = gnwi >= 0 ? (r.c[gnwi] && r.c[gnwi].v) : null;
+    if (gnw) return sum + gnw;
+    const bpp = bppi >= 0 ? ((r.c[bppi] && r.c[bppi].v) || 0) : 0;
+    const plb = plbi >= 0 ? ((r.c[plbi] && r.c[plbi].v) || 0) : 0;
+    return sum + bpp * plb;
+  }, 0);
+  return {rowCount: matching.length, totalLb};
+}
+
+function setStatus(msg, cls) {
+  const el = $id('data-status');
+  el.textContent = msg;
+  el.className = 'data-status ' + (cls || '');
+}
+
+function populateDay(day, dateISO) {
+  // Orders
+  const orders = ordersByDate(dateISO);
+  if (orders) {
+    ['LW','LR','LF','WR'].forEach(sku => {
+      const el = $id(`${day}-${sku.toLowerCase()}`);
+      el.value = orders[sku] || 0;
+    });
+    // Reset dirty flags — data came from DB not user
+    dirty[day] = {dispose:false, store:false, ph:false};
+  }
+
+  // Harvest
+  const harv = harvestByDate(dateISO);
+  if (harv) {
+    $id(`${day}-hlb`).value  = Math.round(harv.totalLb);
+    $id(`${day}-rows`).value = harv.rowCount;
+    dirty[day] = {dispose:false, store:false, ph:false};
+  }
+}
+
+async function loadData() {
+  setStatus('loading…', 'loading');
+  try {
+    [cachedInvoices, cachedHarvest] = await Promise.all([
+      DataSource.fetchTable('invoices'),
+      DataSource.fetchTable('lettuce_harvest'),
+    ]);
+    setStatus('loaded', 'loaded');
+    applyDates();
+  } catch (e) {
+    setStatus('error', 'error');
+    console.error('Pack plan data load failed:', e);
+  }
+}
+
+function applyDates() {
+  const d1 = $id('date-d1').value;
+  const d2 = $id('date-d2').value;
+  if (d1) populateDay('d1', d1);
+  if (d2) populateDay('d2', d2);
+  update();
+}
+
+// Init date pickers
+(function() {
+  const today = isoToday();
+  $id('date-d1').value = today;
+  $id('date-d2').value = isoAddDays(today, 1);
+
+  $id('date-d1').addEventListener('change', () => {
+    // Auto-advance d2 if it hasn't been manually moved away from d1+1
+    const d1 = $id('date-d1').value;
+    const d2 = $id('date-d2').value;
+    if (!d2 || d2 <= d1) {
+      $id('date-d2').value = isoAddDays(d1, 1);
+    }
+    applyDates();
+  });
+  $id('date-d2').addEventListener('change', applyDates);
+})();
+
+loadData();
 
 // Version stamp
 fetch('', {method:'HEAD'}).then(r => {
