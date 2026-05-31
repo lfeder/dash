@@ -638,8 +638,8 @@ document.querySelectorAll('input[type=number]:not([id$=dispose]):not([id$=store]
 
 // ── Data loading ─────────────────────────────────────────────────────────────
 
-let cachedInvoices = null;   // {cols, rows}
-let cachedHarvest  = null;   // {cols, rows}
+let cachedOrders  = null;   // {cols, rows} — edi_qb_invoice_summary (service_date)
+let cachedHarvest = null;   // {cols, rows}
 
 function isoToday() {
   const d = new Date();
@@ -649,6 +649,34 @@ function isoAddDays(iso, n) {
   const d = new Date(iso + 'T12:00:00');
   d.setDate(d.getDate() + n);
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function toISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// Day1 = Sun(0) or Wed(3); Day2 = Mon(1) or Thu(4).
+// Given any ISO date, snap to the nearest pack cycle {d1, d2}.
+function packCycleDates(iso) {
+  const d = new Date(iso + 'T12:00:00');
+  const dow = d.getDay(); // 0=Sun,1=Mon,2=Tue,3=Wed,4=Thu,5=Fri,6=Sat
+  if (dow === 0 || dow === 3) {
+    // This is Day1 (Sun or Wed)
+    const d2 = new Date(d); d2.setDate(d.getDate() + 1);
+    return {d1: iso, d2: toISO(d2)};
+  }
+  if (dow === 1 || dow === 4) {
+    // This is Day2 (Mon or Thu); Day1 = yesterday
+    const d1 = new Date(d); d1.setDate(d.getDate() - 1);
+    return {d1: toISO(d1), d2: iso};
+  }
+  // Off-day (Tue/Fri/Sat): snap forward to next Sun or Wed
+  const daysAhead = [0, 6, 1, 0, 6, 1, 0][dow]; // Tue→1(Wed), Fri→2(Sun)? Let me compute:
+  // Tue(2)→Wed(3)=1day, Fri(5)→Sun(0)=2days, Sat(6)→Sun(0)=1day
+  const snapDays = dow === 2 ? 1 : dow === 5 ? 2 : dow === 6 ? 1 : 1;
+  const snapped = new Date(d); snapped.setDate(d.getDate() + snapDays);
+  const d2s = new Date(snapped); d2s.setDate(snapped.getDate() + 1);
+  return {d1: toISO(snapped), d2: toISO(d2s)};
 }
 
 function gvizCellToISO(cell) {
@@ -661,10 +689,10 @@ function gvizCellToISO(cell) {
 function colIdx(cols, label) { return cols.findIndex(c => c.label === label); }
 
 function ordersByDate(dateISO) {
-  if (!cachedInvoices) return null;
-  const {cols, rows} = cachedInvoices;
-  const di = colIdx(cols, 'InvoiceDate');
-  const si = colIdx(cols, 'ProductCode');
+  if (!cachedOrders) return null;
+  const {cols, rows} = cachedOrders;
+  const di = colIdx(cols, 'PackDate');
+  const si = colIdx(cols, 'SKU');
   const ci = colIdx(cols, 'Cases');
   if (di < 0 || si < 0 || ci < 0) return null;
   const result = {LW:0, LR:0, LF:0, WR:0};
@@ -728,8 +756,8 @@ function populateDay(day, dateISO) {
 async function loadData() {
   setStatus('loading…', 'loading');
   try {
-    [cachedInvoices, cachedHarvest] = await Promise.all([
-      DataSource.fetchTable('invoices'),
+    [cachedOrders, cachedHarvest] = await Promise.all([
+      DataSource.fetchTable('lettuce_pack_orders'),
       DataSource.fetchTable('lettuce_harvest'),
     ]);
     setStatus('loaded', 'loaded');
@@ -748,22 +776,27 @@ function applyDates() {
   update();
 }
 
-// Init date pickers
+// Init date pickers — snap to pack cycle based on today's DOW
 (function() {
   const today = isoToday();
-  $id('date-d1').value = today;
-  $id('date-d2').value = isoAddDays(today, 1);
+  const cycle = packCycleDates(today);
+  $id('date-d1').value = cycle.d1;
+  $id('date-d2').value = cycle.d2;
 
+  // When either date changes, snap both to the pack cycle for that date
   $id('date-d1').addEventListener('change', () => {
-    // Auto-advance d2 if it hasn't been manually moved away from d1+1
     const d1 = $id('date-d1').value;
-    const d2 = $id('date-d2').value;
-    if (!d2 || d2 <= d1) {
-      $id('date-d2').value = isoAddDays(d1, 1);
-    }
+    const cycle = packCycleDates(d1);
+    $id('date-d2').value = cycle.d2;
     applyDates();
   });
-  $id('date-d2').addEventListener('change', applyDates);
+  $id('date-d2').addEventListener('change', () => {
+    const d2 = $id('date-d2').value;
+    const cycle = packCycleDates(d2);
+    $id('date-d1').value = cycle.d1;
+    $id('date-d2').value = cycle.d2;
+    applyDates();
+  });
 })();
 
 loadData();
