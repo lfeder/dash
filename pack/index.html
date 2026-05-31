@@ -799,7 +799,7 @@ function applyDates() {
   const today = isoToday();
   const cycle = packCycleDates(today);
   $id('date-d1').value = cycle.d1;
-  $id('date-d2').value = cycle.d2;
+  $id('date-d2').value = cycle.d2 || isoAddDays(cycle.d1, 1);
 
   // When either date changes, snap both to the pack cycle for that date
   $id('date-d1').addEventListener('change', () => {
