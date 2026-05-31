@@ -8,112 +8,91 @@
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#1a1a2e; color:#e0e0e0; min-height:100vh; }
-header { background:#16213e; padding:10px 20px; display:flex; align-items:center; gap:12px; border-bottom:1px solid #0f3460; }
-header h1 { font-size:1.1rem; color:#4ecca3; }
-#version { margin-left:auto; font-size:0.7rem; color:#e0e0e0; }
+header { background:#16213e; padding:8px 18px; display:flex; align-items:center; gap:10px; border-bottom:1px solid #0f3460; flex-wrap:wrap; }
+header h1 { font-size:1.05rem; color:#4ecca3; white-space:nowrap; }
+#version { margin-left:auto; font-size:0.7rem; color:#e0e0e0; white-space:nowrap; }
 main { padding:14px 18px; display:flex; flex-direction:column; gap:12px; }
 
-.card { background:#16213e; border-radius:8px; border:1px solid #0f3460; padding:12px 14px; }
-.card-title { font-size:0.72rem; color:#555; text-transform:uppercase; letter-spacing:.06em; margin-bottom:10px; }
+input[type=date] { background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:3px 7px; font-size:0.82rem; }
+input[type=date]:focus { outline:none; border-color:#4ecca3; }
+#cycle-label { font-size:0.78rem; color:#888; white-space:nowrap; }
 
-/* Conditions */
-.cond-row { display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
-.cond-item { display:flex; align-items:center; gap:8px; font-size:0.82rem; }
-.cond-item span { color:#888; }
 .seg { display:flex; border:1px solid #2a3a5e; border-radius:4px; overflow:hidden; }
-.seg button { padding:4px 13px; font-size:0.8rem; background:transparent; color:#555; border:none; cursor:pointer; transition:color .15s,background .15s; }
+.seg button { padding:3px 11px; font-size:0.78rem; background:transparent; color:#555; border:none; cursor:pointer; }
 .seg button[data-val="wet"].active    { background:rgba(52,152,219,.2);  color:#6ab4f5; }
 .seg button[data-val="avg"].active    { background:rgba(241,196,15,.18); color:#f1c40f; }
 .seg button[data-val="dry"].active    { background:rgba(78,204,163,.18); color:#4ecca3; }
 .seg button[data-val="better"].active { background:rgba(78,204,163,.18); color:#4ecca3; }
 .seg button[data-val="same"].active   { background:rgba(241,196,15,.18); color:#f1c40f; }
 .seg button[data-val="worse"].active  { background:rgba(231,76,60,.18);  color:#e07070; }
+.seg button[data-val="y"].active,
+.seg button[data-val="n"].active,
 .seg button[data-val="hi"].active,
 .seg button[data-val="med"].active,
 .seg button[data-val="lo"].active,
-.seg button[data-val="y"].active,
-.seg button[data-val="n"].active      { background:#0f3460; color:#e0e0e0; }
+.seg button[data-val="sheets"].active,
+.seg button[data-val="db"].active     { background:#0f3460; color:#e0e0e0; }
 
-/* Two columns */
-.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-
-/* Day card */
-.day-card { background:#16213e; border-radius:8px; border:1px solid #0f3460; padding:12px 14px; display:flex; flex-direction:column; gap:12px; }
-.day-title { font-size:1rem; font-weight:600; color:#ccc; border-bottom:1px solid #0f3460; padding-bottom:8px; }
-
-/* SKU table */
-.sku-table { width:100%; border-collapse:collapse; font-size:0.83rem; }
-.sku-table th { color:#555; font-weight:500; padding:2px 6px 5px; }
-.sku-table th:first-child { text-align:left; }
-.sku-table th:not(:first-child) { text-align:right; }
-.sku-table td { padding:3px 6px; }
-.sku-table td:first-child { color:#bbb; }
-.sku-table td:not(:first-child) { text-align:right; }
-.sku-table input[type=number] { width:68px; text-align:right; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:2px 5px; font-size:0.83rem; }
-.sku-table input[type=number]:focus { outline:none; border-color:#4ecca3; }
-.sku-table .lb-cell { color:#888; font-variant-numeric:tabular-nums; }
-.sku-table .total-row td { border-top:1px solid #0f3460; padding-top:5px; color:#e0e0e0; font-weight:600; }
-
-/* Harvest */
-.harvest-row { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; }
-.hf { display:flex; flex-direction:column; gap:3px; }
-.hf label { font-size:0.72rem; color:#666; }
-.hf input { width:88px; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:4px 7px; font-size:0.88rem; }
-.hf input:focus { outline:none; border-color:#4ecca3; }
-.hf .derived { font-size:0.75rem; color:#555; }
-
-/* Fill rate */
-.fill-header { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
-.fill-pct { font-size:1.1rem; font-weight:700; }
-.badge { display:inline-block; padding:2px 9px; border-radius:10px; font-size:0.73rem; font-weight:600; }
-.badge-full { background:rgba(78,204,163,.18); color:#4ecca3; }
-.badge-sel  { background:rgba(241,196,15,.18); color:#f1c40f; }
-.badge-lite { background:rgba(52,152,219,.18); color:#6ab4f5; }
-.badge-store{ background:rgba(52,152,219,.18); color:#6ab4f5; }
-.fill-track { background:#0a1428; border-radius:3px; height:5px; overflow:hidden; }
-.fill-bar   { height:100%; border-radius:3px; transition:width .35s,background .35s; }
-
-/* Row plan */
-.row-plan-header { display:flex; align-items:center; justify-content:space-between; }
-.reset-btn { font-size:0.72rem; color:#555; background:none; border:none; cursor:pointer; padding:2px 4px; }
-.reset-btn:hover { color:#4ecca3; }
-.row-plan { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin-top:6px; }
-.rbox { border-radius:6px; padding:8px 6px; text-align:center; }
-.rbox .rbox-label { font-size:0.68rem; color:#aaa; margin-bottom:3px; }
-.rbox input { width:46px; font-size:1.25rem; font-weight:700; text-align:center; background:transparent; border:none; border-bottom:1px solid rgba(255,255,255,.2); color:inherit; padding:0; }
-.rbox input:focus { outline:none; border-bottom-color:rgba(255,255,255,.45); }
-.rbox .rec { font-size:0.68rem; color:rgba(255,255,255,.3); margin-top:3px; }
-.rbox-d { background:rgba(231,76,60,.1);  border:1px solid rgba(231,76,60,.22); color:#e07070; }
-.rbox-s { background:rgba(52,152,219,.1); border:1px solid rgba(52,152,219,.22); color:#6ab4f5; }
-.rbox-p { background:rgba(78,204,163,.1); border:1px solid rgba(78,204,163,.22); color:#4ecca3; }
-.row-check { font-size:0.72rem; margin-top:4px; text-align:right; }
-
-/* Storage note */
-.storage-note { background:rgba(52,152,219,.08); border:1px solid rgba(52,152,219,.2); border-radius:5px; padding:7px 10px; font-size:0.8rem; }
-.storage-pull { font-size:0.78rem; margin-top:4px; }
-
-/* Settings */
-.settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px 16px; }
-.sf { display:flex; flex-direction:column; gap:3px; }
-.sf label { font-size:0.72rem; color:#666; }
-.sf input[type=time] { width:105px; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:3px 6px; font-size:0.82rem; }
-.sf input[type=time]:focus { outline:none; border-color:#4ecca3; }
-.dryer-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-.dryer-item { display:flex; align-items:center; gap:5px; font-size:0.78rem; color:#888; }
-.full-col { grid-column:1/-1; }
-
-/* Date inputs */
-input[type=date] { background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:3px 7px; font-size:0.82rem; }
-input[type=date]:focus { outline:none; border-color:#4ecca3; }
-.data-status { font-size:0.75rem; color:#555; margin-left:4px; }
+.cond-label { font-size:0.8rem; color:#888; white-space:nowrap; }
+.sep { color:#2a3a5e; }
+.data-status { font-size:0.74rem; }
 .data-status.loading { color:#f1c40f; }
 .data-status.loaded  { color:#4ecca3; }
 .data-status.error   { color:#e07070; }
-.auto-badge { font-size:0.68rem; color:#4ecca3; margin-left:4px; vertical-align:middle; }
+
+/* Main table card */
+.card { background:#16213e; border-radius:8px; border:1px solid #0f3460; padding:14px 16px; display:flex; flex-direction:column; gap:16px; }
+.section-title { font-size:0.72rem; color:#555; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
+
+/* Plan table — shared layout for all sections */
+.pt { width:100%; border-collapse:collapse; font-size:0.83rem; }
+.pt th { color:#555; font-weight:500; padding:3px 10px 5px; border-bottom:1px solid #0f3460; text-align:right; }
+.pt th:first-child { text-align:left; width:130px; }
+.pt td { padding:3px 10px; text-align:right; vertical-align:middle; }
+.pt td:first-child { text-align:left; color:#aaa; }
+.pt .d1-col { background:rgba(78,204,163,.03); }
+.pt .d2-col { background:rgba(52,152,219,.03); }
+.pt .tot-col { }
+.pt tr.sub-head th { background:#0d1a2e; font-size:0.7rem; color:#444; padding:2px 10px; border:none; }
+.pt tr.total-row td { border-top:1px solid #0f3460; padding-top:5px; font-weight:600; color:#e0e0e0; }
+
+input[type=number] { width:68px; text-align:right; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:2px 5px; font-size:0.83rem; }
+input[type=number]:focus { outline:none; border-color:#4ecca3; }
+input[type=time] { width:95px; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:3px 6px; font-size:0.82rem; }
+input[type=time]:focus { outline:none; border-color:#4ecca3; }
+.lb-cell { color:#888; font-variant-numeric:tabular-nums; }
+
+/* Harvest inputs */
+.hf-input { width:80px; text-align:right; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:3px 6px; font-size:0.86rem; }
+.hf-input:focus { outline:none; border-color:#4ecca3; }
+.derived { font-size:0.76rem; color:#555; }
+
+/* Fill rate */
+.fill-wrap { display:flex; align-items:center; gap:6px; }
+.fill-pct { font-size:0.95rem; font-weight:700; }
+.badge { display:inline-block; padding:1px 7px; border-radius:8px; font-size:0.7rem; font-weight:600; }
+.badge-full { background:rgba(78,204,163,.18); color:#4ecca3; }
+.badge-sel  { background:rgba(241,196,15,.18); color:#f1c40f; }
+.badge-lite { background:rgba(52,152,219,.18); color:#6ab4f5; }
+.fill-track { background:#0a1428; border-radius:3px; height:4px; overflow:hidden; margin-top:3px; }
+.fill-bar   { height:100%; border-radius:3px; transition:width .35s,background .35s; }
+
+/* Row plan inputs */
+.rp-cell { display:flex; align-items:center; gap:6px; justify-content:flex-end; }
+.rp-input { width:46px; text-align:center; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:2px 4px; font-size:1.05rem; font-weight:700; }
+.rp-input:focus { outline:none; border-color:#4ecca3; }
+.rec { font-size:0.68rem; color:rgba(255,255,255,.28); }
+.rlab-dispose { color:#e07070; }
+.rlab-store   { color:#6ab4f5; }
+.rlab-ph      { color:#4ecca3; }
+.row-check { font-size:0.71rem; }
+.storage-note-inline { font-size:0.72rem; color:#6ab4f5; margin-bottom:3px; }
+.reset-btn { font-size:0.68rem; color:#444; background:none; border:none; cursor:pointer; padding:0 3px; }
+.reset-btn:hover { color:#4ecca3; }
 
 /* Protocol */
 .proto-card { background:#0d1527; border-radius:8px; border:1px solid #0f3460; padding:14px 18px; }
-.proto-card .card-title { margin-bottom:10px; }
+.proto-card .section-title { margin-bottom:8px; }
 #protocol { font-size:0.82rem; line-height:1.75; white-space:pre-wrap; font-family:'Courier New',monospace; color:#b8d4f0; }
 </style>
 </head>
@@ -121,209 +100,195 @@ input[type=date]:focus { outline:none; border-color:#4ecca3; }
 
 <header>
   <h1>Lettuce Pack Plan</h1>
+  <input type="date" id="pack-date">
+  <span id="cycle-label"></span>
+  <div class="seg" id="seg-data-mode">
+    <button data-val="sheets" class="active">Sheets</button>
+    <button data-val="db">DB</button>
+  </div>
+  <span id="data-status" class="data-status">loading…</span>
+  <span class="sep">|</span>
+  <span class="cond-label">Today:</span>
+  <div class="seg" id="seg-today">
+    <button data-val="wet">Wet</button>
+    <button data-val="avg" class="active">Avg</button>
+    <button data-val="dry">Dry</button>
+  </div>
+  <span class="cond-label">Tomorrow:</span>
+  <div class="seg" id="seg-tomorrow">
+    <button data-val="better">Better</button>
+    <button data-val="same" class="active">Same</button>
+    <button data-val="worse">Worse</button>
+  </div>
   <span id="version"></span>
 </header>
 
 <main>
-
-<!-- Conditions -->
 <div class="card">
-  <div class="cond-row">
-    <div class="cond-item">
-      <span>Day 1:</span>
-      <input type="date" id="date-d1">
-    </div>
-    <div class="cond-item">
-      <span>Day 2:</span>
-      <input type="date" id="date-d2">
-    </div>
-    <span class="data-status" id="data-status">loading…</span>
-    <div class="seg" id="seg-data-mode" style="margin-left:4px">
-      <button data-val="sheets" class="active">Sheets</button>
-      <button data-val="db">DB</button>
-    </div>
-    <div style="width:1px;height:20px;background:#2a3a5e;margin:0 4px"></div>
-    <div class="cond-item">
-      <span>Today:</span>
-      <div class="seg" id="seg-today">
-        <button data-val="wet">Wet</button>
-        <button data-val="avg" class="active">Avg</button>
-        <button data-val="dry">Dry</button>
-      </div>
-    </div>
-    <div class="cond-item">
-      <span>Tomorrow:</span>
-      <div class="seg" id="seg-tomorrow">
-        <button data-val="better">Better</button>
-        <button data-val="same" class="active">Same</button>
-        <button data-val="worse">Worse</button>
-      </div>
-    </div>
-  </div>
-</div>
 
-<!-- Day cards -->
-<div class="grid-2">
-
-  <!-- DAY 1 -->
-  <div class="day-card">
-    <div class="day-title">Day 1</div>
-
-    <div>
-      <div class="card-title">Orders</div>
-      <table class="sku-table">
-        <thead><tr><th>SKU</th><th>Cases</th><th>Lb</th></tr></thead>
-        <tbody>
-          <tr><td>LW</td><td><input type="number" id="d1-lw" min="0" value="0"></td><td class="lb-cell" id="d1-lw-lb">0</td></tr>
-          <tr><td>LR</td><td><input type="number" id="d1-lr" min="0" value="0"></td><td class="lb-cell" id="d1-lr-lb">0</td></tr>
-          <tr><td>LF</td><td><input type="number" id="d1-lf" min="0" value="0"></td><td class="lb-cell" id="d1-lf-lb">0</td></tr>
-          <tr><td>WR</td><td><input type="number" id="d1-wr" min="0" value="0"></td><td class="lb-cell" id="d1-wr-lb">0</td></tr>
-          <tr class="total-row"><td>Total</td><td></td><td class="lb-cell" id="d1-order-total">0</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div>
-      <div class="card-title">Harvest</div>
-      <div class="harvest-row">
-        <div class="hf"><label>Expected lb</label><input type="number" id="d1-hlb" value="3500" min="0"></div>
-        <div class="hf"><label>Rows available</label><input type="number" id="d1-rows" value="9" min="1"></div>
-        <div class="hf"><label>&nbsp;</label><div class="derived" id="d1-lbrow">389 lb/row</div></div>
-      </div>
-    </div>
-
-    <div>
-      <div class="fill-header">
-        <span class="fill-pct" id="d1-fillpct">0%</span>
-        <span class="badge badge-lite" id="d1-badge">—</span>
-      </div>
-      <div class="fill-track"><div class="fill-bar" id="d1-fillbar" style="width:0%"></div></div>
-    </div>
-
-    <div>
-      <div class="row-plan-header">
-        <div class="card-title" style="margin-bottom:0">Row Plan</div>
-        <button class="reset-btn" onclick="resetDirty('d1')">↺ reset to rec</button>
-      </div>
-      <div class="row-plan">
-        <div class="rbox rbox-d"><div class="rbox-label">Dispose</div><input type="number" id="d1-dispose" min="0" value="0"><div class="rec" id="d1-dispose-rec">rec: 0</div></div>
-        <div class="rbox rbox-s"><div class="rbox-label">Cold Store</div><input type="number" id="d1-store" min="0" value="0"><div class="rec" id="d1-store-rec">rec: 0</div></div>
-        <div class="rbox rbox-p"><div class="rbox-label">Pack House</div><input type="number" id="d1-ph" min="0" value="0"><div class="rec" id="d1-ph-rec">rec: 0</div></div>
-      </div>
-      <div class="row-check" id="d1-rowcheck"></div>
-    </div>
-
-    <div>
-      <div class="card-title">Settings</div>
-      <div class="settings-grid">
-        <div class="sf"><label>Harvest start</label><input type="time" id="d1-hstart"></div>
-        <div class="sf"><label>Cut height</label>
-          <div class="seg" id="seg-d1-cut"><button data-val="hi">Hi</button><button data-val="med" class="active">Med</button><button data-val="lo">Lo</button></div>
-        </div>
-        <div class="sf"><label>PH start</label><input type="time" id="d1-phstart"></div>
-        <div class="sf"><label>PH fans</label>
-          <div class="seg" id="seg-d1-fans"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div>
-        </div>
-        <div class="sf full-col"><label>Dryer</label>
-          <div class="dryer-row">
-            <div class="dryer-item"><span>Heat</span><div class="seg" id="seg-d1-heat"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div></div>
-            <div class="dryer-item"><span>Blowers</span><div class="seg" id="seg-d1-blow"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div></div>
-            <div class="dryer-item"><span>Speed</span><div class="seg" id="seg-d1-speed"><button data-val="lo">Lo</button><button data-val="med" class="active">Med</button><button data-val="hi">Hi</button></div></div>
-          </div>
-        </div>
-        <div class="sf"><label>Cool room + temp check</label>
-          <div class="seg" id="seg-d1-cool"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div>
-        </div>
-      </div>
-    </div>
+  <!-- ORDERS -->
+  <div>
+    <div class="section-title">Orders</div>
+    <table class="pt">
+      <thead>
+        <tr>
+          <th></th>
+          <th class="d1-col" colspan="2">D1</th>
+          <th class="d2-col" colspan="2">D2</th>
+          <th class="tot-col" colspan="2">Total</th>
+        </tr>
+        <tr class="sub-head">
+          <th>SKU</th>
+          <th class="d1-col">Cases</th><th class="d1-col">Lb</th>
+          <th class="d2-col">Cases</th><th class="d2-col">Lb</th>
+          <th class="tot-col">Cases</th><th class="tot-col">Lb</th>
+        </tr>
+      </thead>
+      <tbody id="order-body">
+        <!-- rows injected by JS -->
+      </tbody>
+    </table>
   </div>
 
-  <!-- DAY 2 -->
-  <div class="day-card">
-    <div class="day-title">Day 2</div>
-
-    <div class="storage-note">
-      <div style="color:#6ab4f5">Day 1 cold storage: <strong id="d2-store-lb">0 lb</strong> (<span id="d2-store-rows">0</span> rows)</div>
-      <div class="storage-pull" id="d2-pull-note" style="color:#555">No Day 1 storage yet</div>
-    </div>
-
-    <div>
-      <div class="card-title">Orders</div>
-      <table class="sku-table">
-        <thead><tr><th>SKU</th><th>Cases</th><th>Lb</th></tr></thead>
-        <tbody>
-          <tr><td>LW</td><td><input type="number" id="d2-lw" min="0" value="0"></td><td class="lb-cell" id="d2-lw-lb">0</td></tr>
-          <tr><td>LR</td><td><input type="number" id="d2-lr" min="0" value="0"></td><td class="lb-cell" id="d2-lr-lb">0</td></tr>
-          <tr><td>LF</td><td><input type="number" id="d2-lf" min="0" value="0"></td><td class="lb-cell" id="d2-lf-lb">0</td></tr>
-          <tr><td>WR</td><td><input type="number" id="d2-wr" min="0" value="0"></td><td class="lb-cell" id="d2-wr-lb">0</td></tr>
-          <tr class="total-row"><td>Total</td><td></td><td class="lb-cell" id="d2-order-total">0</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div>
-      <div class="card-title">Harvest</div>
-      <div class="harvest-row">
-        <div class="hf"><label>Expected lb</label><input type="number" id="d2-hlb" value="2500" min="0"></div>
-        <div class="hf"><label>Rows available</label><input type="number" id="d2-rows" value="6" min="1"></div>
-        <div class="hf"><label>&nbsp;</label><div class="derived" id="d2-lbrow">417 lb/row</div></div>
-      </div>
-    </div>
-
-    <div>
-      <div class="fill-header">
-        <span class="fill-pct" id="d2-fillpct">0%</span>
-        <span class="badge badge-lite" id="d2-badge">—</span>
-      </div>
-      <div class="fill-track"><div class="fill-bar" id="d2-fillbar" style="width:0%"></div></div>
-    </div>
-
-    <div>
-      <div class="row-plan-header">
-        <div class="card-title" style="margin-bottom:0">Row Plan</div>
-        <button class="reset-btn" onclick="resetDirty('d2')">↺ reset to rec</button>
-      </div>
-      <div class="row-plan">
-        <div class="rbox rbox-d"><div class="rbox-label">Dispose</div><input type="number" id="d2-dispose" min="0" value="0"><div class="rec" id="d2-dispose-rec">rec: 0</div></div>
-        <div class="rbox rbox-s"><div class="rbox-label">Cold Store</div><input type="number" id="d2-store" min="0" value="0"><div class="rec" id="d2-store-rec">rec: 0</div></div>
-        <div class="rbox rbox-p"><div class="rbox-label">Pack House</div><input type="number" id="d2-ph" min="0" value="0"><div class="rec" id="d2-ph-rec">rec: 0</div></div>
-      </div>
-      <div class="row-check" id="d2-rowcheck"></div>
-    </div>
-
-    <div>
-      <div class="card-title">Settings</div>
-      <div class="settings-grid">
-        <div class="sf"><label>Harvest start</label><input type="time" id="d2-hstart"></div>
-        <div class="sf"><label>Cut height</label>
-          <div class="seg" id="seg-d2-cut"><button data-val="hi">Hi</button><button data-val="med" class="active">Med</button><button data-val="lo">Lo</button></div>
-        </div>
-        <div class="sf"><label>PH start</label><input type="time" id="d2-phstart"></div>
-        <div class="sf"><label>PH fans</label>
-          <div class="seg" id="seg-d2-fans"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div>
-        </div>
-        <div class="sf full-col"><label>Dryer</label>
-          <div class="dryer-row">
-            <div class="dryer-item"><span>Heat</span><div class="seg" id="seg-d2-heat"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div></div>
-            <div class="dryer-item"><span>Blowers</span><div class="seg" id="seg-d2-blow"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div></div>
-            <div class="dryer-item"><span>Speed</span><div class="seg" id="seg-d2-speed"><button data-val="lo">Lo</button><button data-val="med" class="active">Med</button><button data-val="hi">Hi</button></div></div>
-          </div>
-        </div>
-        <div class="sf"><label>Cool room + temp check</label>
-          <div class="seg" id="seg-d2-cool"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div>
-        </div>
-      </div>
-    </div>
+  <!-- HARVEST + FILL RATE -->
+  <div>
+    <div class="section-title">Harvest</div>
+    <table class="pt">
+      <thead>
+        <tr>
+          <th></th>
+          <th class="d1-col">D1</th>
+          <th class="d2-col">D2</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Expected lb</td>
+          <td class="d1-col"><input class="hf-input" type="number" id="d1-hlb" value="3500" min="0"></td>
+          <td class="d2-col"><input class="hf-input" type="number" id="d2-hlb" value="2500" min="0"></td>
+        </tr>
+        <tr>
+          <td>Rows available</td>
+          <td class="d1-col"><input class="hf-input" type="number" id="d1-rows" value="9" min="1"></td>
+          <td class="d2-col"><input class="hf-input" type="number" id="d2-rows" value="6" min="1"></td>
+        </tr>
+        <tr>
+          <td>lb / row</td>
+          <td class="d1-col derived" id="d1-lbrow">389</td>
+          <td class="d2-col derived" id="d2-lbrow">417</td>
+        </tr>
+        <tr>
+          <td>Fill rate</td>
+          <td class="d1-col">
+            <div class="fill-wrap"><span class="fill-pct" id="d1-fillpct">0%</span><span class="badge badge-lite" id="d1-badge">—</span></div>
+            <div class="fill-track"><div class="fill-bar" id="d1-fillbar" style="width:0%"></div></div>
+          </td>
+          <td class="d2-col">
+            <div class="fill-wrap"><span class="fill-pct" id="d2-fillpct">0%</span><span class="badge badge-lite" id="d2-badge">—</span></div>
+            <div class="fill-track"><div class="fill-bar" id="d2-fillbar" style="width:0%"></div></div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 
-</div>
+  <!-- ROW PLAN -->
+  <div>
+    <div class="section-title">
+      Row Plan
+      <button class="reset-btn" onclick="resetDirty('d1')">↺ D1</button>
+      <button class="reset-btn" onclick="resetDirty('d2')">↺ D2</button>
+    </div>
+    <table class="pt">
+      <thead>
+        <tr><th></th><th class="d1-col">D1</th><th class="d2-col">D2</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="rlab-dispose">Dispose</td>
+          <td class="d1-col">
+            <div class="rp-cell"><input class="rp-input" type="number" id="d1-dispose" min="0" value="0"><span class="rec" id="d1-dispose-rec">rec:0</span></div>
+          </td>
+          <td class="d2-col">
+            <div class="rp-cell"><input class="rp-input" type="number" id="d2-dispose" min="0" value="0"><span class="rec" id="d2-dispose-rec">rec:0</span></div>
+          </td>
+        </tr>
+        <tr>
+          <td class="rlab-store">Cold Store</td>
+          <td class="d1-col">
+            <div class="rp-cell"><input class="rp-input" type="number" id="d1-store" min="0" value="0"><span class="rec" id="d1-store-rec">rec:0</span></div>
+          </td>
+          <td class="d2-col">
+            <div id="d2-pull-note" class="storage-note-inline"></div>
+            <div class="rp-cell"><input class="rp-input" type="number" id="d2-store" min="0" value="0"><span class="rec" id="d2-store-rec">rec:0</span></div>
+          </td>
+        </tr>
+        <tr>
+          <td class="rlab-ph">Pack House</td>
+          <td class="d1-col">
+            <div class="rp-cell"><input class="rp-input" type="number" id="d1-ph" min="0" value="0"><span class="rec" id="d1-ph-rec">rec:0</span></div>
+          </td>
+          <td class="d2-col">
+            <div class="rp-cell"><input class="rp-input" type="number" id="d2-ph" min="0" value="0"><span class="rec" id="d2-ph-rec">rec:0</span></div>
+          </td>
+        </tr>
+        <tr>
+          <td></td>
+          <td class="d1-col"><div class="row-check" id="d1-rowcheck"></div></td>
+          <td class="d2-col"><div class="row-check" id="d2-rowcheck"></div></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 
-<!-- Protocol -->
+  <!-- SETTINGS -->
+  <div>
+    <div class="section-title">Settings</div>
+    <table class="pt">
+      <thead><tr><th></th><th class="d1-col">D1</th><th class="d2-col">D2</th></tr></thead>
+      <tbody>
+        <tr><td>Harvest start</td>
+          <td class="d1-col"><input type="time" id="d1-hstart"></td>
+          <td class="d2-col"><input type="time" id="d2-hstart"></td>
+        </tr>
+        <tr><td>Cut height</td>
+          <td class="d1-col"><div class="seg" id="seg-d1-cut"><button data-val="hi">Hi</button><button data-val="med" class="active">Med</button><button data-val="lo">Lo</button></div></td>
+          <td class="d2-col"><div class="seg" id="seg-d2-cut"><button data-val="hi">Hi</button><button data-val="med" class="active">Med</button><button data-val="lo">Lo</button></div></td>
+        </tr>
+        <tr><td>PH start</td>
+          <td class="d1-col"><input type="time" id="d1-phstart"></td>
+          <td class="d2-col"><input type="time" id="d2-phstart"></td>
+        </tr>
+        <tr><td>PH fans</td>
+          <td class="d1-col"><div class="seg" id="seg-d1-fans"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div></td>
+          <td class="d2-col"><div class="seg" id="seg-d2-fans"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div></td>
+        </tr>
+        <tr><td>Dryer heat</td>
+          <td class="d1-col"><div class="seg" id="seg-d1-heat"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div></td>
+          <td class="d2-col"><div class="seg" id="seg-d2-heat"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div></td>
+        </tr>
+        <tr><td>Dryer blowers</td>
+          <td class="d1-col"><div class="seg" id="seg-d1-blow"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div></td>
+          <td class="d2-col"><div class="seg" id="seg-d2-blow"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div></td>
+        </tr>
+        <tr><td>Dryer speed</td>
+          <td class="d1-col"><div class="seg" id="seg-d1-speed"><button data-val="lo">Lo</button><button data-val="med" class="active">Med</button><button data-val="hi">Hi</button></div></td>
+          <td class="d2-col"><div class="seg" id="seg-d2-speed"><button data-val="lo">Lo</button><button data-val="med" class="active">Med</button><button data-val="hi">Hi</button></div></td>
+        </tr>
+        <tr><td>Cool room + temp</td>
+          <td class="d1-col"><div class="seg" id="seg-d1-cool"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div></td>
+          <td class="d2-col"><div class="seg" id="seg-d2-cool"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div><!-- .card -->
+
 <div class="proto-card">
-  <div class="card-title">Crew Protocol</div>
+  <div class="section-title">Crew Protocol</div>
   <div id="protocol"></div>
 </div>
-
 </main>
 
 <script>
@@ -331,7 +296,11 @@ const SKU_LB = {LW:10.5, LR:2.25, LF:10.0, WR:2.25};
 const SKUS = ['LW','LR','LF','WR'];
 
 let weatherToday = 'avg', tomorrowTrend = 'same';
+let packDataMode = localStorage.getItem('packPlanDataMode') || 'sheets';
 const dirty = {d1:{dispose:false,store:false,ph:false}, d2:{dispose:false,store:false,ph:false}};
+
+// Derived dates from the single date picker
+let d1Date = '', d2Date = '';
 
 function $id(id) { return document.getElementById(id); }
 function numVal(id) { return parseFloat($id(id).value) || 0; }
@@ -339,362 +308,248 @@ function segVal(id) { const b = document.querySelector(`#${id} button.active`); 
 function fmt(n) { return Math.round(n).toLocaleString(); }
 function fmtLb(n) { return fmt(n) + ' lb'; }
 
+// ── Date helpers ──────────────────────────────────────────────────────────────
+function isoToday() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function isoAddDays(iso, n) {
+  const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function toISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+// Day1=Sun(0)/Wed(3), Day2=Mon(1)/Thu(4). Given any date, return {d1,d2}.
+function packCycleDates(iso) {
+  const d = new Date(iso + 'T12:00:00');
+  const dow = d.getDay();
+  if (dow === 0 || dow === 3) {
+    return {d1: iso, d2: isoAddDays(iso, 1)};
+  }
+  if (dow === 1 || dow === 4) {
+    return {d1: isoAddDays(iso, -1), d2: iso};
+  }
+  // Off-day: snap forward to next Sun(0) or Wed(3)
+  const snap = dow === 2 ? 1 : dow === 5 ? 2 : 1; // Tue→Wed(1), Fri→Sun(2), Sat→Sun(1)
+  return {d1: isoAddDays(iso, snap), d2: isoAddDays(iso, snap + 1)};
+}
+const DOW_NAME = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+function shortDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + 'T12:00:00');
+  return `${DOW_NAME[d.getDay()]} ${d.getMonth()+1}/${d.getDate()}`;
+}
+
+// ── Order SKU table rows (injected once) ────────────────────────────────────
+(function buildOrderRows() {
+  const tbody = $id('order-body');
+  SKUS.forEach(sku => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${sku}</td>
+      <td class="d1-col"><input type="number" id="d1-${sku.toLowerCase()}" min="0" value="0"></td>
+      <td class="d1-col lb-cell" id="d1-${sku.toLowerCase()}-lb">0</td>
+      <td class="d2-col"><input type="number" id="d2-${sku.toLowerCase()}" min="0" value="0"></td>
+      <td class="d2-col lb-cell" id="d2-${sku.toLowerCase()}-lb">0</td>
+      <td class="tot-col lb-cell" id="tot-${sku.toLowerCase()}-cs">0</td>
+      <td class="tot-col lb-cell" id="tot-${sku.toLowerCase()}-lb">0</td>`;
+    tbody.appendChild(tr);
+  });
+  const tfoot = document.createElement('tr');
+  tfoot.className = 'total-row';
+  tfoot.innerHTML = `
+    <td>Total</td>
+    <td class="d1-col"></td><td class="d1-col lb-cell" id="d1-order-total">0</td>
+    <td class="d2-col"></td><td class="d2-col lb-cell" id="d2-order-total">0</td>
+    <td class="tot-col lb-cell" id="tot-order-cs">0</td>
+    <td class="tot-col lb-cell" id="tot-order-lb">0</td>`;
+  tbody.appendChild(tfoot);
+})();
+
+// ── Calculation helpers ───────────────────────────────────────────────────────
 function orderLb(day) {
   return SKUS.reduce((s, sku) => s + numVal(`${day}-${sku.toLowerCase()}`) * SKU_LB[sku], 0);
 }
 
 function recPlan(orderLb, harvestLb, rows, weather, tomorrow, storageLb) {
   if (rows === 0 || harvestLb === 0) return {dispose:0, store:0, ph:0, mode:'—', fillRate:0, lbRow:0};
-  const lbRow    = harvestLb / rows;
-  const fillRate = harvestLb > 0 ? orderLb / harvestLb : 0;
-  const wet      = weather === 'wet';
-  const better   = tomorrow === 'better';
-  const worse    = tomorrow === 'worse';
-
+  const lbRow = harvestLb / rows;
+  const fillRate = orderLb / harvestLb;
+  const wet = weather === 'wet', better = tomorrow === 'better', worse = tomorrow === 'worse';
+  const netOrder = Math.max(0, orderLb - storageLb);
+  const rowsForPH = Math.ceil(netOrder / lbRow);
   let dispose, store, ph, mode;
-  // net lb still needed after storage covers some
-  const netOrderLb  = Math.max(0, orderLb - storageLb);
-  const rowsForPH   = Math.ceil(netOrderLb / lbRow);
 
   if (fillRate > 0.9) {
-    mode    = 'Full send';
-    dispose = wet ? 1 : 0;
-    store   = 0;
-    ph      = rows - dispose;
+    mode = 'Full send'; dispose = wet ? 1 : 0; store = 0; ph = rows - dispose;
   } else if (fillRate > 0.6) {
-    mode    = 'Selective';
-    dispose = wet ? 2 : 1;
-    const remaining = rows - dispose;
-    if (wet && better) {
-      // bias toward storing — delay to tomorrow
-      ph    = Math.max(0, Math.min(rowsForPH - 1, remaining));
-      store = Math.max(0, remaining - ph);
-    } else if (worse) {
-      // pack everything today — tomorrow worse
-      ph    = remaining;
-      store = 0;
-    } else {
-      ph    = Math.min(rowsForPH, remaining);
-      store = Math.max(0, remaining - ph);
-    }
+    mode = 'Selective'; dispose = wet ? 2 : 1;
+    const rem = rows - dispose;
+    if (wet && better) { ph = Math.max(0, Math.min(rowsForPH - 1, rem)); store = Math.max(0, rem - ph); }
+    else if (worse)    { ph = rem; store = 0; }
+    else               { ph = Math.min(rowsForPH, rem); store = Math.max(0, rem - ph); }
   } else {
-    // light day
-    dispose = wet ? 3 : 2;
-    dispose = Math.min(dispose, rows - 1);
-    const remaining = rows - dispose;
-    if (wet && better) {
-      mode  = 'Store all';
-      ph    = 0;
-      store = remaining;
-    } else {
-      mode  = 'Light';
-      ph    = Math.min(rowsForPH, remaining);
-      store = Math.max(0, remaining - ph);
-    }
+    dispose = Math.min(wet ? 3 : 2, rows - 1);
+    const rem = rows - dispose;
+    if (wet && better) { mode = 'Store all'; ph = 0; store = rem; }
+    else               { mode = 'Light'; ph = Math.min(rowsForPH, rem); store = Math.max(0, rem - ph); }
   }
-
-  // Clamp and rebalance to total
-  dispose = Math.max(0, dispose);
-  store   = Math.max(0, store);
-  ph      = Math.max(0, ph);
+  dispose = Math.max(0, dispose); store = Math.max(0, store); ph = Math.max(0, ph);
   const sum = dispose + store + ph;
-  if (sum !== rows) {
-    const diff = rows - sum;
-    store = Math.max(0, store + diff); // absorb remainder into store
-  }
-
+  if (sum !== rows) store = Math.max(0, store + (rows - sum));
   return {dispose, store, ph, mode, fillRate, lbRow};
 }
 
-function fillColor(rate) {
-  if (rate > 0.9) return '#4ecca3';
-  if (rate > 0.6) return '#f1c40f';
-  return '#6ab4f5';
-}
-function badgeClass(mode) {
-  if (mode === 'Full send') return 'badge badge-full';
-  if (mode === 'Selective')  return 'badge badge-sel';
+function fillColor(r) { return r > 0.9 ? '#4ecca3' : r > 0.6 ? '#f1c40f' : '#6ab4f5'; }
+function badgeClass(m) {
+  if (m === 'Full send') return 'badge badge-full';
+  if (m === 'Selective')  return 'badge badge-sel';
   return 'badge badge-lite';
 }
 function rowCheckHtml(actual, total) {
-  const diff = actual - total;
-  if (diff === 0) return `<span style="color:#4ecca3">✓ ${total} rows assigned</span>`;
-  if (diff > 0)   return `<span style="color:#e07070">Over by ${diff} — reduce row count</span>`;
-  return `<span style="color:#f1c40f">${Math.abs(diff)} row${Math.abs(diff)>1?'s':''} unassigned</span>`;
+  const d = actual - total;
+  if (d === 0) return `<span style="color:#4ecca3">✓ ${total} rows</span>`;
+  if (d > 0)   return `<span style="color:#e07070">over by ${d}</span>`;
+  return `<span style="color:#f1c40f">${Math.abs(d)} unassigned</span>`;
 }
-
 function applyRec(day, rec) {
   ['dispose','store','ph'].forEach(f => {
-    if (!dirty[day][f]) {
-      $id(`${day}-${f}`).value = rec[f];
-    }
-    $id(`${day}-${f}-rec`).textContent = `rec: ${rec[f]}`;
+    if (!dirty[day][f]) $id(`${day}-${f}`).value = rec[f];
+    $id(`${day}-${f}-rec`).textContent = `rec:${rec[f]}`;
   });
 }
 
-function resetDirty(day) {
-  dirty[day] = {dispose:false, store:false, ph:false};
-  update();
-}
+function resetDirty(day) { dirty[day] = {dispose:false,store:false,ph:false}; update(); }
 
+// ── Main update ───────────────────────────────────────────────────────────────
 function update() {
-  // Day 1 orders
-  let d1Total = 0;
+  let d1Total = 0, d2Total = 0;
   SKUS.forEach(sku => {
-    const cases = numVal(`d1-${sku.toLowerCase()}`);
-    const lb = cases * SKU_LB[sku];
-    d1Total += lb;
-    $id(`d1-${sku.toLowerCase()}-lb`).textContent = fmt(lb);
+    const s = sku.toLowerCase();
+    const d1cs = numVal(`d1-${s}`), d2cs = numVal(`d2-${s}`);
+    const d1lb = d1cs * SKU_LB[sku], d2lb = d2cs * SKU_LB[sku];
+    d1Total += d1lb; d2Total += d2lb;
+    $id(`d1-${s}-lb`).textContent = fmt(d1lb);
+    $id(`d2-${s}-lb`).textContent = fmt(d2lb);
+    $id(`tot-${s}-cs`).textContent = fmt(d1cs + d2cs);
+    $id(`tot-${s}-lb`).textContent = fmt(d1lb + d2lb);
   });
   $id('d1-order-total').textContent = fmt(d1Total);
-
-  // Day 1 harvest
-  const d1hlb  = numVal('d1-hlb');
-  const d1rows = numVal('d1-rows');
-  const d1lbr  = d1rows > 0 ? d1hlb / d1rows : 0;
-  $id('d1-lbrow').textContent = d1lbr > 0 ? fmt(d1lbr) + ' lb/row' : '—';
-
-  // Day 1 rec
-  const d1rec = recPlan(d1Total, d1hlb, d1rows, weatherToday, tomorrowTrend, 0);
-  const d1fp  = d1rec.fillRate;
-  $id('d1-fillpct').textContent  = Math.round(d1fp * 100) + '%';
-  $id('d1-fillbar').style.width  = Math.min(100, d1fp * 100) + '%';
-  $id('d1-fillbar').style.background = fillColor(d1fp);
-  const d1b = $id('d1-badge');
-  d1b.textContent = d1rec.mode; d1b.className = badgeClass(d1rec.mode);
-  applyRec('d1', d1rec);
-
-  const d1actDispose = numVal('d1-dispose');
-  const d1actStore   = numVal('d1-store');
-  const d1actPH      = numVal('d1-ph');
-  $id('d1-rowcheck').innerHTML = rowCheckHtml(d1actDispose + d1actStore + d1actPH, d1rows);
-
-  // Day 1 → Day 2 storage
-  const d1storeLb = d1actStore * d1lbr;
-
-  // Day 2 orders
-  let d2Total = 0;
-  SKUS.forEach(sku => {
-    const cases = numVal(`d2-${sku.toLowerCase()}`);
-    const lb = cases * SKU_LB[sku];
-    d2Total += lb;
-    $id(`d2-${sku.toLowerCase()}-lb`).textContent = fmt(lb);
-  });
   $id('d2-order-total').textContent = fmt(d2Total);
+  $id('tot-order-cs').textContent   = fmt(SKUS.reduce((s,k) => s + numVal(`d1-${k.toLowerCase()}`) + numVal(`d2-${k.toLowerCase()}`), 0));
+  $id('tot-order-lb').textContent   = fmt(d1Total + d2Total);
 
-  // Storage note
-  $id('d2-store-lb').textContent   = fmtLb(d1storeLb);
-  $id('d2-store-rows').textContent = d1actStore;
+  // D1 harvest
+  const d1hlb = numVal('d1-hlb'), d1rows = numVal('d1-rows');
+  const d1lbr = d1rows > 0 ? d1hlb / d1rows : 0;
+  $id('d1-lbrow').textContent = d1lbr > 0 ? fmt(d1lbr) + ' lb/row' : '—';
+  const d1rec = recPlan(d1Total, d1hlb, d1rows, weatherToday, tomorrowTrend, 0);
+  $id('d1-fillpct').textContent = Math.round(d1rec.fillRate * 100) + '%';
+  $id('d1-fillbar').style.width = Math.min(100, d1rec.fillRate * 100) + '%';
+  $id('d1-fillbar').style.background = fillColor(d1rec.fillRate);
+  const b1 = $id('d1-badge'); b1.textContent = d1rec.mode; b1.className = badgeClass(d1rec.mode);
+  applyRec('d1', d1rec);
+  const d1ad = numVal('d1-dispose'), d1as = numVal('d1-store'), d1ap = numVal('d1-ph');
+  $id('d1-rowcheck').innerHTML = rowCheckHtml(d1ad + d1as + d1ap, d1rows);
+  const d1storeLb = d1as * d1lbr;
+
+  // D2 storage note
   const pullNote = $id('d2-pull-note');
-  if (d1actStore === 0) {
-    pullNote.textContent = 'No Day 1 storage'; pullNote.style.color = '#555';
-  } else if (d2Total > numVal('d2-hlb')) {
-    const short = d2Total - numVal('d2-hlb');
-    pullNote.textContent = `Pull needed — Day 2 fresh short by ~${fmtLb(short)}`;
+  if (d1as === 0) { pullNote.textContent = ''; }
+  else if (d2Total > numVal('d2-hlb')) {
+    pullNote.textContent = `Pull Day 1 storage (~${fmtLb(Math.min(d1storeLb, d2Total - numVal('d2-hlb')))})`;
     pullNote.style.color = '#f1c40f';
   } else {
-    pullNote.textContent = 'Day 2 fresh covers orders — no pull needed';
+    pullNote.textContent = `Day 1 storage: ${fmtLb(d1storeLb)} available`;
     pullNote.style.color = '#4ecca3';
   }
 
-  // Day 2 harvest
-  const d2hlb  = numVal('d2-hlb');
-  const d2rows = numVal('d2-rows');
-  const d2lbr  = d2rows > 0 ? d2hlb / d2rows : 0;
+  // D2 harvest
+  const d2hlb = numVal('d2-hlb'), d2rows = numVal('d2-rows');
+  const d2lbr = d2rows > 0 ? d2hlb / d2rows : 0;
   $id('d2-lbrow').textContent = d2lbr > 0 ? fmt(d2lbr) + ' lb/row' : '—';
-
-  // Day 2 weather proxy: better tomorrow = better conditions day2
   const d2weather = tomorrowTrend === 'better' ? 'dry' : tomorrowTrend === 'worse' ? 'wet' : 'avg';
   const d2rec = recPlan(d2Total, d2hlb, d2rows, d2weather, 'same', d1storeLb);
-  const d2fp  = d2rec.fillRate;
-  $id('d2-fillpct').textContent  = Math.round(d2fp * 100) + '%';
-  $id('d2-fillbar').style.width  = Math.min(100, d2fp * 100) + '%';
-  $id('d2-fillbar').style.background = fillColor(d2fp);
-  const d2b = $id('d2-badge');
-  d2b.textContent = d2rec.mode; d2b.className = badgeClass(d2rec.mode);
+  $id('d2-fillpct').textContent = Math.round(d2rec.fillRate * 100) + '%';
+  $id('d2-fillbar').style.width = Math.min(100, d2rec.fillRate * 100) + '%';
+  $id('d2-fillbar').style.background = fillColor(d2rec.fillRate);
+  const b2 = $id('d2-badge'); b2.textContent = d2rec.mode; b2.className = badgeClass(d2rec.mode);
   applyRec('d2', d2rec);
+  const d2ad = numVal('d2-dispose'), d2as = numVal('d2-store'), d2ap = numVal('d2-ph');
+  $id('d2-rowcheck').innerHTML = rowCheckHtml(d2ad + d2as + d2ap, d2rows);
 
-  const d2actDispose = numVal('d2-dispose');
-  const d2actStore   = numVal('d2-store');
-  const d2actPH      = numVal('d2-ph');
-  $id('d2-rowcheck').innerHTML = rowCheckHtml(d2actDispose + d2actStore + d2actPH, d2rows);
-
-  renderProtocol({
-    d1Total, d1hlb, d1rows, d1lbr, d1fp,
-    d1actDispose, d1actStore, d1actPH, d1storeLb,
-    d2Total, d2hlb, d2rows, d2lbr, d2fp,
-    d2actDispose, d2actStore, d2actPH,
-  });
+  renderProtocol({d1Total, d1hlb, d1rows, d1lbr, d1rec, d1ad, d1as, d1ap, d1storeLb,
+                  d2Total, d2hlb, d2rows, d2lbr, d2rec, d2ad, d2as, d2ap});
 }
 
 function skuBreakdown(day) {
-  return SKUS.map(sku => {
-    const c = numVal(`${day}-${sku.toLowerCase()}`);
-    return c > 0 ? `${sku} ${c}cs` : null;
+  return SKUS.map(s => {
+    const c = numVal(`${day}-${s.toLowerCase()}`);
+    return c > 0 ? `${s} ${c}cs` : null;
   }).filter(Boolean).join(' + ') || 'none';
+}
+function daySettings(day) {
+  const hs   = $id(`${day}-hstart`).value || '—';
+  const cut  = segVal(`seg-${day}-cut`) || '—';
+  const phs  = $id(`${day}-phstart`).value || '—';
+  const fans = segVal(`seg-${day}-fans`) === 'y' ? 'Yes' : 'No';
+  const heat = segVal(`seg-${day}-heat`) === 'y' ? 'Yes' : 'No';
+  const blow = segVal(`seg-${day}-blow`) === 'y' ? 'Yes' : 'No';
+  const spd  = segVal(`seg-${day}-speed`) || '—';
+  const cool = segVal(`seg-${day}-cool`) === 'y' ? 'Yes' : 'No';
+  return `  Harvest start: ${hs}   Cut: ${cut.toUpperCase()}
+  PH start: ${phs}   PH fans: ${fans}   (P7 first — fans available)
+  Dryer — heat: ${heat}  blowers: ${blow}  speed: ${spd.toUpperCase()}
+  Cool room + temp check: ${cool}`;
+}
+function rowNote(dispose, store, ph) {
+  const parts = [];
+  if (dispose > 0) parts.push(`rows 1–${dispose}: dispose (first harvested)`);
+  if (store > 0) { const s=dispose+1, e=dispose+store; parts.push(`rows ${s}${e>s?'–'+e:''}: cold store`); }
+  if (ph > 0) { const s=dispose+store+1, e=dispose+store+ph; parts.push(`rows ${s}${e>s?'–'+e:''}: pack house (best)`); }
+  return parts.map(p => `  • ${p}`).join('\n');
 }
 
 function renderProtocol(d) {
-  const weatherLabel = {wet:'Wet (bad)', avg:'Average', dry:'Dry (good)'}[weatherToday];
-  const tmrwLabel    = {better:'Better ↑', same:'Same →', worse:'Worse ↓'}[tomorrowTrend];
+  const wl = {wet:'Wet',avg:'Avg',dry:'Dry'}[weatherToday];
+  const tl = {better:'Better ↑',same:'Same →',worse:'Worse ↓'}[tomorrowTrend];
+  const d1label = d1Date ? shortDate(d1Date) : 'D1';
+  const d2label = d2Date ? shortDate(d2Date) : 'D2';
+  const pullNote = d.d2Total > d.d2hlb && d.d1storeLb > 0
+    ? `  ⚠ Pull from Day 1 storage: ~${fmtLb(Math.min(d.d1storeLb, d.d2Total - d.d2hlb))} needed`
+    : d.d1storeLb > 0 ? `  ✓ Day 2 fresh covers orders — no pull needed` : '';
 
-  function daySettings(day) {
-    const hs   = $id(`${day}-hstart`).value || '—';
-    const cut  = segVal(`seg-${day}-cut`) || '—';
-    const phs  = $id(`${day}-phstart`).value || '—';
-    const fans = segVal(`seg-${day}-fans`) === 'y' ? 'Yes' : 'No';
-    const heat = segVal(`seg-${day}-heat`) === 'y' ? 'Yes' : 'No';
-    const blow = segVal(`seg-${day}-blow`) === 'y' ? 'Yes' : 'No';
-    const spd  = segVal(`seg-${day}-speed`) || '—';
-    const cool = segVal(`seg-${day}-cool`) === 'y' ? 'Yes' : 'No';
-    return [
-      `  Harvest start: ${hs}   Cut height: ${cut.toUpperCase()}`,
-      `  PH start: ${phs}   PH fans: ${fans}   (use P7 first — fans available)`,
-      `  Dryer — heat: ${heat}  blowers: ${blow}  speed: ${spd.toUpperCase()}`,
-      `  Cool room + temp before sealing: ${cool}`,
-    ].join('\n');
-  }
-
-  function rowNote(dispose, store, ph) {
-    const parts = [];
-    if (dispose > 0) parts.push(`rows 1–${dispose}: dispose (first harvested, lowest quality)`);
-    if (store > 0) {
-      const s = dispose + 1, e = dispose + store;
-      parts.push(`rows ${s}${e>s?'–'+e:''}: cold storage`);
-    }
-    if (ph > 0) {
-      const s = dispose + store + 1, e = dispose + store + ph;
-      parts.push(`rows ${s}${e>s?'–'+e:''}: pack house (best quality)`);
-    }
-    return parts.map(p => `  • ${p}`).join('\n');
-  }
-
-  const d1storePull = d.d2Total > d.d2hlb && d.d1storeLb > 0
-    ? `  ⚠ Pull ${fmt(Math.min(d.d1storeLb, d.d2Total - d.d2hlb))} lb from Day 1 storage (shortfall)`
-    : d.d1storeLb > 0
-    ? '  ✓ Skip Day 1 storage — Day 2 fresh covers orders'
-    : '';
-
-  const text = [
-    `TODAY: ${weatherLabel}   TOMORROW: ${tmrwLabel}`,
+  $id('protocol').textContent = [
+    `TODAY: ${wl}   TOMORROW: ${tl}`,
     '',
-    '══ DAY 1 ══════════════════════════════════════',
+    `══ DAY 1 (${d1label}) ═══════════════════════════════════`,
     `Orders:  ${skuBreakdown('d1')} = ${fmt(d.d1Total)} lb`,
     `Harvest: ${fmt(d.d1hlb)} lb | ${d.d1rows} rows | ${fmt(d.d1lbr)} lb/row`,
-    `Fill rate: ${Math.round(d.d1fp*100)}%`,
+    `Fill rate: ${Math.round(d.d1rec.fillRate*100)}%  [${d.d1rec.mode}]`,
     '',
     'ROW PLAN',
-    rowNote(d.d1actDispose, d.d1actStore, d.d1actPH),
-    `  → ${fmt(d.d1actStore * d.d1lbr)} lb into cold storage`,
+    rowNote(d.d1ad, d.d1as, d.d1ap),
+    `  → ${fmtLb(d.d1storeLb)} to cold storage`,
     '',
     daySettings('d1'),
     '',
-    '══ DAY 2 ══════════════════════════════════════',
-    `Day 1 cold storage: ${fmt(d.d1storeLb)} lb (${d.d1actStore} rows)`,
-    d1storePull,
+    `══ DAY 2 (${d2label}) ═══════════════════════════════════`,
+    `Day 1 cold storage: ${fmtLb(d.d1storeLb)}`,
+    pullNote,
     `Orders:  ${skuBreakdown('d2')} = ${fmt(d.d2Total)} lb`,
     `Harvest: ${fmt(d.d2hlb)} lb | ${d.d2rows} rows | ${fmt(d.d2lbr)} lb/row`,
-    `Fill rate: ${Math.round(d.d2fp*100)}% (fresh only)`,
+    `Fill rate: ${Math.round(d.d2rec.fillRate*100)}%  [${d.d2rec.mode}]`,
     '',
     'ROW PLAN',
-    rowNote(d.d2actDispose, d.d2actStore, d.d2actPH),
+    rowNote(d.d2ad, d.d2as, d.d2ap),
     '',
     daySettings('d2'),
   ].join('\n');
-
-  $id('protocol').textContent = text;
 }
 
-// Wire segment toggles
-function wireSeg(id, onChange) {
-  const el = $id(id);
-  if (!el) return;
-  el.querySelectorAll('button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      el.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      if (onChange) onChange(btn.dataset.val);
-      update();
-    });
-  });
-}
-
-// Set initial active state on data mode toggle from localStorage
-(function() {
-  const el = $id('seg-data-mode');
-  el.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.val === packDataMode));
-})();
-wireSeg('seg-data-mode', v => {
-  packDataMode = v;
-  localStorage.setItem('packPlanDataMode', v);
-  cachedOrders = null; cachedHarvest = null;
-  loadData();
-});
-wireSeg('seg-today',    v => { weatherToday = v; });
-wireSeg('seg-tomorrow', v => { tomorrowTrend = v; });
-['d1','d2'].forEach(day => {
-  ['cut','fans','heat','blow','speed','cool'].forEach(ctrl => wireSeg(`seg-${day}-${ctrl}`));
-});
-
-// Wire row plan inputs as dirty
-['dispose','store','ph'].forEach(f => {
-  ['d1','d2'].forEach(day => {
-    $id(`${day}-${f}`).addEventListener('input', () => {
-      dirty[day][f] = true;
-      update();
-    });
-  });
-});
-
-// Wire all other number + time inputs
-document.querySelectorAll('input[type=number]:not([id$=dispose]):not([id$=store]):not([id$=ph]), input[type=time]').forEach(el => {
-  el.addEventListener('input', update);
-});
-
-// ── Data loading ─────────────────────────────────────────────────────────────
-
-let cachedOrders  = null;
-let cachedHarvest = null;
-// Pack plan defaults to sheets — the sales_po GSheet is the authoritative PO source
-let packDataMode = localStorage.getItem('packPlanDataMode') || 'sheets';
-
-function isoToday() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-function isoAddDays(iso, n) {
-  const d = new Date(iso + 'T12:00:00');
-  d.setDate(d.getDate() + n);
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-
-function toISO(d) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-
-// Day1 = Sun(0) or Wed(3); Day2 = Mon(1) or Thu(4).
-// Given any ISO date, snap to the nearest pack cycle {d1, d2}.
-function packCycleDates(iso) {
-  const d = new Date(iso + 'T12:00:00');
-  const dow = d.getDay(); // 0=Sun,1=Mon,2=Tue,3=Wed,4=Thu,5=Fri,6=Sat
-  if (dow === 0 || dow === 3) {
-    // This is Day1 (Sun or Wed)
-    const d2 = new Date(d); d2.setDate(d.getDate() + 1);
-    return {d1: iso, d2: toISO(d2)};
-  }
-  if (dow === 1 || dow === 4) {
-    // This is Day2 (Mon or Thu); Day1 = yesterday
-    const d1 = new Date(d); d1.setDate(d.getDate() - 1);
-    return {d1: toISO(d1), d2: iso};
-  }
-  // Off-day (Tue/Fri/Sat): snap forward to next Sun or Wed
-  const daysAhead = [0, 6, 1, 0, 6, 1, 0][dow]; // Tue→1(Wed), Fri→2(Sun)? Let me compute:
-  // Tue(2)→Wed(3)=1day, Fri(5)→Sun(0)=2days, Sat(6)→Sun(0)=1day
-  const snapDays = dow === 2 ? 1 : dow === 5 ? 2 : dow === 6 ? 1 : 1;
-  const snapped = new Date(d); snapped.setDate(d.getDate() + snapDays);
-  const d2s = new Date(snapped); d2s.setDate(snapped.getDate() + 1);
-  return {d1: toISO(snapped), d2: toISO(d2s)};
-}
+// ── Data loading ──────────────────────────────────────────────────────────────
+let cachedOrders = null, cachedHarvest = null;
 
 function gvizCellToISO(cell) {
   if (!cell || cell.v === null || cell.v === undefined) return null;
@@ -702,34 +557,27 @@ function gvizCellToISO(cell) {
   if (!m) return null;
   return `${m[1]}-${String(parseInt(m[2])+1).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
 }
-
 function colIdx(cols, label) { return cols.findIndex(c => c.label === label); }
 
 function ordersByDate(dateISO) {
   if (!cachedOrders) return null;
   const {cols, rows} = cachedOrders;
-  const di = colIdx(cols, 'PackDate');
-  const si = colIdx(cols, 'SKU');
-  const ci = colIdx(cols, 'Cases');
+  const di = colIdx(cols, 'PackDate'), si = colIdx(cols, 'SKU'), ci = colIdx(cols, 'Cases');
   if (di < 0 || si < 0 || ci < 0) return null;
   const result = {LW:0, LR:0, LF:0, WR:0};
   rows.forEach(row => {
     if (gvizCellToISO(row.c[di]) !== dateISO) return;
     const sku = row.c[si] && row.c[si].v;
-    if (Object.prototype.hasOwnProperty.call(result, sku)) {
+    if (Object.prototype.hasOwnProperty.call(result, sku))
       result[sku] += (row.c[ci] && row.c[ci].v) || 0;
-    }
   });
   return result;
 }
-
 function harvestByDate(dateISO) {
   if (!cachedHarvest) return null;
   const {cols, rows} = cachedHarvest;
-  const di   = colIdx(cols, 'HarvestDate');
-  const bppi = colIdx(cols, 'BoardsPerPond');
-  const plbi = colIdx(cols, 'PoundsPerBoard');
-  const gnwi = colIdx(cols, 'GreenhouseNetWeight');
+  const di = colIdx(cols, 'HarvestDate'), bppi = colIdx(cols, 'BoardsPerPond');
+  const plbi = colIdx(cols, 'PoundsPerBoard'), gnwi = colIdx(cols, 'GreenhouseNetWeight');
   if (di < 0) return null;
   const matching = rows.filter(r => gvizCellToISO(r.c[di]) === dateISO);
   if (!matching.length) return null;
@@ -745,23 +593,15 @@ function harvestByDate(dateISO) {
 
 function setStatus(msg, cls) {
   const el = $id('data-status');
-  el.textContent = msg;
-  el.className = 'data-status ' + (cls || '');
+  el.textContent = msg; el.className = 'data-status ' + (cls || '');
 }
 
 function populateDay(day, dateISO) {
-  // Orders
   const orders = ordersByDate(dateISO);
   if (orders) {
-    ['LW','LR','LF','WR'].forEach(sku => {
-      const el = $id(`${day}-${sku.toLowerCase()}`);
-      el.value = orders[sku] || 0;
-    });
-    // Reset dirty flags — data came from DB not user
+    SKUS.forEach(sku => { $id(`${day}-${sku.toLowerCase()}`).value = orders[sku] || 0; });
     dirty[day] = {dispose:false, store:false, ph:false};
   }
-
-  // Harvest
   const harv = harvestByDate(dateISO);
   if (harv) {
     $id(`${day}-hlb`).value  = Math.round(harv.totalLb);
@@ -770,52 +610,81 @@ function populateDay(day, dateISO) {
   }
 }
 
-async function loadData() {
-  setStatus('loading…', 'loading');
-  const mode = packDataMode === 'db' ? DataSource.getMode() : 'sheets';
-  try {
-    [cachedOrders, cachedHarvest] = await Promise.all([
-      DataSource.fetchTable('lettuce_pack_orders', {mode}),
-      DataSource.fetchTable('lettuce_harvest',     {mode}),
-    ]);
-    setStatus('loaded', 'loaded');
-    applyDates();
-  } catch (e) {
-    setStatus('error', 'error');
-    console.error('Pack plan data load failed:', e);
-  }
-}
-
 function applyDates() {
-  const d1 = $id('date-d1').value;
-  const d2 = $id('date-d2').value;
-  if (d1) populateDay('d1', d1);
-  if (d2) populateDay('d2', d2);
+  if (d1Date) populateDay('d1', d1Date);
+  if (d2Date) populateDay('d2', d2Date);
   update();
 }
 
-// Init date pickers — snap to pack cycle based on today's DOW
-(function() {
-  const today = isoToday();
-  const cycle = packCycleDates(today);
-  $id('date-d1').value = cycle.d1;
-  $id('date-d2').value = cycle.d2 || isoAddDays(cycle.d1, 1);
+async function loadData() {
+  setStatus('loading…', 'loading');
+  const mode = packDataMode === 'db' ? DataSource.getMode() : 'sheets';
+  // Fetch each independently so one failure doesn't block the other
+  const [ordersResult, harvestResult] = await Promise.allSettled([
+    DataSource.fetchTable('lettuce_pack_orders', {mode}),
+    DataSource.fetchTable('lettuce_harvest',     {mode}),
+  ]);
+  if (ordersResult.status  === 'fulfilled') cachedOrders  = ordersResult.value;
+  if (harvestResult.status === 'fulfilled') cachedHarvest = harvestResult.value;
 
-  // When either date changes, snap both to the pack cycle for that date
-  $id('date-d1').addEventListener('change', () => {
-    const d1 = $id('date-d1').value;
-    const cycle = packCycleDates(d1);
-    $id('date-d2').value = cycle.d2;
-    applyDates();
+  const bothOk = ordersResult.status === 'fulfilled' && harvestResult.status === 'fulfilled';
+  const noneOk = ordersResult.status === 'rejected'  && harvestResult.status === 'rejected';
+  setStatus(noneOk ? 'error' : bothOk ? 'loaded' : 'partial', noneOk ? 'error' : 'loaded');
+  if (!bothOk) console.warn('Pack plan load issues:', ordersResult.reason, harvestResult.reason);
+  applyDates();
+}
+
+// ── Segment toggle wiring ────────────────────────────────────────────────────
+function wireSeg(id, onChange) {
+  const el = $id(id);
+  if (!el) return;
+  el.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      el.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (onChange) onChange(btn.dataset.val);
+      update();
+    });
   });
-  $id('date-d2').addEventListener('change', () => {
-    const d2 = $id('date-d2').value;
-    const cycle = packCycleDates(d2);
-    $id('date-d1').value = cycle.d1;
-    $id('date-d2').value = cycle.d2;
-    applyDates();
+}
+
+// Set initial data mode active state
+$id('seg-data-mode').querySelectorAll('button').forEach(b =>
+  b.classList.toggle('active', b.dataset.val === packDataMode));
+wireSeg('seg-data-mode', v => {
+  packDataMode = v; localStorage.setItem('packPlanDataMode', v);
+  cachedOrders = null; cachedHarvest = null; loadData();
+});
+wireSeg('seg-today',    v => { weatherToday = v; });
+wireSeg('seg-tomorrow', v => { tomorrowTrend = v; });
+['d1','d2'].forEach(day => {
+  ['cut','fans','heat','blow','speed','cool'].forEach(ctrl => wireSeg(`seg-${day}-${ctrl}`));
+});
+
+// Row plan dirty tracking
+['dispose','store','ph'].forEach(f => {
+  ['d1','d2'].forEach(day => {
+    $id(`${day}-${f}`).addEventListener('input', () => { dirty[day][f] = true; update(); });
   });
-})();
+});
+
+// All other numeric and time inputs
+document.querySelectorAll('input[type=number]:not([id$=dispose]):not([id$=store]):not([id$=ph]), input[type=time]').forEach(el => {
+  el.addEventListener('input', update);
+});
+
+// ── Date picker ───────────────────────────────────────────────────────────────
+function onDateChange(iso) {
+  const cycle = packCycleDates(iso || isoToday());
+  d1Date = cycle.d1; d2Date = cycle.d2;
+  $id('cycle-label').textContent = `D1: ${shortDate(d1Date)}  ·  D2: ${shortDate(d2Date)}`;
+  applyDates();
+}
+
+const dateEl = $id('pack-date');
+dateEl.value = isoToday();
+dateEl.addEventListener('change', () => onDateChange(dateEl.value));
+onDateChange(dateEl.value);
 
 loadData();
 
@@ -828,7 +697,6 @@ fetch('', {method:'HEAD'}).then(r => {
   $id('version').textContent = `${p(hst.getUTCMonth()+1)}-${p(hst.getUTCDate())} ${p(hst.getUTCHours())}:${p(hst.getUTCMinutes())}`;
 }).catch(()=>{});
 
-update();
 </script>
 </body>
 </html>
