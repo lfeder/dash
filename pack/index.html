@@ -90,6 +90,24 @@ input[type=time]:focus { outline:none; border-color:#4ecca3; }
 .reset-btn { font-size:0.68rem; color:#444; background:none; border:none; cursor:pointer; padding:0 3px; }
 .reset-btn:hover { color:#4ecca3; }
 
+/* Pond visualization */
+.viz-day { margin-bottom:12px; }
+.viz-day-title { font-size:0.72rem; color:#666; margin-bottom:5px; }
+.pond-row { display:flex; align-items:center; gap:8px; margin-bottom:3px; font-size:0.8rem; }
+.pond-lbl { width:32px; color:#ccc; font-weight:600; flex-shrink:0; }
+.pond-var { width:70px; color:#666; font-size:0.72rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex-shrink:0; }
+.pond-bar-wrap { flex:1; background:#0a1428; border-radius:3px; height:16px; overflow:hidden; display:flex; min-width:60px; }
+.pseg-d { background:rgba(231,76,60,.65); }
+.pseg-s { background:rgba(52,152,219,.65); }
+.pseg-p { background:rgba(78,204,163,.65); }
+.pond-rlbl { width:34px; color:#555; font-size:0.7rem; text-align:right; flex-shrink:0; }
+.pond-fans { color:#4ecca3; font-size:0.65rem; vertical-align:super; }
+.viz-total { display:flex; gap:8px; font-size:0.72rem; color:#555; margin-top:5px; padding-top:5px; border-top:1px solid #1a2a4a; }
+.viz-total span { color:#888; }
+.viz-legend { display:flex; gap:12px; font-size:0.7rem; color:#666; margin-bottom:6px; }
+.viz-legend-item { display:flex; align-items:center; gap:4px; }
+.viz-legend-dot { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+
 /* Protocol */
 .proto-card { background:#0d1527; border-radius:8px; border:1px solid #0f3460; padding:14px 18px; }
 .proto-card .section-title { margin-bottom:8px; }
@@ -239,6 +257,17 @@ input[type=time]:focus { outline:none; border-color:#4ecca3; }
         </tr>
       </tbody>
     </table>
+  </div>
+
+  <!-- HARVEST VISUALIZATION -->
+  <div>
+    <div class="section-title">Harvest Schedule</div>
+    <div class="viz-legend">
+      <div class="viz-legend-item"><div class="viz-legend-dot" style="background:rgba(231,76,60,.65)"></div>Dispose</div>
+      <div class="viz-legend-item"><div class="viz-legend-dot" style="background:rgba(52,152,219,.65)"></div>Cold Store</div>
+      <div class="viz-legend-item"><div class="viz-legend-dot" style="background:rgba(78,204,163,.65)"></div>Pack House</div>
+    </div>
+    <div id="pond-viz"></div>
   </div>
 
   <!-- SETTINGS -->
@@ -481,6 +510,7 @@ function update() {
 
   renderProtocol({d1Total, d1hlb, d1rows, d1lbr, d1rec, d1ad, d1as, d1ap, d1storeLb,
                   d2Total, d2hlb, d2rows, d2lbr, d2rec, d2ad, d2as, d2ap});
+  updateViz();
 }
 
 function skuBreakdown(day) {
@@ -549,7 +579,91 @@ function renderProtocol(d) {
 }
 
 // ── Data loading ──────────────────────────────────────────────────────────────
-let cachedOrders = null, cachedHarvest = null;
+let cachedOrders = null, cachedHarvest = null, cachedGrow = null;
+
+// Harvest order: worst quality (harvested first) → best quality (P7 last, fans)
+const POND_ORDER = ['P2','P3','P4','P5','P6','P7','P1'];
+const POND_FANS  = new Set(['P7']);
+
+function growByDate(dateISO) {
+  if (!cachedGrow) return {};
+  const {cols, rows} = cachedGrow;
+  const di = colIdx(cols,'HarvestDate'), pi = colIdx(cols,'Pond');
+  const si = colIdx(cols,'Side'),        vi = colIdx(cols,'Variety');
+  const bi = colIdx(cols,'Boards'),      li = colIdx(cols,'ExpLb');
+  const ri = colIdx(cols,'Rows');
+  if (di < 0 || pi < 0) return {};
+  const byPond = {};
+  rows.forEach(r => {
+    if (gvizCellToISO(r.c[di]) !== dateISO) return;
+    const pond = r.c[pi]?.v; if (!pond) return;
+    if (!byPond[pond]) byPond[pond] = {pond, varieties:new Set(), rows:0, boards:0, expLb:0};
+    if (si>=0 && r.c[si]?.v) byPond[pond].varieties.add(r.c[vi]?.v || '');
+    byPond[pond].boards += (bi>=0 ? r.c[bi]?.v : 0) || 0;
+    byPond[pond].expLb  += (li>=0 ? r.c[li]?.v : 0) || 0;
+    byPond[pond].rows   += (ri>=0 ? r.c[ri]?.v : 0) || 0;
+  });
+  return byPond;
+}
+
+function applyDisp(byPond, dispose, store) {
+  const ponds = POND_ORDER.filter(p => byPond[p]).map(p => ({...byPond[p], varieties:[...byPond[p].varieties].filter(Boolean)}));
+  let rd = +dispose || 0, rs = +store || 0;
+  ponds.forEach(p => {
+    p.d  = Math.min(p.rows, rd); rd = Math.max(0, rd - p.rows);
+    const rem = p.rows - p.d;
+    p.s  = Math.min(rem, rs); rs = Math.max(0, rs - rem);
+    p.ph = p.rows - p.d - p.s;
+  });
+  return ponds;
+}
+
+function renderVizDay(ponds, dateISO) {
+  if (!ponds.length) return `<div style="color:#444;font-size:0.76rem">No grow data for ${dateISO || 'this date'}</div>`;
+  const totalRows = ponds.reduce((s,p) => s+p.rows, 0);
+  const totalLb   = ponds.reduce((s,p) => s+p.expLb, 0);
+  const rows = ponds.map(p => {
+    const t = p.rows || 1;
+    const dp = (p.d  / t * 100).toFixed(1);
+    const sp = (p.s  / t * 100).toFixed(1);
+    const pp = (p.ph / t * 100).toFixed(1);
+    const fans = POND_FANS.has(p.pond) ? '<sup class="pond-fans">★</sup>' : '';
+    const vars = p.varieties.join('/') || '—';
+    return `<div class="pond-row">
+      <span class="pond-lbl">${p.pond}${fans}</span>
+      <span class="pond-var" title="${vars}">${vars}</span>
+      <div class="pond-bar-wrap">
+        ${+dp>0 ? `<div class="pseg-d" style="width:${dp}%" title="${p.d}r dispose"></div>`  : ''}
+        ${+sp>0 ? `<div class="pseg-s" style="width:${sp}%" title="${p.s}r store"></div>`    : ''}
+        ${+pp>0 ? `<div class="pseg-p" style="width:${pp}%" title="${p.ph}r pack house"></div>` : ''}
+      </div>
+      <span class="pond-rlbl">${p.rows}r</span>
+    </div>`;
+  }).join('');
+  return rows + `<div class="viz-total"><span>${totalRows} rows total</span><span>·</span><span>~${fmt(totalLb)} lb est.</span></div>`;
+}
+
+function updateViz() {
+  if (!cachedGrow) { $id('pond-viz').innerHTML = ''; return; }
+  const d1by = growByDate(d1Date);
+  const d2by = growByDate(d2Date);
+  const d1p  = applyDisp(d1by, numVal('d1-dispose'), numVal('d1-store'));
+  const d2p  = applyDisp(d2by, numVal('d2-dispose'), numVal('d2-store'));
+  $id('pond-viz').innerHTML =
+    `<div class="viz-day"><div class="viz-day-title">D1 · ${shortDate(d1Date)}</div>${renderVizDay(d1p, d1Date)}</div>` +
+    `<div class="viz-day"><div class="viz-day-title">D2 · ${shortDate(d2Date)}</div>${renderVizDay(d2p, d2Date)}</div>`;
+}
+
+function populateGrow(day, dateISO) {
+  const byPond = growByDate(dateISO);
+  const ponds = POND_ORDER.filter(p => byPond[p]).map(p => byPond[p]);
+  if (!ponds.length) return;
+  const totalRows = ponds.reduce((s,p) => s + (p.rows||0), 0);
+  const totalLb   = ponds.reduce((s,p) => s + (p.expLb||0), 0);
+  if (totalRows > 0) $id(`${day}-rows`).value = totalRows;
+  if (totalLb   > 0) $id(`${day}-hlb`).value  = Math.round(totalLb);
+  dirty[day] = {dispose:false, store:false, ph:false};
+}
 
 function gvizCellToISO(cell) {
   if (!cell || cell.v === null || cell.v === undefined) return null;
@@ -611,8 +725,8 @@ function populateDay(day, dateISO) {
 }
 
 function applyDates() {
-  if (d1Date) populateDay('d1', d1Date);
-  if (d2Date) populateDay('d2', d2Date);
+  if (d1Date) { populateGrow('d1', d1Date); populateDay('d1', d1Date); }
+  if (d2Date) { populateGrow('d2', d2Date); populateDay('d2', d2Date); }
   update();
 }
 
@@ -620,17 +734,19 @@ async function loadData() {
   setStatus('loading…', 'loading');
   const mode = packDataMode === 'db' ? DataSource.getMode() : 'sheets';
   // Fetch each independently so one failure doesn't block the other
-  const [ordersResult, harvestResult] = await Promise.allSettled([
+  const [ordersResult, harvestResult, growResult] = await Promise.allSettled([
     DataSource.fetchTable('lettuce_pack_orders', {mode}),
     DataSource.fetchTable('lettuce_harvest',     {mode}),
+    DataSource.fetchTable('lettuce_grow_plan',   {mode}),
   ]);
   if (ordersResult.status  === 'fulfilled') cachedOrders  = ordersResult.value;
   if (harvestResult.status === 'fulfilled') cachedHarvest = harvestResult.value;
+  if (growResult.status    === 'fulfilled') cachedGrow    = growResult.value;
 
-  const bothOk = ordersResult.status === 'fulfilled' && harvestResult.status === 'fulfilled';
-  const noneOk = ordersResult.status === 'rejected'  && harvestResult.status === 'rejected';
-  setStatus(noneOk ? 'error' : bothOk ? 'loaded' : 'partial', noneOk ? 'error' : 'loaded');
-  if (!bothOk) console.warn('Pack plan load issues:', ordersResult.reason, harvestResult.reason);
+  const allOk  = [ordersResult, harvestResult, growResult].every(r => r.status === 'fulfilled');
+  const noneOk = [ordersResult, harvestResult, growResult].every(r => r.status === 'rejected');
+  setStatus(noneOk ? 'error' : allOk ? 'loaded' : 'partial', noneOk ? 'error' : 'loaded');
+  if (!allOk) console.warn('Pack plan load issues:', ordersResult.reason, harvestResult.reason, growResult.reason);
   applyDates();
 }
 
