@@ -107,11 +107,10 @@ input[type=time]:focus { outline:none; border-color:#4ecca3; }
 .viz-legend { display:flex; gap:12px; font-size:0.7rem; color:#666; margin-bottom:6px; }
 .viz-legend-item { display:flex; align-items:center; gap:4px; }
 .viz-legend-dot { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+.pond-prev { width:52px; text-align:right; font-size:0.72rem; color:#666; flex-shrink:0; font-variant-numeric:tabular-nums; }
+.pond-hdr  { font-size:0.68rem; color:#444; }
+.pond-exp  { width:52px; text-align:right; font-size:0.72rem; color:#555; flex-shrink:0; font-variant-numeric:tabular-nums; }
 
-/* Protocol */
-.proto-card { background:#0d1527; border-radius:8px; border:1px solid #0f3460; padding:14px 18px; }
-.proto-card .section-title { margin-bottom:8px; }
-#protocol { font-size:0.82rem; line-height:1.75; white-space:pre-wrap; font-family:'Courier New',monospace; color:#b8d4f0; }
 </style>
 </head>
 <body>
@@ -314,10 +313,6 @@ input[type=time]:focus { outline:none; border-color:#4ecca3; }
 
 </div><!-- .card -->
 
-<div class="proto-card">
-  <div class="section-title">Crew Protocol</div>
-  <div id="protocol"></div>
-</div>
 </main>
 
 <script>
@@ -508,74 +503,7 @@ function update() {
   const d2ad = numVal('d2-dispose'), d2as = numVal('d2-store'), d2ap = numVal('d2-ph');
   $id('d2-rowcheck').innerHTML = rowCheckHtml(d2ad + d2as + d2ap, d2rows);
 
-  renderProtocol({d1Total, d1hlb, d1rows, d1lbr, d1rec, d1ad, d1as, d1ap, d1storeLb,
-                  d2Total, d2hlb, d2rows, d2lbr, d2rec, d2ad, d2as, d2ap});
   updateViz();
-}
-
-function skuBreakdown(day) {
-  return SKUS.map(s => {
-    const c = numVal(`${day}-${s.toLowerCase()}`);
-    return c > 0 ? `${s} ${c}cs` : null;
-  }).filter(Boolean).join(' + ') || 'none';
-}
-function daySettings(day) {
-  const hs   = $id(`${day}-hstart`).value || '—';
-  const cut  = segVal(`seg-${day}-cut`) || '—';
-  const phs  = $id(`${day}-phstart`).value || '—';
-  const fans = segVal(`seg-${day}-fans`) === 'y' ? 'Yes' : 'No';
-  const heat = segVal(`seg-${day}-heat`) === 'y' ? 'Yes' : 'No';
-  const blow = segVal(`seg-${day}-blow`) === 'y' ? 'Yes' : 'No';
-  const spd  = segVal(`seg-${day}-speed`) || '—';
-  const cool = segVal(`seg-${day}-cool`) === 'y' ? 'Yes' : 'No';
-  return `  Harvest start: ${hs}   Cut: ${cut.toUpperCase()}
-  PH start: ${phs}   PH fans: ${fans}   (P7 first — fans available)
-  Dryer — heat: ${heat}  blowers: ${blow}  speed: ${spd.toUpperCase()}
-  Cool room + temp check: ${cool}`;
-}
-function rowNote(dispose, store, ph) {
-  const parts = [];
-  if (dispose > 0) parts.push(`rows 1–${dispose}: dispose (first harvested)`);
-  if (store > 0) { const s=dispose+1, e=dispose+store; parts.push(`rows ${s}${e>s?'–'+e:''}: cold store`); }
-  if (ph > 0) { const s=dispose+store+1, e=dispose+store+ph; parts.push(`rows ${s}${e>s?'–'+e:''}: pack house (best)`); }
-  return parts.map(p => `  • ${p}`).join('\n');
-}
-
-function renderProtocol(d) {
-  const wl = {wet:'Wet',avg:'Avg',dry:'Dry'}[weatherToday];
-  const tl = {better:'Better ↑',same:'Same →',worse:'Worse ↓'}[tomorrowTrend];
-  const d1label = d1Date ? shortDate(d1Date) : 'D1';
-  const d2label = d2Date ? shortDate(d2Date) : 'D2';
-  const pullNote = d.d2Total > d.d2hlb && d.d1storeLb > 0
-    ? `  ⚠ Pull from Day 1 storage: ~${fmtLb(Math.min(d.d1storeLb, d.d2Total - d.d2hlb))} needed`
-    : d.d1storeLb > 0 ? `  ✓ Day 2 fresh covers orders — no pull needed` : '';
-
-  $id('protocol').textContent = [
-    `TODAY: ${wl}   TOMORROW: ${tl}`,
-    '',
-    `══ DAY 1 (${d1label}) ═══════════════════════════════════`,
-    `Orders:  ${skuBreakdown('d1')} = ${fmt(d.d1Total)} lb`,
-    `Harvest: ${fmt(d.d1hlb)} lb | ${d.d1rows} rows | ${fmt(d.d1lbr)} lb/row`,
-    `Fill rate: ${Math.round(d.d1rec.fillRate*100)}%  [${d.d1rec.mode}]`,
-    '',
-    'ROW PLAN',
-    rowNote(d.d1ad, d.d1as, d.d1ap),
-    `  → ${fmtLb(d.d1storeLb)} to cold storage`,
-    '',
-    daySettings('d1'),
-    '',
-    `══ DAY 2 (${d2label}) ═══════════════════════════════════`,
-    `Day 1 cold storage: ${fmtLb(d.d1storeLb)}`,
-    pullNote,
-    `Orders:  ${skuBreakdown('d2')} = ${fmt(d.d2Total)} lb`,
-    `Harvest: ${fmt(d.d2hlb)} lb | ${d.d2rows} rows | ${fmt(d.d2lbr)} lb/row`,
-    `Fill rate: ${Math.round(d.d2rec.fillRate*100)}%  [${d.d2rec.mode}]`,
-    '',
-    'ROW PLAN',
-    rowNote(d.d2ad, d.d2as, d.d2ap),
-    '',
-    daySettings('d2'),
-  ].join('\n');
 }
 
 // ── Data loading ──────────────────────────────────────────────────────────────
@@ -618,40 +546,69 @@ function applyDisp(byPond, dispose, store) {
   return ponds;
 }
 
-function renderVizDay(ponds, dateISO) {
+function renderVizDay(ponds, dateISO, p1by, p2by) {
   if (!ponds.length) return `<div style="color:#444;font-size:0.76rem">No grow data for ${dateISO || 'this date'}</div>`;
-  const totalRows = ponds.reduce((s,p) => s+p.rows, 0);
-  const totalLb   = ponds.reduce((s,p) => s+p.expLb, 0);
-  const rows = ponds.map(p => {
+  const fmtW = lb => (lb && lb > 0) ? fmt(Math.round(lb)) : '—';
+  let html = `<div class="pond-row" style="margin-bottom:5px">
+    <span class="pond-lbl"></span><span class="pond-var"></span>
+    <span class="pond-prev pond-hdr">-2w lb</span>
+    <span class="pond-prev pond-hdr">-1w lb</span>
+    <span class="pond-exp pond-hdr">est lb</span>
+    <div style="flex:1"></div>
+    <span class="pond-rlbl pond-hdr">rows</span>
+  </div>`;
+  html += ponds.map(p => {
     const t = p.rows || 1;
     const dp = (p.d  / t * 100).toFixed(1);
     const sp = (p.s  / t * 100).toFixed(1);
     const pp = (p.ph / t * 100).toFixed(1);
     const fans = POND_FANS.has(p.pond) ? '<sup class="pond-fans">★</sup>' : '';
     const vars = p.varieties.join('/') || '—';
+    const w2 = fmtW(p2by[p.pond]?.expLb);
+    const w1 = fmtW(p1by[p.pond]?.expLb);
+    const we = fmtW(p.expLb);
     return `<div class="pond-row">
       <span class="pond-lbl">${p.pond}${fans}</span>
       <span class="pond-var" title="${vars}">${vars}</span>
+      <span class="pond-prev">${w2}</span>
+      <span class="pond-prev">${w1}</span>
+      <span class="pond-exp">${we}</span>
       <div class="pond-bar-wrap">
         ${+dp>0 ? `<div class="pseg-d" style="width:${dp}%" title="${p.d}r dispose"></div>`  : ''}
         ${+sp>0 ? `<div class="pseg-s" style="width:${sp}%" title="${p.s}r store"></div>`    : ''}
-        ${+pp>0 ? `<div class="pseg-p" style="width:${pp}%" title="${p.ph}r pack house"></div>` : ''}
+        ${+pp>0 ? `<div class="pseg-p" style="width:${pp}%" title="${p.ph}r PH"></div>` : ''}
       </div>
       <span class="pond-rlbl">${p.rows}r</span>
     </div>`;
   }).join('');
-  return rows + `<div class="viz-total"><span>${totalRows} rows total</span><span>·</span><span>~${fmt(totalLb)} lb est.</span></div>`;
+  const totalRows = ponds.reduce((s,p) => s+p.rows, 0);
+  const totalLb   = ponds.reduce((s,p) => s+p.expLb, 0);
+  const tot2 = POND_ORDER.reduce((s,k) => s+(p2by[k]?.expLb||0), 0);
+  const tot1 = POND_ORDER.reduce((s,k) => s+(p1by[k]?.expLb||0), 0);
+  html += `<div class="pond-row" style="border-top:1px solid #1a2a4a;margin-top:4px;padding-top:4px">
+    <span class="pond-lbl" style="color:#555">Total</span><span class="pond-var"></span>
+    <span class="pond-prev" style="color:#777">${fmtW(tot2)}</span>
+    <span class="pond-prev" style="color:#777">${fmtW(tot1)}</span>
+    <span class="pond-exp" style="color:#777">${fmtW(totalLb)}</span>
+    <div style="flex:1;font-size:0.7rem;color:#444;padding:0 8px">${totalRows} rows</div>
+    <span class="pond-rlbl"></span>
+  </div>`;
+  return html;
 }
 
 function updateViz() {
   if (!cachedGrow) { $id('pond-viz').innerHTML = ''; return; }
-  const d1by = growByDate(d1Date);
-  const d2by = growByDate(d2Date);
-  const d1p  = applyDisp(d1by, numVal('d1-dispose'), numVal('d1-store'));
-  const d2p  = applyDisp(d2by, numVal('d2-dispose'), numVal('d2-store'));
+  const d1by   = growByDate(d1Date);
+  const d2by   = growByDate(d2Date);
+  const d1p1by = growByDate(isoAddDays(d1Date, -7));
+  const d1p2by = growByDate(isoAddDays(d1Date, -14));
+  const d2p1by = growByDate(isoAddDays(d2Date, -7));
+  const d2p2by = growByDate(isoAddDays(d2Date, -14));
+  const d1p    = applyDisp(d1by, numVal('d1-dispose'), numVal('d1-store'));
+  const d2p    = applyDisp(d2by, numVal('d2-dispose'), numVal('d2-store'));
   $id('pond-viz').innerHTML =
-    `<div class="viz-day"><div class="viz-day-title">D1 · ${shortDate(d1Date)}</div>${renderVizDay(d1p, d1Date)}</div>` +
-    `<div class="viz-day"><div class="viz-day-title">D2 · ${shortDate(d2Date)}</div>${renderVizDay(d2p, d2Date)}</div>`;
+    `<div class="viz-day"><div class="viz-day-title">D1 · ${shortDate(d1Date)}</div>${renderVizDay(d1p, d1Date, d1p1by, d1p2by)}</div>` +
+    `<div class="viz-day" style="margin-top:12px"><div class="viz-day-title">D2 · ${shortDate(d2Date)}</div>${renderVizDay(d2p, d2Date, d2p1by, d2p2by)}</div>`;
 }
 
 function populateGrow(day, dateISO) {
