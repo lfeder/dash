@@ -513,6 +513,15 @@ let cachedOrders = null, cachedHarvest = null, cachedGrow = null;
 const POND_ORDER = ['P2','P3','P4','P5','P6','P7','P1'];
 const POND_FANS  = new Set(['P7']);
 
+// Historical: use actual greenhousenetweight. Future (weight=0): avg of prior 2 same-DOW weeks.
+function computeEstLb(pondData, p1by, p2by) {
+  if (pondData.expLb > 0) return pondData.expLb;
+  const w1 = p1by[pondData.pond]?.expLb || 0;
+  const w2 = p2by[pondData.pond]?.expLb || 0;
+  if (w1 > 0 && w2 > 0) return (w1 + w2) / 2;
+  return w1 || w2;
+}
+
 function growByDate(dateISO) {
   if (!cachedGrow) return {};
   const {cols, rows} = cachedGrow;
@@ -564,9 +573,9 @@ function renderVizDay(ponds, dateISO, p1by, p2by) {
     const pp = (p.ph / t * 100).toFixed(1);
     const fans = POND_FANS.has(p.pond) ? '<sup class="pond-fans">★</sup>' : '';
     const vars = p.varieties.join('/') || '—';
-    const w2 = fmtW(p2by[p.pond]?.expLb);
-    const w1 = fmtW(p1by[p.pond]?.expLb);
-    const we = fmtW(p.expLb);
+    const w2  = fmtW(p2by[p.pond]?.expLb);
+    const w1  = fmtW(p1by[p.pond]?.expLb);
+    const we  = fmtW(computeEstLb(p, p1by, p2by));
     return `<div class="pond-row">
       <span class="pond-lbl">${p.pond}${fans}</span>
       <span class="pond-var" title="${vars}">${vars}</span>
@@ -582,7 +591,7 @@ function renderVizDay(ponds, dateISO, p1by, p2by) {
     </div>`;
   }).join('');
   const totalRows = ponds.reduce((s,p) => s+p.rows, 0);
-  const totalLb   = ponds.reduce((s,p) => s+p.expLb, 0);
+  const totalLb   = ponds.reduce((s,p) => s+computeEstLb(p, p1by, p2by), 0);
   const tot2 = POND_ORDER.reduce((s,k) => s+(p2by[k]?.expLb||0), 0);
   const tot1 = POND_ORDER.reduce((s,k) => s+(p1by[k]?.expLb||0), 0);
   html += `<div class="pond-row" style="border-top:1px solid #1a2a4a;margin-top:4px;padding-top:4px">
@@ -613,10 +622,12 @@ function updateViz() {
 
 function populateGrow(day, dateISO) {
   const byPond = growByDate(dateISO);
-  const ponds = POND_ORDER.filter(p => byPond[p]).map(p => byPond[p]);
+  const ponds  = POND_ORDER.filter(p => byPond[p]).map(p => byPond[p]);
   if (!ponds.length) return;
+  const p1by = growByDate(isoAddDays(dateISO, -7));
+  const p2by = growByDate(isoAddDays(dateISO, -14));
   const totalRows = ponds.reduce((s,p) => s + (p.rows||0), 0);
-  const totalLb   = ponds.reduce((s,p) => s + (p.expLb||0), 0);
+  const totalLb   = ponds.reduce((s,p) => s + computeEstLb(p, p1by, p2by), 0);
   if (totalRows > 0) $id(`${day}-rows`).value = totalRows;
   if (totalLb   > 0) $id(`${day}-hlb`).value  = Math.round(totalLb);
   dirty[day] = {dispose:false, store:false, ph:false};
