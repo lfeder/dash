@@ -398,6 +398,7 @@ function orderLb(day) {
 
 function recPlan(orderLb, harvestLb, rows, weather, tomorrow, storageLb) {
   if (rows === 0 || harvestLb === 0) return {dispose:0, store:0, ph:0, mode:'—', fillRate:0, lbRow:0};
+  if (orderLb === 0) return {dispose:0, store:0, ph:0, mode:'No orders', fillRate:0, lbRow:harvestLb/rows};
   const lbRow = harvestLb / rows;
   const fillRate = orderLb / harvestLb;
   const wet = weather === 'wet', better = tomorrow === 'better', worse = tomorrow === 'worse';
