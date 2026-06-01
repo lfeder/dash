@@ -94,7 +94,7 @@ input[type=time]:focus { outline:none; border-color:#4ecca3; }
 .viz-day { margin-bottom:12px; }
 .viz-day-title { font-size:0.72rem; color:#666; margin-bottom:5px; }
 .pond-row { display:flex; align-items:center; gap:8px; margin-bottom:3px; font-size:0.8rem; }
-.pond-lbl { width:32px; color:#ccc; font-weight:600; flex-shrink:0; }
+.pond-lbl { width:52px; color:#ccc; font-weight:600; flex-shrink:0; font-size:0.8rem; }
 .pond-var { width:70px; color:#666; font-size:0.72rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex-shrink:0; }
 .pond-bar-wrap { flex:1; background:#0a1428; border-radius:3px; height:16px; overflow:hidden; display:flex; min-width:60px; }
 .pseg-d { background:rgba(231,76,60,.65); }
@@ -509,16 +509,17 @@ function update() {
 // ── Data loading ──────────────────────────────────────────────────────────────
 let cachedOrders = null, cachedHarvest = null, cachedGrow = null;
 
-// Harvest order: worst quality (harvested first) → best quality (P7 last, fans)
+// Harvest order: worst quality first. Within a pond: C < A < B < AB
 const POND_ORDER = ['P2','P3','P4','P5','P6','P7','P1'];
+const SIDE_ORDER = {'C':0,'A':1,'B':2,'AB':3};
 const POND_FANS  = new Set(['P7']);
 
-// Strictly past: use actual greenhousenetweight. Today or future: avg prior 2 same-DOW weeks
-// (today's weight updates during the day so treat it as future for planning purposes).
+// Strictly past: use actual weight. Today or future: avg prior 2 same-DOW weeks.
 function computeEstLb(pondData, p1by, p2by, dateISO) {
   if (dateISO < isoToday() && pondData.expLb > 0) return pondData.expLb;
-  const w1 = p1by[pondData.pond]?.expLb || 0;
-  const w2 = p2by[pondData.pond]?.expLb || 0;
+  const key = `${pondData.pond}|${pondData.side}`;
+  const w1 = p1by[key]?.expLb || 0;
+  const w2 = p2by[key]?.expLb || 0;
   if (w1 > 0 && w2 > 0) return (w1 + w2) / 2;
   return w1 || w2;
 }
@@ -531,21 +532,31 @@ function growByDate(dateISO) {
   const bi = colIdx(cols,'Boards'),      li = colIdx(cols,'ExpLb');
   const ri = colIdx(cols,'Rows');
   if (di < 0 || pi < 0) return {};
-  const byPond = {};
+  const byKey = {};
   rows.forEach(r => {
     if (gvizCellToISO(r.c[di]) !== dateISO) return;
     const pond = r.c[pi]?.v; if (!pond) return;
-    if (!byPond[pond]) byPond[pond] = {pond, varieties:new Set(), rows:0, boards:0, expLb:0};
-    if (si>=0 && r.c[si]?.v) byPond[pond].varieties.add(r.c[vi]?.v || '');
-    byPond[pond].boards += (bi>=0 ? r.c[bi]?.v : 0) || 0;
-    byPond[pond].expLb  += (li>=0 ? r.c[li]?.v : 0) || 0;
-    byPond[pond].rows   += (ri>=0 ? r.c[ri]?.v : 0) || 0;
+    const side = (si>=0 ? r.c[si]?.v : '') || '';
+    const key  = `${pond}|${side}`;
+    if (!byKey[key]) byKey[key] = {pond, side, varieties:new Set(), rows:0, boards:0, expLb:0};
+    const variety = (vi>=0 ? r.c[vi]?.v : '') || '';
+    if (variety) byKey[key].varieties.add(variety);
+    byKey[key].boards += parseFloat(r.c[bi]?.v) || 0;
+    byKey[key].expLb  += parseFloat(r.c[li]?.v) || 0;
+    byKey[key].rows   += parseFloat(r.c[ri]?.v) || 0;
   });
-  return byPond;
+  return byKey;
 }
 
-function applyDisp(byPond, dispose, store) {
-  const ponds = POND_ORDER.filter(p => byPond[p]).map(p => ({...byPond[p], varieties:[...byPond[p].varieties].filter(Boolean)}));
+function sortedEntries(byKey) {
+  return Object.values(byKey).sort((a,b) => {
+    const pd = POND_ORDER.indexOf(a.pond) - POND_ORDER.indexOf(b.pond);
+    return pd !== 0 ? pd : (SIDE_ORDER[a.side]??9) - (SIDE_ORDER[b.side]??9);
+  }).map(p => ({...p, varieties:[...p.varieties].filter(Boolean)}));
+}
+
+function applyDisp(byKey, dispose, store) {
+  const ponds = sortedEntries(byKey);
   let rd = +dispose || 0, rs = +store || 0;
   ponds.forEach(p => {
     p.d  = Math.min(p.rows, rd); rd = Math.max(0, rd - p.rows);
@@ -574,11 +585,13 @@ function renderVizDay(ponds, dateISO, p1by, p2by) {
     const pp = (p.ph / t * 100).toFixed(1);
     const fans = POND_FANS.has(p.pond) ? '<sup class="pond-fans">★</sup>' : '';
     const vars = p.varieties.join('/') || '—';
-    const w2  = fmtW(p2by[p.pond]?.expLb);
-    const w1  = fmtW(p1by[p.pond]?.expLb);
+    const key  = `${p.pond}|${p.side}`;
+    const w2  = fmtW(p2by[key]?.expLb);
+    const w1  = fmtW(p1by[key]?.expLb);
     const we  = fmtW(computeEstLb(p, p1by, p2by, dateISO));
+    const lbl = p.side ? `${p.pond}/${p.side}` : p.pond;
     return `<div class="pond-row">
-      <span class="pond-lbl">${p.pond}${fans}</span>
+      <span class="pond-lbl">${lbl}${fans}</span>
       <span class="pond-var" title="${vars}">${vars}</span>
       <span class="pond-prev">${w2}</span>
       <span class="pond-prev">${w1}</span>
@@ -593,8 +606,8 @@ function renderVizDay(ponds, dateISO, p1by, p2by) {
   }).join('');
   const totalRows = ponds.reduce((s,p) => s+p.rows, 0);
   const totalLb   = ponds.reduce((s,p) => s+computeEstLb(p, p1by, p2by, dateISO), 0);
-  const tot2 = POND_ORDER.reduce((s,k) => s+(p2by[k]?.expLb||0), 0);
-  const tot1 = POND_ORDER.reduce((s,k) => s+(p1by[k]?.expLb||0), 0);
+  const tot2 = Object.values(p2by).reduce((s,v) => s+(v.expLb||0), 0);
+  const tot1 = Object.values(p1by).reduce((s,v) => s+(v.expLb||0), 0);
   html += `<div class="pond-row" style="border-top:1px solid #1a2a4a;margin-top:4px;padding-top:4px">
     <span class="pond-lbl" style="color:#555">Total</span><span class="pond-var"></span>
     <span class="pond-prev" style="color:#777">${fmtW(tot2)}</span>
@@ -623,7 +636,7 @@ function updateViz() {
 
 function populateGrow(day, dateISO) {
   const byPond = growByDate(dateISO);
-  const ponds  = POND_ORDER.filter(p => byPond[p]).map(p => byPond[p]);
+  const ponds  = sortedEntries(byPond);
   if (!ponds.length) return;
   const p1by = growByDate(isoAddDays(dateISO, -7));
   const p2by = growByDate(isoAddDays(dateISO, -14));
