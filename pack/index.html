@@ -509,10 +509,22 @@ function update() {
 // ── Data loading ──────────────────────────────────────────────────────────────
 let cachedOrders = null, cachedHarvest = null, cachedGrow = null;
 
-// Harvest order: worst quality first. Within a pond: C < A < B < AB
-const POND_ORDER = ['P2','P3','P4','P5','P6','P7','P1'];
+// Harvest order: P1 first (earliest/worst) → P7 last (latest/best, fans)
+const POND_ORDER = ['P1','P2','P3','P4','P5','P6','P7'];
 const SIDE_ORDER = {'C':0,'A':1,'B':2,'AB':3};
 const POND_FANS  = new Set(['P7']);
+
+// Boards-per-row rules when rowspercycle is missing
+function calcRows(pond, side, boards) {
+  if (!boards) return 0;
+  let bpr;
+  if (pond === 'P1') {
+    bpr = side === 'AB' ? 10 : 5;          // P1: AB=10, A/B=5
+  } else {
+    bpr = side === 'AB' ? 20 : side === 'C' ? 6 : 10; // P2-P7: AB=20, C=6, A/B=10
+  }
+  return Math.round(boards / bpr);
+}
 
 // Strictly past: use actual weight. Today or future: avg prior 2 same-DOW weeks.
 function computeEstLb(pondData, p1by, p2by, dateISO) {
@@ -541,9 +553,12 @@ function growByDate(dateISO) {
     if (!byKey[key]) byKey[key] = {pond, side, varieties:new Set(), rows:0, boards:0, expLb:0};
     const variety = (vi>=0 ? r.c[vi]?.v : '') || '';
     if (variety) byKey[key].varieties.add(variety);
-    byKey[key].boards += parseFloat(r.c[bi]?.v) || 0;
-    byKey[key].expLb  += parseFloat(r.c[li]?.v) || 0;
-    byKey[key].rows   += parseFloat(r.c[ri]?.v) || 0;
+    const boards = parseFloat(r.c[bi]?.v) || 0;
+    const expLb  = parseFloat(r.c[li]?.v) || 0;
+    const rpc    = parseFloat(r.c[ri]?.v) || 0;
+    byKey[key].boards += boards;
+    byKey[key].expLb  += expLb;
+    byKey[key].rows   += rpc > 0 ? rpc : calcRows(pond, side, boards);
   });
   return byKey;
 }
