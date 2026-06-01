@@ -7,323 +7,244 @@
 <script src="../lib/data-source.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#1a1a2e; color:#e0e0e0; min-height:100vh; }
-header { background:#16213e; padding:8px 18px; display:flex; align-items:center; gap:10px; border-bottom:1px solid #0f3460; flex-wrap:wrap; }
-header h1 { font-size:1.05rem; color:#4ecca3; white-space:nowrap; }
-#version { margin-left:auto; font-size:0.7rem; color:#e0e0e0; white-space:nowrap; }
-main { padding:14px 18px; display:flex; flex-direction:column; gap:12px; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#1a1a2e; color:#e0e0e0; height:100vh; display:flex; flex-direction:column; }
 
+/* Header */
+#hdr { background:#16213e; padding:7px 16px; display:flex; align-items:center; gap:10px; border-bottom:1px solid #0f3460; flex-shrink:0; flex-wrap:wrap; }
+#hdr h1 { font-size:1rem; color:#4ecca3; white-space:nowrap; }
+#version { margin-left:auto; font-size:0.7rem; color:#e0e0e0; white-space:nowrap; }
 input[type=date] { background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:3px 7px; font-size:0.82rem; }
 input[type=date]:focus { outline:none; border-color:#4ecca3; }
-#cycle-label { font-size:0.78rem; color:#888; white-space:nowrap; }
+#cycle-label { font-size:0.76rem; color:#777; white-space:nowrap; }
+.ds { font-size:0.74rem; }
+.ds.loading { color:#f1c40f; }
+.ds.loaded  { color:#4ecca3; }
+.ds.error   { color:#e07070; }
 
+/* Segment toggles */
 .seg { display:flex; border:1px solid #2a3a5e; border-radius:4px; overflow:hidden; }
-.seg button { padding:3px 11px; font-size:0.78rem; background:transparent; color:#555; border:none; cursor:pointer; }
+.seg button { padding:3px 9px; font-size:0.76rem; background:transparent; color:#555; border:none; cursor:pointer; }
 .seg button[data-val="wet"].active    { background:rgba(52,152,219,.2);  color:#6ab4f5; }
 .seg button[data-val="avg"].active    { background:rgba(241,196,15,.18); color:#f1c40f; }
 .seg button[data-val="dry"].active    { background:rgba(78,204,163,.18); color:#4ecca3; }
 .seg button[data-val="better"].active { background:rgba(78,204,163,.18); color:#4ecca3; }
 .seg button[data-val="same"].active   { background:rgba(241,196,15,.18); color:#f1c40f; }
 .seg button[data-val="worse"].active  { background:rgba(231,76,60,.18);  color:#e07070; }
-.seg button[data-val="y"].active,
-.seg button[data-val="n"].active,
-.seg button[data-val="hi"].active,
-.seg button[data-val="med"].active,
-.seg button[data-val="lo"].active,
-.seg button[data-val="sheets"].active,
-.seg button[data-val="db"].active     { background:#0f3460; color:#e0e0e0; }
+.seg button.active { background:#0f3460; color:#e0e0e0; }
 
-.cond-label { font-size:0.8rem; color:#888; white-space:nowrap; }
-.sep { color:#2a3a5e; }
-.data-status { font-size:0.74rem; }
-.data-status.loading { color:#f1c40f; }
-.data-status.loaded  { color:#4ecca3; }
-.data-status.error   { color:#e07070; }
+/* Two-panel layout */
+#body { flex:1; display:flex; overflow:hidden; }
 
-/* Main table card */
-.card { background:#16213e; border-radius:8px; border:1px solid #0f3460; padding:14px 16px; display:flex; flex-direction:column; gap:16px; }
-.section-title { font-size:0.72rem; color:#555; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
-
-/* Plan table — shared layout for all sections */
-.pt { width:100%; border-collapse:collapse; font-size:0.83rem; }
-.pt th { color:#555; font-weight:500; padding:3px 10px 5px; border-bottom:1px solid #0f3460; text-align:right; }
-.pt th:first-child { text-align:left; width:130px; }
-.pt td { padding:3px 10px; text-align:right; vertical-align:middle; }
-.pt td:first-child { text-align:left; color:#aaa; }
-.pt .d1-col { background:rgba(78,204,163,.03); }
-.pt .d2-col { background:rgba(52,152,219,.03); }
-.pt .tot-col { }
-.pt tr.sub-head th { background:#0d1a2e; font-size:0.7rem; color:#444; padding:2px 10px; border:none; }
-.pt tr.total-row td { border-top:1px solid #0f3460; padding-top:5px; font-weight:600; color:#e0e0e0; }
-
-input[type=number] { width:68px; text-align:right; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:2px 5px; font-size:0.83rem; }
-input[type=number]:focus { outline:none; border-color:#4ecca3; }
-input[type=time] { width:95px; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:3px 6px; font-size:0.82rem; }
+/* Left panel */
+#left { width:230px; flex-shrink:0; background:#16213e; border-right:1px solid #0f3460; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:12px; }
+.sb { display:flex; flex-direction:column; gap:7px; }
+.sb-title { font-size:0.68rem; color:#555; text-transform:uppercase; letter-spacing:.06em; padding-bottom:5px; border-bottom:1px solid #0f3460; }
+.sf { display:flex; align-items:center; justify-content:space-between; gap:6px; font-size:0.78rem; }
+.sf label { color:#888; white-space:nowrap; }
+input[type=number].sm { width:72px; text-align:right; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:2px 5px; font-size:0.82rem; }
+input[type=number].sm:focus { outline:none; border-color:#4ecca3; }
+input[type=time] { width:95px; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:2px 6px; font-size:0.8rem; }
 input[type=time]:focus { outline:none; border-color:#4ecca3; }
-.lb-cell { color:#888; font-variant-numeric:tabular-nums; }
-
-/* Harvest inputs */
-.hf-input { width:80px; text-align:right; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:3px 6px; font-size:0.86rem; }
-.hf-input:focus { outline:none; border-color:#4ecca3; }
-.derived { font-size:0.76rem; color:#555; }
-
-/* Fill rate */
-.fill-wrap { display:flex; align-items:center; gap:6px; }
+.fill-line { display:flex; align-items:center; gap:6px; }
 .fill-pct { font-size:0.95rem; font-weight:700; }
-.badge { display:inline-block; padding:1px 7px; border-radius:8px; font-size:0.7rem; font-weight:600; }
+.badge { display:inline-block; padding:1px 7px; border-radius:8px; font-size:0.68rem; font-weight:600; }
 .badge-full { background:rgba(78,204,163,.18); color:#4ecca3; }
 .badge-sel  { background:rgba(241,196,15,.18); color:#f1c40f; }
 .badge-lite { background:rgba(52,152,219,.18); color:#6ab4f5; }
-.fill-track { background:#0a1428; border-radius:3px; height:4px; overflow:hidden; margin-top:3px; }
-.fill-bar   { height:100%; border-radius:3px; transition:width .35s,background .35s; }
+.fill-track { flex:1; background:#0a1428; border-radius:3px; height:4px; overflow:hidden; }
+.fill-bar   { height:100%; border-radius:3px; transition:width .3s,background .3s; }
 
-/* Row plan inputs */
-.rp-cell { display:flex; align-items:center; gap:6px; justify-content:flex-end; }
-.rp-input { width:46px; text-align:center; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:2px 4px; font-size:1.05rem; font-weight:700; }
-.rp-input:focus { outline:none; border-color:#4ecca3; }
-.rec { font-size:0.68rem; color:rgba(255,255,255,.28); }
-.rlab-dispose { color:#e07070; }
-.rlab-store   { color:#6ab4f5; }
-.rlab-ph      { color:#4ecca3; }
-.row-check { font-size:0.71rem; }
-.storage-note-inline { font-size:0.72rem; color:#6ab4f5; margin-bottom:3px; }
-.reset-btn { font-size:0.68rem; color:#444; background:none; border:none; cursor:pointer; padding:0 3px; }
-.reset-btn:hover { color:#4ecca3; }
+/* Right panel */
+#right { flex:1; overflow-y:auto; padding:12px 14px; display:flex; flex-direction:column; gap:12px; }
+.card { background:#16213e; border-radius:8px; border:1px solid #0f3460; padding:12px 14px; }
+.card-title { font-size:0.68rem; color:#555; text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px; }
+.card-subtitle { font-size:0.72rem; color:#888; margin-top:-4px; margin-bottom:8px; }
 
-/* Pond visualization */
-.viz-day { margin-bottom:12px; }
-.viz-day-title { font-size:0.72rem; color:#666; margin-bottom:5px; }
-.pond-row { display:flex; align-items:center; gap:8px; margin-bottom:3px; font-size:0.8rem; }
-.pond-lbl { width:52px; color:#ccc; font-weight:600; flex-shrink:0; font-size:0.8rem; }
-.pond-var { width:70px; color:#666; font-size:0.72rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex-shrink:0; }
-.pond-bar-wrap { flex:1; background:#0a1428; border-radius:3px; height:16px; overflow:hidden; display:flex; min-width:60px; }
-.pseg-d { background:rgba(231,76,60,.65); }
-.pseg-s { background:rgba(52,152,219,.65); }
-.pseg-p { background:rgba(78,204,163,.65); }
-.pond-rlbl { width:34px; color:#555; font-size:0.7rem; text-align:right; flex-shrink:0; }
-.pond-fans { color:#4ecca3; font-size:0.65rem; vertical-align:super; }
-.viz-total { display:flex; gap:8px; font-size:0.72rem; color:#555; margin-top:5px; padding-top:5px; border-top:1px solid #1a2a4a; }
-.viz-total span { color:#888; }
-.viz-legend { display:flex; gap:12px; font-size:0.7rem; color:#666; margin-bottom:6px; }
-.viz-legend-item { display:flex; align-items:center; gap:4px; }
-.viz-legend-dot { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
-.pond-prev { width:52px; text-align:right; font-size:0.72rem; color:#666; flex-shrink:0; font-variant-numeric:tabular-nums; }
-.pond-hdr  { font-size:0.68rem; color:#444; }
-.pond-exp  { width:52px; text-align:right; font-size:0.72rem; color:#555; flex-shrink:0; font-variant-numeric:tabular-nums; }
+/* Orders table */
+.ot { width:100%; border-collapse:collapse; font-size:0.82rem; }
+.ot th { color:#555; font-weight:500; padding:2px 8px 5px; border-bottom:1px solid #0f3460; }
+.ot th:first-child { text-align:left; }
+.ot th:not(:first-child) { text-align:right; }
+.ot td { padding:2px 8px; text-align:right; font-variant-numeric:tabular-nums; }
+.ot td:first-child { text-align:left; color:#bbb; }
+.ot .lb-cell { color:#888; }
+.ot .total-row td { border-top:1px solid #0f3460; padding-top:4px; font-weight:600; color:#e0e0e0; }
+input.ot-inp { width:62px; text-align:right; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:2px 5px; font-size:0.82rem; }
+input.ot-inp:focus { outline:none; border-color:#4ecca3; }
 
+/* Harvest schedule table */
+.hs { width:100%; border-collapse:collapse; font-size:0.8rem; }
+.hs th { color:#555; font-weight:500; padding:2px 8px 5px; border-bottom:1px solid #0f3460; text-align:right; white-space:nowrap; }
+.hs th:first-child, .hs th:nth-child(2) { text-align:left; }
+.hs td { padding:3px 8px; text-align:right; font-variant-numeric:tabular-nums; vertical-align:middle; color:#aaa; }
+.hs td:first-child { text-align:left; color:#ccc; font-weight:600; white-space:nowrap; }
+.hs td:nth-child(2) { text-align:left; color:#888; }
+.hs tr:hover td { background:rgba(255,255,255,.03); }
+.hs tfoot td { border-top:1px solid #0f3460; padding-top:5px; font-weight:600; color:#e0e0e0; }
+.hs tfoot td:first-child { color:#888; }
+.dis-hdr { color:#e07070 !important; }
+.sto-hdr { color:#6ab4f5 !important; }
+.ph-hdr  { color:#4ecca3 !important; }
+.dis-col { color:#c05050; }
+.sto-col { color:#5090c0; }
+.ph-col  { color:#3aaa85; }
+.pond-fans { font-size:0.6rem; color:#4ecca3; vertical-align:super; }
+.no-data  { color:#444; font-size:0.76rem; padding:8px 0; }
 </style>
 </head>
 <body>
 
-<header>
+<div id="hdr">
   <h1>Lettuce Pack Plan</h1>
   <input type="date" id="pack-date">
   <span id="cycle-label"></span>
-  <div class="seg" id="seg-data-mode">
-    <button data-val="sheets" class="active">Sheets</button>
-    <button data-val="db">DB</button>
-  </div>
-  <span id="data-status" class="data-status">loading…</span>
-  <span class="sep">|</span>
-  <span class="cond-label">Today:</span>
-  <div class="seg" id="seg-today">
-    <button data-val="wet">Wet</button>
-    <button data-val="avg" class="active">Avg</button>
-    <button data-val="dry">Dry</button>
-  </div>
-  <span class="cond-label">Tomorrow:</span>
-  <div class="seg" id="seg-tomorrow">
-    <button data-val="better">Better</button>
-    <button data-val="same" class="active">Same</button>
-    <button data-val="worse">Worse</button>
-  </div>
+  <span id="data-status" class="ds">—</span>
   <span id="version"></span>
-</header>
+</div>
 
-<main>
-<div class="card">
+<div id="body">
 
-  <!-- ORDERS -->
-  <div>
-    <div class="section-title">Orders</div>
-    <table class="pt">
+<!-- LEFT PANEL -->
+<div id="left">
+
+  <!-- Conditions -->
+  <div class="sb">
+    <div class="sb-title">Conditions</div>
+    <div class="sf"><label>Today</label>
+      <div class="seg" id="seg-today">
+        <button data-val="wet">Wet</button>
+        <button data-val="avg" class="active">Avg</button>
+        <button data-val="dry">Dry</button>
+      </div>
+    </div>
+    <div class="sf"><label>Tomorrow</label>
+      <div class="seg" id="seg-tomorrow">
+        <button data-val="better">Better</button>
+        <button data-val="same" class="active">Same</button>
+        <button data-val="worse">Worse</button>
+      </div>
+    </div>
+    <div class="sf"><label>Data</label>
+      <div class="seg" id="seg-data-mode">
+        <button data-val="sheets" class="active">Sheets</button>
+        <button data-val="db">DB</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- D1 -->
+  <div class="sb">
+    <div class="sb-title">D1 Plan</div>
+    <div class="sf"><label>Harvest lb</label><input type="number" class="sm" id="d1-hlb" value="3500" min="0"></div>
+    <div class="sf"><label>Rows</label><input type="number" class="sm" id="d1-rows" value="9" min="1"></div>
+    <div class="fill-line">
+      <span class="fill-pct" id="d1-fillpct">0%</span>
+      <span class="badge badge-lite" id="d1-badge">—</span>
+      <div class="fill-track"><div class="fill-bar" id="d1-fillbar" style="width:0%"></div></div>
+    </div>
+    <div class="sf"><label>Harvest start</label><input type="time" id="d1-hstart"></div>
+    <div class="sf"><label>Cut height</label>
+      <div class="seg" id="seg-d1-cut"><button data-val="hi">Hi</button><button data-val="med" class="active">Med</button><button data-val="lo">Lo</button></div>
+    </div>
+    <div class="sf"><label>PH start</label><input type="time" id="d1-phstart"></div>
+    <div class="sf"><label>PH fans</label>
+      <div class="seg" id="seg-d1-fans"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div>
+    </div>
+    <div class="sf"><label>Dryer heat</label>
+      <div class="seg" id="seg-d1-heat"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div>
+    </div>
+    <div class="sf"><label>Blowers</label>
+      <div class="seg" id="seg-d1-blow"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div>
+    </div>
+    <div class="sf"><label>Speed</label>
+      <div class="seg" id="seg-d1-speed"><button data-val="lo">Lo</button><button data-val="med" class="active">Med</button><button data-val="hi">Hi</button></div>
+    </div>
+    <div class="sf"><label>Cool room</label>
+      <div class="seg" id="seg-d1-cool"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div>
+    </div>
+  </div>
+
+  <!-- D2 -->
+  <div class="sb">
+    <div class="sb-title">D2 Plan</div>
+    <div class="sf"><label>Harvest lb</label><input type="number" class="sm" id="d2-hlb" value="2500" min="0"></div>
+    <div class="sf"><label>Rows</label><input type="number" class="sm" id="d2-rows" value="6" min="1"></div>
+    <div class="fill-line">
+      <span class="fill-pct" id="d2-fillpct">0%</span>
+      <span class="badge badge-lite" id="d2-badge">—</span>
+      <div class="fill-track"><div class="fill-bar" id="d2-fillbar" style="width:0%"></div></div>
+    </div>
+    <div class="sf"><label>Harvest start</label><input type="time" id="d2-hstart"></div>
+    <div class="sf"><label>Cut height</label>
+      <div class="seg" id="seg-d2-cut"><button data-val="hi">Hi</button><button data-val="med" class="active">Med</button><button data-val="lo">Lo</button></div>
+    </div>
+    <div class="sf"><label>PH start</label><input type="time" id="d2-phstart"></div>
+    <div class="sf"><label>PH fans</label>
+      <div class="seg" id="seg-d2-fans"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div>
+    </div>
+    <div class="sf"><label>Dryer heat</label>
+      <div class="seg" id="seg-d2-heat"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div>
+    </div>
+    <div class="sf"><label>Blowers</label>
+      <div class="seg" id="seg-d2-blow"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div>
+    </div>
+    <div class="sf"><label>Speed</label>
+      <div class="seg" id="seg-d2-speed"><button data-val="lo">Lo</button><button data-val="med" class="active">Med</button><button data-val="hi">Hi</button></div>
+    </div>
+    <div class="sf"><label>Cool room</label>
+      <div class="seg" id="seg-d2-cool"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div>
+    </div>
+    <!-- D1 carry-in note -->
+    <div id="d2-pull-note" style="font-size:0.72rem;color:#555"></div>
+  </div>
+
+</div><!-- #left -->
+
+<!-- RIGHT PANEL -->
+<div id="right">
+
+  <!-- Orders -->
+  <div class="card">
+    <div class="card-title">Orders</div>
+    <table class="ot">
       <thead>
         <tr>
-          <th></th>
-          <th class="d1-col" colspan="2">D1</th>
-          <th class="d2-col" colspan="2">D2</th>
-          <th class="tot-col" colspan="2">Total</th>
-        </tr>
-        <tr class="sub-head">
           <th>SKU</th>
-          <th class="d1-col">Cases</th><th class="d1-col">Lb</th>
-          <th class="d2-col">Cases</th><th class="d2-col">Lb</th>
-          <th class="tot-col">Cases</th><th class="tot-col">Lb</th>
+          <th style="text-align:right">D1 Cases</th><th style="text-align:right">D1 Lb</th>
+          <th style="text-align:right">D2 Cases</th><th style="text-align:right">D2 Lb</th>
+          <th style="text-align:right">Total Lb</th>
         </tr>
       </thead>
-      <tbody id="order-body">
-        <!-- rows injected by JS -->
-      </tbody>
+      <tbody id="order-body"></tbody>
     </table>
   </div>
 
-  <!-- HARVEST + FILL RATE -->
-  <div>
-    <div class="section-title">Harvest</div>
-    <table class="pt">
-      <thead>
-        <tr>
-          <th></th>
-          <th class="d1-col">D1</th>
-          <th class="d2-col">D2</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Expected lb</td>
-          <td class="d1-col"><input class="hf-input" type="number" id="d1-hlb" value="3500" min="0"></td>
-          <td class="d2-col"><input class="hf-input" type="number" id="d2-hlb" value="2500" min="0"></td>
-        </tr>
-        <tr>
-          <td>Rows available</td>
-          <td class="d1-col"><input class="hf-input" type="number" id="d1-rows" value="9" min="1"></td>
-          <td class="d2-col"><input class="hf-input" type="number" id="d2-rows" value="6" min="1"></td>
-        </tr>
-        <tr>
-          <td>lb / row</td>
-          <td class="d1-col derived" id="d1-lbrow">389</td>
-          <td class="d2-col derived" id="d2-lbrow">417</td>
-        </tr>
-        <tr>
-          <td>Fill rate</td>
-          <td class="d1-col">
-            <div class="fill-wrap"><span class="fill-pct" id="d1-fillpct">0%</span><span class="badge badge-lite" id="d1-badge">—</span></div>
-            <div class="fill-track"><div class="fill-bar" id="d1-fillbar" style="width:0%"></div></div>
-          </td>
-          <td class="d2-col">
-            <div class="fill-wrap"><span class="fill-pct" id="d2-fillpct">0%</span><span class="badge badge-lite" id="d2-badge">—</span></div>
-            <div class="fill-track"><div class="fill-bar" id="d2-fillbar" style="width:0%"></div></div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+  <!-- Harvest Schedule D1 -->
+  <div class="card">
+    <div class="card-title">Harvest Schedule — D1</div>
+    <div class="card-subtitle" id="d1-hs-sub"></div>
+    <div id="d1-hs"></div>
   </div>
 
-  <!-- ROW PLAN -->
-  <div>
-    <div class="section-title">
-      Row Plan
-      <button class="reset-btn" onclick="resetDirty('d1')">↺ D1</button>
-      <button class="reset-btn" onclick="resetDirty('d2')">↺ D2</button>
-    </div>
-    <table class="pt">
-      <thead>
-        <tr><th></th><th class="d1-col">D1</th><th class="d2-col">D2</th></tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td class="rlab-dispose">Dispose</td>
-          <td class="d1-col">
-            <div class="rp-cell"><input class="rp-input" type="number" id="d1-dispose" min="0" value="0"><span class="rec" id="d1-dispose-rec">rec:0</span></div>
-          </td>
-          <td class="d2-col">
-            <div class="rp-cell"><input class="rp-input" type="number" id="d2-dispose" min="0" value="0"><span class="rec" id="d2-dispose-rec">rec:0</span></div>
-          </td>
-        </tr>
-        <tr>
-          <td class="rlab-store">Cold Store</td>
-          <td class="d1-col">
-            <div class="rp-cell"><input class="rp-input" type="number" id="d1-store" min="0" value="0"><span class="rec" id="d1-store-rec">rec:0</span></div>
-          </td>
-          <td class="d2-col">
-            <div id="d2-pull-note" class="storage-note-inline"></div>
-            <div class="rp-cell"><input class="rp-input" type="number" id="d2-store" min="0" value="0"><span class="rec" id="d2-store-rec">rec:0</span></div>
-          </td>
-        </tr>
-        <tr>
-          <td class="rlab-ph">Pack House</td>
-          <td class="d1-col">
-            <div class="rp-cell"><input class="rp-input" type="number" id="d1-ph" min="0" value="0"><span class="rec" id="d1-ph-rec">rec:0</span></div>
-          </td>
-          <td class="d2-col">
-            <div class="rp-cell"><input class="rp-input" type="number" id="d2-ph" min="0" value="0"><span class="rec" id="d2-ph-rec">rec:0</span></div>
-          </td>
-        </tr>
-        <tr>
-          <td></td>
-          <td class="d1-col"><div class="row-check" id="d1-rowcheck"></div></td>
-          <td class="d2-col"><div class="row-check" id="d2-rowcheck"></div></td>
-        </tr>
-      </tbody>
-    </table>
+  <!-- Harvest Schedule D2 -->
+  <div class="card">
+    <div class="card-title">Harvest Schedule — D2</div>
+    <div class="card-subtitle" id="d2-hs-sub"></div>
+    <div id="d2-hs"></div>
   </div>
 
-  <!-- HARVEST VISUALIZATION -->
-  <div>
-    <div class="section-title">Harvest Schedule</div>
-    <div class="viz-legend">
-      <div class="viz-legend-item"><div class="viz-legend-dot" style="background:rgba(231,76,60,.65)"></div>Dispose</div>
-      <div class="viz-legend-item"><div class="viz-legend-dot" style="background:rgba(52,152,219,.65)"></div>Cold Store</div>
-      <div class="viz-legend-item"><div class="viz-legend-dot" style="background:rgba(78,204,163,.65)"></div>Pack House</div>
-    </div>
-    <div id="pond-viz"></div>
-  </div>
-
-  <!-- SETTINGS -->
-  <div>
-    <div class="section-title">Settings</div>
-    <table class="pt">
-      <thead><tr><th></th><th class="d1-col">D1</th><th class="d2-col">D2</th></tr></thead>
-      <tbody>
-        <tr><td>Harvest start</td>
-          <td class="d1-col"><input type="time" id="d1-hstart"></td>
-          <td class="d2-col"><input type="time" id="d2-hstart"></td>
-        </tr>
-        <tr><td>Cut height</td>
-          <td class="d1-col"><div class="seg" id="seg-d1-cut"><button data-val="hi">Hi</button><button data-val="med" class="active">Med</button><button data-val="lo">Lo</button></div></td>
-          <td class="d2-col"><div class="seg" id="seg-d2-cut"><button data-val="hi">Hi</button><button data-val="med" class="active">Med</button><button data-val="lo">Lo</button></div></td>
-        </tr>
-        <tr><td>PH start</td>
-          <td class="d1-col"><input type="time" id="d1-phstart"></td>
-          <td class="d2-col"><input type="time" id="d2-phstart"></td>
-        </tr>
-        <tr><td>PH fans</td>
-          <td class="d1-col"><div class="seg" id="seg-d1-fans"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div></td>
-          <td class="d2-col"><div class="seg" id="seg-d2-fans"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div></td>
-        </tr>
-        <tr><td>Dryer heat</td>
-          <td class="d1-col"><div class="seg" id="seg-d1-heat"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div></td>
-          <td class="d2-col"><div class="seg" id="seg-d2-heat"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div></td>
-        </tr>
-        <tr><td>Dryer blowers</td>
-          <td class="d1-col"><div class="seg" id="seg-d1-blow"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div></td>
-          <td class="d2-col"><div class="seg" id="seg-d2-blow"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div></td>
-        </tr>
-        <tr><td>Dryer speed</td>
-          <td class="d1-col"><div class="seg" id="seg-d1-speed"><button data-val="lo">Lo</button><button data-val="med" class="active">Med</button><button data-val="hi">Hi</button></div></td>
-          <td class="d2-col"><div class="seg" id="seg-d2-speed"><button data-val="lo">Lo</button><button data-val="med" class="active">Med</button><button data-val="hi">Hi</button></div></td>
-        </tr>
-        <tr><td>Cool room + temp</td>
-          <td class="d1-col"><div class="seg" id="seg-d1-cool"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div></td>
-          <td class="d2-col"><div class="seg" id="seg-d2-cool"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-</div><!-- .card -->
-
-</main>
+</div><!-- #right -->
+</div><!-- #body -->
 
 <script>
 const SKU_LB = {LW:10.5, LR:2.25, LF:10.0, WR:2.25};
-const SKUS = ['LW','LR','LF','WR'];
+const SKUS   = ['LW','LR','LF','WR'];
+const POND_ORDER = ['P1','P2','P3','P4','P5','P6','P7'];
+const SIDE_ORDER = {'C':0,'A':1,'B':2,'AB':3};
+const POND_FANS  = new Set(['P7']);
 
 let weatherToday = 'avg', tomorrowTrend = 'same';
 let packDataMode = localStorage.getItem('packPlanDataMode') || 'sheets';
-const dirty = {d1:{dispose:false,store:false,ph:false}, d2:{dispose:false,store:false,ph:false}};
-
-// Derived dates from the single date picker
 let d1Date = '', d2Date = '';
 
 function $id(id) { return document.getElementById(id); }
@@ -344,18 +265,11 @@ function isoAddDays(iso, n) {
 function toISO(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-// Day1=Sun(0)/Wed(3), Day2=Mon(1)/Thu(4). Given any date, return {d1,d2}.
 function packCycleDates(iso) {
-  const d = new Date(iso + 'T12:00:00');
-  const dow = d.getDay();
-  if (dow === 0 || dow === 3) {
-    return {d1: iso, d2: isoAddDays(iso, 1)};
-  }
-  if (dow === 1 || dow === 4) {
-    return {d1: isoAddDays(iso, -1), d2: iso};
-  }
-  // Off-day: snap forward to next Sun(0) or Wed(3)
-  const snap = dow === 2 ? 1 : dow === 5 ? 2 : 1; // Tue→Wed(1), Fri→Sun(2), Sat→Sun(1)
+  const d = new Date(iso + 'T12:00:00'), dow = d.getDay();
+  if (dow === 0 || dow === 3) return {d1: iso, d2: isoAddDays(iso, 1)};
+  if (dow === 1 || dow === 4) return {d1: isoAddDays(iso, -1), d2: iso};
+  const snap = dow === 2 ? 1 : dow === 5 ? 2 : 1;
   return {d1: isoAddDays(iso, snap), d2: isoAddDays(iso, snap + 1)};
 }
 const DOW_NAME = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -365,305 +279,72 @@ function shortDate(iso) {
   return `${DOW_NAME[d.getDay()]} ${d.getMonth()+1}/${d.getDate()}`;
 }
 
-// ── Order SKU table rows (injected once) ────────────────────────────────────
-(function buildOrderRows() {
-  const tbody = $id('order-body');
+// ── Build order rows ──────────────────────────────────────────────────────────
+(function() {
+  const tb = $id('order-body');
   SKUS.forEach(sku => {
+    const s = sku.toLowerCase();
     const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${sku}</td>
-      <td class="d1-col"><input type="number" id="d1-${sku.toLowerCase()}" min="0" value="0"></td>
-      <td class="d1-col lb-cell" id="d1-${sku.toLowerCase()}-lb">0</td>
-      <td class="d2-col"><input type="number" id="d2-${sku.toLowerCase()}" min="0" value="0"></td>
-      <td class="d2-col lb-cell" id="d2-${sku.toLowerCase()}-lb">0</td>
-      <td class="tot-col lb-cell" id="tot-${sku.toLowerCase()}-cs">0</td>
-      <td class="tot-col lb-cell" id="tot-${sku.toLowerCase()}-lb">0</td>`;
-    tbody.appendChild(tr);
+    tr.innerHTML = `<td>${sku}</td>
+      <td><input class="ot-inp" type="number" id="d1-${s}" min="0" value="0"></td>
+      <td class="lb-cell" id="d1-${s}-lb">0</td>
+      <td><input class="ot-inp" type="number" id="d2-${s}" min="0" value="0"></td>
+      <td class="lb-cell" id="d2-${s}-lb">0</td>
+      <td class="lb-cell" id="tot-${s}-lb">0</td>`;
+    tb.appendChild(tr);
   });
-  const tfoot = document.createElement('tr');
-  tfoot.className = 'total-row';
-  tfoot.innerHTML = `
-    <td>Total</td>
-    <td class="d1-col"></td><td class="d1-col lb-cell" id="d1-order-total">0</td>
-    <td class="d2-col"></td><td class="d2-col lb-cell" id="d2-order-total">0</td>
-    <td class="tot-col lb-cell" id="tot-order-cs">0</td>
-    <td class="tot-col lb-cell" id="tot-order-lb">0</td>`;
-  tbody.appendChild(tfoot);
+  const tf = document.createElement('tr');
+  tf.className = 'total-row';
+  tf.innerHTML = `<td>Total</td><td></td>
+    <td class="lb-cell" id="d1-order-total">0</td><td></td>
+    <td class="lb-cell" id="d2-order-total">0</td>
+    <td class="lb-cell" id="tot-order-total">0</td>`;
+  tb.appendChild(tf);
 })();
 
-// ── Calculation helpers ───────────────────────────────────────────────────────
+// ── Calculation ───────────────────────────────────────────────────────────────
 function orderLb(day) {
-  return SKUS.reduce((s, sku) => s + numVal(`${day}-${sku.toLowerCase()}`) * SKU_LB[sku], 0);
+  return SKUS.reduce((s,sku) => s + numVal(`${day}-${sku.toLowerCase()}`) * SKU_LB[sku], 0);
 }
 
 function recPlan(orderLb, harvestLb, rows, weather, tomorrow, storageLb) {
   if (rows === 0 || harvestLb === 0) return {dispose:0, store:0, ph:0, mode:'—', fillRate:0, lbRow:0};
   if (orderLb === 0) return {dispose:0, store:0, ph:0, mode:'No orders', fillRate:0, lbRow:harvestLb/rows};
-  const lbRow = harvestLb / rows;
-  const fillRate = orderLb / harvestLb;
-  const wet = weather === 'wet', better = tomorrow === 'better', worse = tomorrow === 'worse';
-  const netOrder = Math.max(0, orderLb - storageLb);
-  const rowsForPH = Math.ceil(netOrder / lbRow);
+  const lbRow = harvestLb / rows, fillRate = orderLb / harvestLb;
+  const wet = weather==='wet', better = tomorrow==='better', worse = tomorrow==='worse';
+  const netOrd = Math.max(0, orderLb - storageLb);
+  const rowsForPH = Math.ceil(netOrd / lbRow);
   let dispose, store, ph, mode;
-
   if (fillRate > 0.9) {
-    mode = 'Full send'; dispose = wet ? 1 : 0; store = 0; ph = rows - dispose;
+    mode='Full send'; dispose = wet?1:0; store=0; ph=rows-dispose;
   } else if (fillRate > 0.6) {
-    mode = 'Selective'; dispose = wet ? 2 : 1;
-    const rem = rows - dispose;
-    if (wet && better) { ph = Math.max(0, Math.min(rowsForPH - 1, rem)); store = Math.max(0, rem - ph); }
-    else if (worse)    { ph = rem; store = 0; }
-    else               { ph = Math.min(rowsForPH, rem); store = Math.max(0, rem - ph); }
+    mode='Selective'; dispose = wet?2:1;
+    const rem = rows-dispose;
+    if (wet && better)  { ph=Math.max(0,Math.min(rowsForPH-1,rem)); store=Math.max(0,rem-ph); }
+    else if (worse)     { ph=rem; store=0; }
+    else                { ph=Math.min(rowsForPH,rem); store=Math.max(0,rem-ph); }
   } else {
-    dispose = Math.min(wet ? 3 : 2, rows - 1);
-    const rem = rows - dispose;
-    if (wet && better) { mode = 'Store all'; ph = 0; store = rem; }
-    else               { mode = 'Light'; ph = Math.min(rowsForPH, rem); store = Math.max(0, rem - ph); }
+    dispose=Math.min(wet?3:2,rows-1);
+    const rem=rows-dispose;
+    if (wet && better)  { mode='Store all'; ph=0; store=rem; }
+    else                { mode='Light'; ph=Math.min(rowsForPH,rem); store=Math.max(0,rem-ph); }
   }
-  dispose = Math.max(0, dispose); store = Math.max(0, store); ph = Math.max(0, ph);
-  const sum = dispose + store + ph;
-  if (sum !== rows) store = Math.max(0, store + (rows - sum));
+  dispose=Math.max(0,dispose); store=Math.max(0,store); ph=Math.max(0,ph);
+  const sum=dispose+store+ph; if(sum!==rows) store=Math.max(0,store+(rows-sum));
   return {dispose, store, ph, mode, fillRate, lbRow};
 }
 
-function fillColor(r) { return r > 0.9 ? '#4ecca3' : r > 0.6 ? '#f1c40f' : '#6ab4f5'; }
+function fillColor(r) { return r>0.9?'#4ecca3':r>0.6?'#f1c40f':'#6ab4f5'; }
 function badgeClass(m) {
-  if (m === 'Full send') return 'badge badge-full';
-  if (m === 'Selective')  return 'badge badge-sel';
+  if (m==='Full send') return 'badge badge-full';
+  if (m==='Selective')  return 'badge badge-sel';
   return 'badge badge-lite';
 }
-function rowCheckHtml(actual, total) {
-  const d = actual - total;
-  if (d === 0) return `<span style="color:#4ecca3">✓ ${total} rows</span>`;
-  if (d > 0)   return `<span style="color:#e07070">over by ${d}</span>`;
-  return `<span style="color:#f1c40f">${Math.abs(d)} unassigned</span>`;
-}
-function applyRec(day, rec) {
-  ['dispose','store','ph'].forEach(f => {
-    if (!dirty[day][f]) $id(`${day}-${f}`).value = rec[f];
-    $id(`${day}-${f}-rec`).textContent = `rec:${rec[f]}`;
-  });
-}
 
-function resetDirty(day) { dirty[day] = {dispose:false,store:false,ph:false}; update(); }
+// ── Grow data ─────────────────────────────────────────────────────────────────
+let cachedOrders=null, cachedHarvest=null, cachedGrow=null;
 
-// ── Main update ───────────────────────────────────────────────────────────────
-function update() {
-  let d1Total = 0, d2Total = 0;
-  SKUS.forEach(sku => {
-    const s = sku.toLowerCase();
-    const d1cs = numVal(`d1-${s}`), d2cs = numVal(`d2-${s}`);
-    const d1lb = d1cs * SKU_LB[sku], d2lb = d2cs * SKU_LB[sku];
-    d1Total += d1lb; d2Total += d2lb;
-    $id(`d1-${s}-lb`).textContent = fmt(d1lb);
-    $id(`d2-${s}-lb`).textContent = fmt(d2lb);
-    $id(`tot-${s}-cs`).textContent = fmt(d1cs + d2cs);
-    $id(`tot-${s}-lb`).textContent = fmt(d1lb + d2lb);
-  });
-  $id('d1-order-total').textContent = fmt(d1Total);
-  $id('d2-order-total').textContent = fmt(d2Total);
-  $id('tot-order-cs').textContent   = fmt(SKUS.reduce((s,k) => s + numVal(`d1-${k.toLowerCase()}`) + numVal(`d2-${k.toLowerCase()}`), 0));
-  $id('tot-order-lb').textContent   = fmt(d1Total + d2Total);
-
-  // D1 harvest
-  const d1hlb = numVal('d1-hlb'), d1rows = numVal('d1-rows');
-  const d1lbr = d1rows > 0 ? d1hlb / d1rows : 0;
-  $id('d1-lbrow').textContent = d1lbr > 0 ? fmt(d1lbr) + ' lb/row' : '—';
-  const d1rec = recPlan(d1Total, d1hlb, d1rows, weatherToday, tomorrowTrend, 0);
-  $id('d1-fillpct').textContent = Math.round(d1rec.fillRate * 100) + '%';
-  $id('d1-fillbar').style.width = Math.min(100, d1rec.fillRate * 100) + '%';
-  $id('d1-fillbar').style.background = fillColor(d1rec.fillRate);
-  const b1 = $id('d1-badge'); b1.textContent = d1rec.mode; b1.className = badgeClass(d1rec.mode);
-  applyRec('d1', d1rec);
-  const d1ad = numVal('d1-dispose'), d1as = numVal('d1-store'), d1ap = numVal('d1-ph');
-  $id('d1-rowcheck').innerHTML = rowCheckHtml(d1ad + d1as + d1ap, d1rows);
-  const d1storeLb = d1as * d1lbr;
-
-  // D2 storage note
-  const pullNote = $id('d2-pull-note');
-  if (d1as === 0) { pullNote.textContent = ''; }
-  else if (d2Total > numVal('d2-hlb')) {
-    pullNote.textContent = `Pull Day 1 storage (~${fmtLb(Math.min(d1storeLb, d2Total - numVal('d2-hlb')))})`;
-    pullNote.style.color = '#f1c40f';
-  } else {
-    pullNote.textContent = `Day 1 storage: ${fmtLb(d1storeLb)} available`;
-    pullNote.style.color = '#4ecca3';
-  }
-
-  // D2 harvest
-  const d2hlb = numVal('d2-hlb'), d2rows = numVal('d2-rows');
-  const d2lbr = d2rows > 0 ? d2hlb / d2rows : 0;
-  $id('d2-lbrow').textContent = d2lbr > 0 ? fmt(d2lbr) + ' lb/row' : '—';
-  const d2weather = tomorrowTrend === 'better' ? 'dry' : tomorrowTrend === 'worse' ? 'wet' : 'avg';
-  const d2rec = recPlan(d2Total, d2hlb, d2rows, d2weather, 'same', d1storeLb);
-  $id('d2-fillpct').textContent = Math.round(d2rec.fillRate * 100) + '%';
-  $id('d2-fillbar').style.width = Math.min(100, d2rec.fillRate * 100) + '%';
-  $id('d2-fillbar').style.background = fillColor(d2rec.fillRate);
-  const b2 = $id('d2-badge'); b2.textContent = d2rec.mode; b2.className = badgeClass(d2rec.mode);
-  applyRec('d2', d2rec);
-  const d2ad = numVal('d2-dispose'), d2as = numVal('d2-store'), d2ap = numVal('d2-ph');
-  $id('d2-rowcheck').innerHTML = rowCheckHtml(d2ad + d2as + d2ap, d2rows);
-
-  updateViz();
-}
-
-// ── Data loading ──────────────────────────────────────────────────────────────
-let cachedOrders = null, cachedHarvest = null, cachedGrow = null;
-
-// Harvest order: P1 first (earliest/worst) → P7 last (latest/best, fans)
-const POND_ORDER = ['P1','P2','P3','P4','P5','P6','P7'];
-const SIDE_ORDER = {'C':0,'A':1,'B':2,'AB':3};
-const POND_FANS  = new Set(['P7']);
-
-// Boards-per-row rules when rowspercycle is missing
-function calcRows(pond, side, boards) {
-  if (!boards) return 0;
-  let bpr;
-  if (pond === 'P1') {
-    bpr = side === 'AB' ? 10 : 5;          // P1: AB=10, A/B=5
-  } else {
-    bpr = side === 'AB' ? 20 : side === 'C' ? 6 : 10; // P2-P7: AB=20, C=6, A/B=10
-  }
-  return Math.round(boards / bpr);
-}
-
-// Strictly past: use actual weight. Today or future: avg prior 2 same-DOW weeks.
-function computeEstLb(pondData, p1by, p2by, dateISO) {
-  if (dateISO < isoToday() && pondData.expLb > 0) return pondData.expLb;
-  const key = `${pondData.pond}|${pondData.side}`;
-  const w1 = p1by[key]?.expLb || 0;
-  const w2 = p2by[key]?.expLb || 0;
-  if (w1 > 0 && w2 > 0) return (w1 + w2) / 2;
-  return w1 || w2;
-}
-
-function growByDate(dateISO) {
-  if (!cachedGrow) return {};
-  const {cols, rows} = cachedGrow;
-  const di = colIdx(cols,'HarvestDate'), pi = colIdx(cols,'Pond');
-  const si = colIdx(cols,'Side'),        vi = colIdx(cols,'Variety');
-  const bi = colIdx(cols,'Boards'),      li = colIdx(cols,'ExpLb');
-  const ri = colIdx(cols,'Rows');
-  if (di < 0 || pi < 0) return {};
-  const byKey = {};
-  rows.forEach(r => {
-    if (gvizCellToISO(r.c[di]) !== dateISO) return;
-    const pond = r.c[pi]?.v; if (!pond) return;
-    const side = (si>=0 ? r.c[si]?.v : '') || '';
-    const key  = `${pond}|${side}`;
-    if (!byKey[key]) byKey[key] = {pond, side, varieties:new Set(), rows:0, boards:0, expLb:0};
-    const variety = (vi>=0 ? r.c[vi]?.v : '') || '';
-    if (variety) byKey[key].varieties.add(variety);
-    const boards = parseFloat(r.c[bi]?.v) || 0;
-    const expLb  = parseFloat(r.c[li]?.v) || 0;
-    const rpc    = parseFloat(r.c[ri]?.v) || 0;
-    byKey[key].boards += boards;
-    byKey[key].expLb  += expLb;
-    byKey[key].rows   += rpc > 0 ? rpc : calcRows(pond, side, boards);
-  });
-  return byKey;
-}
-
-function sortedEntries(byKey) {
-  return Object.values(byKey).sort((a,b) => {
-    const pd = POND_ORDER.indexOf(a.pond) - POND_ORDER.indexOf(b.pond);
-    return pd !== 0 ? pd : (SIDE_ORDER[a.side]??9) - (SIDE_ORDER[b.side]??9);
-  }).map(p => ({...p, varieties:[...p.varieties].filter(Boolean)}));
-}
-
-function applyDisp(byKey, dispose, store) {
-  const ponds = sortedEntries(byKey);
-  let rd = +dispose || 0, rs = +store || 0;
-  ponds.forEach(p => {
-    p.d  = Math.min(p.rows, rd); rd = Math.max(0, rd - p.rows);
-    const rem = p.rows - p.d;
-    p.s  = Math.min(rem, rs); rs = Math.max(0, rs - rem);
-    p.ph = p.rows - p.d - p.s;
-  });
-  return ponds;
-}
-
-function renderVizDay(ponds, dateISO, p1by, p2by) {
-  if (!ponds.length) return `<div style="color:#444;font-size:0.76rem">No grow data for ${dateISO || 'this date'}</div>`;
-  const fmtW = lb => (lb && lb > 0) ? fmt(Math.round(lb)) : '—';
-  let html = `<div class="pond-row" style="margin-bottom:5px">
-    <span class="pond-lbl"></span><span class="pond-var"></span>
-    <span class="pond-prev pond-hdr">-2w lb</span>
-    <span class="pond-prev pond-hdr">-1w lb</span>
-    <span class="pond-exp pond-hdr">est lb</span>
-    <div style="flex:1"></div>
-    <span class="pond-rlbl pond-hdr">rows</span>
-  </div>`;
-  html += ponds.map(p => {
-    const t = p.rows || 1;
-    const dp = (p.d  / t * 100).toFixed(1);
-    const sp = (p.s  / t * 100).toFixed(1);
-    const pp = (p.ph / t * 100).toFixed(1);
-    const fans = POND_FANS.has(p.pond) ? '<sup class="pond-fans">★</sup>' : '';
-    const vars = p.varieties.join('/') || '—';
-    const key  = `${p.pond}|${p.side}`;
-    const w2  = fmtW(p2by[key]?.expLb);
-    const w1  = fmtW(p1by[key]?.expLb);
-    const we  = fmtW(computeEstLb(p, p1by, p2by, dateISO));
-    const lbl = p.side ? `${p.pond}/${p.side}` : p.pond;
-    return `<div class="pond-row">
-      <span class="pond-lbl">${lbl}${fans}</span>
-      <span class="pond-var" title="${vars}">${vars}</span>
-      <span class="pond-prev">${w2}</span>
-      <span class="pond-prev">${w1}</span>
-      <span class="pond-exp">${we}</span>
-      <div class="pond-bar-wrap">
-        ${+dp>0 ? `<div class="pseg-d" style="width:${dp}%" title="${p.d}r dispose"></div>`  : ''}
-        ${+sp>0 ? `<div class="pseg-s" style="width:${sp}%" title="${p.s}r store"></div>`    : ''}
-        ${+pp>0 ? `<div class="pseg-p" style="width:${pp}%" title="${p.ph}r PH"></div>` : ''}
-      </div>
-      <span class="pond-rlbl">${p.rows}r</span>
-    </div>`;
-  }).join('');
-  const totalRows = ponds.reduce((s,p) => s+p.rows, 0);
-  const totalLb   = ponds.reduce((s,p) => s+computeEstLb(p, p1by, p2by, dateISO), 0);
-  const tot2 = Object.values(p2by).reduce((s,v) => s+(v.expLb||0), 0);
-  const tot1 = Object.values(p1by).reduce((s,v) => s+(v.expLb||0), 0);
-  html += `<div class="pond-row" style="border-top:1px solid #1a2a4a;margin-top:4px;padding-top:4px">
-    <span class="pond-lbl" style="color:#555">Total</span><span class="pond-var"></span>
-    <span class="pond-prev" style="color:#777">${fmtW(tot2)}</span>
-    <span class="pond-prev" style="color:#777">${fmtW(tot1)}</span>
-    <span class="pond-exp" style="color:#777">${fmtW(totalLb)}</span>
-    <div style="flex:1;font-size:0.7rem;color:#444;padding:0 8px">${totalRows} rows</div>
-    <span class="pond-rlbl"></span>
-  </div>`;
-  return html;
-}
-
-function updateViz() {
-  if (!cachedGrow) { $id('pond-viz').innerHTML = ''; return; }
-  const d1by   = growByDate(d1Date);
-  const d2by   = growByDate(d2Date);
-  const d1p1by = growByDate(isoAddDays(d1Date, -7));
-  const d1p2by = growByDate(isoAddDays(d1Date, -14));
-  const d2p1by = growByDate(isoAddDays(d2Date, -7));
-  const d2p2by = growByDate(isoAddDays(d2Date, -14));
-  const d1p    = applyDisp(d1by, numVal('d1-dispose'), numVal('d1-store'));
-  const d2p    = applyDisp(d2by, numVal('d2-dispose'), numVal('d2-store'));
-  $id('pond-viz').innerHTML =
-    `<div class="viz-day"><div class="viz-day-title">D1 · ${shortDate(d1Date)}</div>${renderVizDay(d1p, d1Date, d1p1by, d1p2by)}</div>` +
-    `<div class="viz-day" style="margin-top:12px"><div class="viz-day-title">D2 · ${shortDate(d2Date)}</div>${renderVizDay(d2p, d2Date, d2p1by, d2p2by)}</div>`;
-}
-
-function populateGrow(day, dateISO) {
-  const byPond = growByDate(dateISO);
-  const ponds  = sortedEntries(byPond);
-  if (!ponds.length) return;
-  const p1by = growByDate(isoAddDays(dateISO, -7));
-  const p2by = growByDate(isoAddDays(dateISO, -14));
-  const totalRows = ponds.reduce((s,p) => s + (p.rows||0), 0);
-  const totalLb   = ponds.reduce((s,p) => s + computeEstLb(p, p1by, p2by, dateISO), 0);
-  if (totalRows > 0) $id(`${day}-rows`).value = totalRows;
-  if (totalLb   > 0) $id(`${day}-hlb`).value  = Math.round(totalLb);
-  dirty[day] = {dispose:false, store:false, ph:false};
-}
-
-function gvizCellToISO(cell) {
+function gvizToISO(cell) {
   if (!cell || cell.v === null || cell.v === undefined) return null;
   const m = String(cell.v).match(/Date\((\d+),(\d+),(\d+)\)/);
   if (!m) return null;
@@ -671,90 +352,267 @@ function gvizCellToISO(cell) {
 }
 function colIdx(cols, label) { return cols.findIndex(c => c.label === label); }
 
+function calcRows(pond, side, boards) {
+  if (!boards) return 0;
+  let bpr;
+  if (pond==='P1') bpr = side==='AB'?10:5;
+  else             bpr = side==='AB'?20:side==='C'?6:10;
+  return Math.round(boards / bpr);
+}
+
+function computeEstLb(pondData, p1by, p2by, dateISO) {
+  if (dateISO < isoToday() && pondData.expLb > 0) return pondData.expLb;
+  const key = `${pondData.pond}|${pondData.side}`;
+  const w1 = p1by[key]?.expLb || 0, w2 = p2by[key]?.expLb || 0;
+  if (w1 > 0 && w2 > 0) return (w1 + w2) / 2;
+  return w1 || w2;
+}
+
+function growByDate(dateISO) {
+  if (!cachedGrow) return {};
+  const {cols, rows} = cachedGrow;
+  const di=colIdx(cols,'HarvestDate'), pi=colIdx(cols,'Pond');
+  const si=colIdx(cols,'Side'),        vi=colIdx(cols,'Variety');
+  const bi=colIdx(cols,'Boards'),      li=colIdx(cols,'ExpLb');
+  const ri=colIdx(cols,'Rows');
+  if (di<0 || pi<0) return {};
+  const byKey = {};
+  rows.forEach(r => {
+    if (gvizToISO(r.c[di]) !== dateISO) return;
+    const pond = r.c[pi]?.v; if (!pond) return;
+    const side = (si>=0 ? r.c[si]?.v : '')||'';
+    const key  = `${pond}|${side}`;
+    if (!byKey[key]) byKey[key] = {pond, side, varieties:new Set(), rows:0, boards:0, expLb:0};
+    const variety = (vi>=0 ? r.c[vi]?.v : '')||'';
+    if (variety) byKey[key].varieties.add(variety);
+    const boards = parseFloat(r.c[bi]?.v)||0;
+    const expLb  = parseFloat(r.c[li]?.v)||0;
+    const rpc    = parseFloat(r.c[ri]?.v)||0;
+    byKey[key].boards += boards;
+    byKey[key].expLb  += expLb;
+    byKey[key].rows   += rpc>0 ? rpc : calcRows(pond, side, boards);
+  });
+  return byKey;
+}
+
+function sortedEntries(byKey) {
+  return Object.values(byKey).sort((a,b) => {
+    const pd = POND_ORDER.indexOf(a.pond) - POND_ORDER.indexOf(b.pond);
+    return pd!==0 ? pd : (SIDE_ORDER[a.side]??9)-(SIDE_ORDER[b.side]??9);
+  }).map(p => ({...p, varieties:[...p.varieties].filter(Boolean)}));
+}
+
+function applyDisp(byKey, dispose, store) {
+  const ponds = sortedEntries(byKey);
+  let rd=+dispose||0, rs=+store||0;
+  ponds.forEach(p => {
+    p.d  = Math.min(p.rows, rd); rd=Math.max(0,rd-p.rows);
+    const rem = p.rows-p.d;
+    p.s  = Math.min(rem, rs); rs=Math.max(0,rs-rem);
+    p.ph = p.rows-p.d-p.s;
+  });
+  return ponds;
+}
+
+function populateGrow(day, dateISO) {
+  const byPond = growByDate(dateISO);
+  const ponds  = sortedEntries(byPond);
+  if (!ponds.length) return;
+  const p1by = growByDate(isoAddDays(dateISO,-7));
+  const p2by = growByDate(isoAddDays(dateISO,-14));
+  const totalRows = ponds.reduce((s,p) => s+(p.rows||0), 0);
+  const totalLb   = ponds.reduce((s,p) => s+computeEstLb(p,p1by,p2by,dateISO), 0);
+  if (totalRows > 0) $id(`${day}-rows`).value = totalRows;
+  if (totalLb   > 0) $id(`${day}-hlb`).value  = Math.round(totalLb);
+}
+
 function ordersByDate(dateISO) {
   if (!cachedOrders) return null;
   const {cols, rows} = cachedOrders;
-  const di = colIdx(cols, 'PackDate'), si = colIdx(cols, 'SKU'), ci = colIdx(cols, 'Cases');
-  if (di < 0 || si < 0 || ci < 0) return null;
-  const result = {LW:0, LR:0, LF:0, WR:0};
-  rows.forEach(row => {
-    if (gvizCellToISO(row.c[di]) !== dateISO) return;
-    const sku = row.c[si] && row.c[si].v;
+  const di=colIdx(cols,'PackDate'), si=colIdx(cols,'SKU'), ci=colIdx(cols,'Cases');
+  if (di<0||si<0||ci<0) return null;
+  const result = {LW:0,LR:0,LF:0,WR:0};
+  rows.forEach(r => {
+    if (gvizToISO(r.c[di]) !== dateISO) return;
+    const sku = r.c[si]?.v;
     if (Object.prototype.hasOwnProperty.call(result, sku))
-      result[sku] += (row.c[ci] && row.c[ci].v) || 0;
+      result[sku] += (r.c[ci]?.v)||0;
   });
   return result;
 }
+
 function harvestByDate(dateISO) {
   if (!cachedHarvest) return null;
   const {cols, rows} = cachedHarvest;
-  const di = colIdx(cols, 'HarvestDate'), bppi = colIdx(cols, 'BoardsPerPond');
-  const plbi = colIdx(cols, 'PoundsPerBoard'), gnwi = colIdx(cols, 'GreenhouseNetWeight');
-  if (di < 0) return null;
-  const matching = rows.filter(r => gvizCellToISO(r.c[di]) === dateISO);
+  const di=colIdx(cols,'HarvestDate'), bppi=colIdx(cols,'BoardsPerPond');
+  const plbi=colIdx(cols,'PoundsPerBoard'), gnwi=colIdx(cols,'GreenhouseNetWeight');
+  if (di<0) return null;
+  const matching = rows.filter(r => gvizToISO(r.c[di]) === dateISO);
   if (!matching.length) return null;
-  const totalLb = matching.reduce((sum, r) => {
-    const gnw = gnwi >= 0 ? (r.c[gnwi] && r.c[gnwi].v) : null;
-    if (gnw) return sum + gnw;
-    const bpp = bppi >= 0 ? ((r.c[bppi] && r.c[bppi].v) || 0) : 0;
-    const plb = plbi >= 0 ? ((r.c[plbi] && r.c[plbi].v) || 0) : 0;
-    return sum + bpp * plb;
+  const totalLb = matching.reduce((sum,r) => {
+    const gnw = gnwi>=0 ? r.c[gnwi]?.v : null;
+    if (gnw) return sum+gnw;
+    const bpp = bppi>=0?(r.c[bppi]?.v||0):0;
+    const plb = plbi>=0?(r.c[plbi]?.v||0):0;
+    return sum+bpp*plb;
   }, 0);
-  return {rowCount: matching.length, totalLb};
-}
-
-function setStatus(msg, cls) {
-  const el = $id('data-status');
-  el.textContent = msg; el.className = 'data-status ' + (cls || '');
+  return {rowCount:matching.length, totalLb};
 }
 
 function populateDay(day, dateISO) {
   const orders = ordersByDate(dateISO);
-  if (orders) {
-    SKUS.forEach(sku => { $id(`${day}-${sku.toLowerCase()}`).value = orders[sku] || 0; });
-    dirty[day] = {dispose:false, store:false, ph:false};
-  }
+  if (orders) SKUS.forEach(sku => { $id(`${day}-${sku.toLowerCase()}`).value = orders[sku]||0; });
   const harv = harvestByDate(dateISO);
   if (harv) {
     $id(`${day}-hlb`).value  = Math.round(harv.totalLb);
     $id(`${day}-rows`).value = harv.rowCount;
-    dirty[day] = {dispose:false, store:false, ph:false};
   }
 }
 
-function applyDates() {
-  if (d1Date) { populateGrow('d1', d1Date); populateDay('d1', d1Date); }
-  if (d2Date) { populateGrow('d2', d2Date); populateDay('d2', d2Date); }
-  update();
+// ── Harvest schedule table ────────────────────────────────────────────────────
+function renderSchedule(day, ponds, p1by, p2by, dateISO) {
+  if (!ponds.length) return '<div class="no-data">No grow data for this date</div>';
+  const fw = lb => (lb && lb > 0) ? fmt(Math.round(lb)) : '—';
+  let totDisLb=0, totStoLb=0, totPhLb=0, tot2Lb=0, tot1Lb=0, totEstLb=0, totRows=0;
+  let bodyHtml = ponds.map(p => {
+    const key  = `${p.pond}|${p.side}`;
+    const est  = computeEstLb(p, p1by, p2by, dateISO);
+    const lbRow = p.rows > 0 ? est / p.rows : 0;
+    const w2   = p2by[key]?.expLb || 0;
+    const w1   = p1by[key]?.expLb || 0;
+    const disLb = p.d  * lbRow;
+    const stoLb = p.s  * lbRow;
+    const phLb  = p.ph * lbRow;
+    tot2Lb   += w2;  tot1Lb  += w1;  totEstLb += est;  totRows += p.rows;
+    totDisLb += disLb; totStoLb += stoLb; totPhLb += phLb;
+    const fans = POND_FANS.has(p.pond) ? '<sup class="pond-fans">★</sup>' : '';
+    const lbl  = p.side ? `${p.pond}/${p.side}` : p.pond;
+    const vars = p.varieties.join('/') || '—';
+    return `<tr>
+      <td>${lbl}${fans}</td>
+      <td>${vars}</td>
+      <td>${fw(w2)}</td>
+      <td>${fw(w1)}</td>
+      <td>${fw(est)}</td>
+      <td class="dis-col">${p.d||''}</td>
+      <td class="sto-col">${p.s||''}</td>
+      <td class="ph-col">${p.ph||''}</td>
+      <td>${p.rows}</td>
+    </tr>`;
+  }).join('');
+  return `<table class="hs">
+    <thead><tr>
+      <th>Pond</th><th>Var</th>
+      <th>-2w lb</th><th>-1w lb</th><th>Est lb</th>
+      <th class="dis-hdr">Dispose</th>
+      <th class="sto-hdr">Store</th>
+      <th class="ph-hdr">Pack</th>
+      <th>Rows</th>
+    </tr></thead>
+    <tbody>${bodyHtml}</tbody>
+    <tfoot><tr>
+      <td>Total</td><td></td>
+      <td>${fw(tot2Lb)}</td><td>${fw(tot1Lb)}</td><td>${fw(totEstLb)}</td>
+      <td class="dis-col">${fw(totDisLb)} lb</td>
+      <td class="sto-col">${fw(totStoLb)} lb</td>
+      <td class="ph-col">${fw(totPhLb)} lb</td>
+      <td>${totRows}r</td>
+    </tr></tfoot>
+  </table>`;
 }
 
+// ── Main update ───────────────────────────────────────────────────────────────
+function update() {
+  // Orders
+  let d1Total=0, d2Total=0;
+  SKUS.forEach(sku => {
+    const s=sku.toLowerCase();
+    const d1cs=numVal(`d1-${s}`), d2cs=numVal(`d2-${s}`);
+    const d1lb=d1cs*SKU_LB[sku], d2lb=d2cs*SKU_LB[sku];
+    d1Total+=d1lb; d2Total+=d2lb;
+    $id(`d1-${s}-lb`).textContent  = fmt(d1lb);
+    $id(`d2-${s}-lb`).textContent  = fmt(d2lb);
+    $id(`tot-${s}-lb`).textContent = fmt(d1lb+d2lb);
+  });
+  $id('d1-order-total').textContent  = fmt(d1Total);
+  $id('d2-order-total').textContent  = fmt(d2Total);
+  $id('tot-order-total').textContent = fmt(d1Total+d2Total);
+
+  // D1 fill rate
+  const d1hlb=numVal('d1-hlb'), d1rows=numVal('d1-rows');
+  const d1rec = recPlan(d1Total, d1hlb, d1rows, weatherToday, tomorrowTrend, 0);
+  $id('d1-fillpct').textContent = Math.round(d1rec.fillRate*100)+'%';
+  $id('d1-fillbar').style.width = Math.min(100,d1rec.fillRate*100)+'%';
+  $id('d1-fillbar').style.background = fillColor(d1rec.fillRate);
+  const b1=$id('d1-badge'); b1.textContent=d1rec.mode; b1.className=badgeClass(d1rec.mode);
+
+  // D1 storage carry-in to D2
+  const d1actStore = d1rec.store;
+  const d1storeLb  = d1actStore * d1rec.lbRow;
+
+  // D2 fill rate
+  const d2hlb=numVal('d2-hlb'), d2rows=numVal('d2-rows');
+  const d2weather = tomorrowTrend==='better'?'dry':tomorrowTrend==='worse'?'wet':'avg';
+  const d2rec = recPlan(d2Total, d2hlb, d2rows, d2weather, 'same', 0);
+  $id('d2-fillpct').textContent = Math.round(d2rec.fillRate*100)+'%';
+  $id('d2-fillbar').style.width = Math.min(100,d2rec.fillRate*100)+'%';
+  $id('d2-fillbar').style.background = fillColor(d2rec.fillRate);
+  const b2=$id('d2-badge'); b2.textContent=d2rec.mode; b2.className=badgeClass(d2rec.mode);
+
+  // D2 pull note
+  const pullNote = $id('d2-pull-note');
+  if (d1storeLb > 0) {
+    pullNote.textContent = `Day 1 reserve: ~${fmt(d1storeLb)} lb in cold storage`;
+    pullNote.style.color = '#6ab4f5';
+  } else {
+    pullNote.textContent = '';
+  }
+
+  // Harvest schedules
+  if (cachedGrow) {
+    const d1by=growByDate(d1Date), d2by=growByDate(d2Date);
+    const d1p1=growByDate(isoAddDays(d1Date,-7)),  d1p2=growByDate(isoAddDays(d1Date,-14));
+    const d2p1=growByDate(isoAddDays(d2Date,-7)),  d2p2=growByDate(isoAddDays(d2Date,-14));
+    const d1ponds=applyDisp(d1by,d1rec.dispose,d1rec.store);
+    const d2ponds=applyDisp(d2by,d2rec.dispose,d2rec.store);
+    $id('d1-hs').innerHTML = renderSchedule('d1',d1ponds,d1p1,d1p2,d1Date);
+    $id('d2-hs').innerHTML = renderSchedule('d2',d2ponds,d2p1,d2p2,d2Date);
+    $id('d1-hs-sub').textContent = d1rec.lbRow>0 ? `${Math.round(d1rec.lbRow)} lb/row · ${Math.round(d1rec.fillRate*100)}% fill` : '';
+    $id('d2-hs-sub').textContent = d2rec.lbRow>0 ? `${Math.round(d2rec.lbRow)} lb/row · ${Math.round(d2rec.fillRate*100)}% fill` : '';
+  }
+}
+
+// ── Data loading ──────────────────────────────────────────────────────────────
+function setStatus(msg,cls) { const e=$id('data-status'); e.textContent=msg; e.className='ds '+(cls||''); }
+
 async function loadData() {
-  setStatus('loading…', 'loading');
-  const mode = packDataMode === 'db' ? DataSource.getMode() : 'sheets';
-  // Fetch each independently so one failure doesn't block the other
-  const [ordersResult, harvestResult, growResult] = await Promise.allSettled([
+  setStatus('loading…','loading');
+  const mode = packDataMode==='db' ? DataSource.getMode() : 'sheets';
+  const [oR,hR,gR] = await Promise.allSettled([
     DataSource.fetchTable('lettuce_pack_orders', {mode}),
     DataSource.fetchTable('lettuce_harvest',     {mode}),
     DataSource.fetchTable('lettuce_grow_plan',   {mode}),
   ]);
-  if (ordersResult.status  === 'fulfilled') cachedOrders  = ordersResult.value;
-  if (harvestResult.status === 'fulfilled') cachedHarvest = harvestResult.value;
-  if (growResult.status    === 'fulfilled') cachedGrow    = growResult.value;
-
-  const allOk  = [ordersResult, harvestResult, growResult].every(r => r.status === 'fulfilled');
-  const noneOk = [ordersResult, harvestResult, growResult].every(r => r.status === 'rejected');
-  setStatus(noneOk ? 'error' : allOk ? 'loaded' : 'partial', noneOk ? 'error' : 'loaded');
-  if (!allOk) console.warn('Pack plan load issues:', ordersResult.reason, harvestResult.reason, growResult.reason);
+  if (oR.status==='fulfilled') cachedOrders  = oR.value;
+  if (hR.status==='fulfilled') cachedHarvest = hR.value;
+  if (gR.status==='fulfilled') cachedGrow    = gR.value;
+  const all=[oR,hR,gR], nok=all.every(r=>r.status==='rejected');
+  setStatus(nok?'error':all.every(r=>r.status==='fulfilled')?'loaded':'partial', nok?'error':'loaded');
   applyDates();
 }
 
-// ── Segment toggle wiring ────────────────────────────────────────────────────
+function applyDates() {
+  if (d1Date) { populateGrow('d1',d1Date); populateDay('d1',d1Date); }
+  if (d2Date) { populateGrow('d2',d2Date); populateDay('d2',d2Date); }
+  update();
+}
+
+// ── Segment wiring ────────────────────────────────────────────────────────────
 function wireSeg(id, onChange) {
-  const el = $id(id);
-  if (!el) return;
+  const el=$id(id); if (!el) return;
   el.querySelectorAll('button').forEach(btn => {
     btn.addEventListener('click', () => {
-      el.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      el.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
       if (onChange) onChange(btn.dataset.val);
       update();
@@ -762,39 +620,31 @@ function wireSeg(id, onChange) {
   });
 }
 
-// Set initial data mode active state
 $id('seg-data-mode').querySelectorAll('button').forEach(b =>
-  b.classList.toggle('active', b.dataset.val === packDataMode));
+  b.classList.toggle('active', b.dataset.val===packDataMode));
 wireSeg('seg-data-mode', v => {
-  packDataMode = v; localStorage.setItem('packPlanDataMode', v);
-  cachedOrders = null; cachedHarvest = null; loadData();
+  packDataMode=v; localStorage.setItem('packPlanDataMode',v);
+  cachedOrders=null; cachedHarvest=null; cachedGrow=null; loadData();
 });
-wireSeg('seg-today',    v => { weatherToday = v; });
+wireSeg('seg-today',    v => { weatherToday  = v; });
 wireSeg('seg-tomorrow', v => { tomorrowTrend = v; });
 ['d1','d2'].forEach(day => {
   ['cut','fans','heat','blow','speed','cool'].forEach(ctrl => wireSeg(`seg-${day}-${ctrl}`));
 });
 
-// Row plan dirty tracking
-['dispose','store','ph'].forEach(f => {
-  ['d1','d2'].forEach(day => {
-    $id(`${day}-${f}`).addEventListener('input', () => { dirty[day][f] = true; update(); });
-  });
-});
-
-// All other numeric and time inputs
-document.querySelectorAll('input[type=number]:not([id$=dispose]):not([id$=store]):not([id$=ph]), input[type=time]').forEach(el => {
+document.querySelectorAll('input[type=number], input[type=time]').forEach(el => {
   el.addEventListener('input', update);
 });
 
 // ── Date picker ───────────────────────────────────────────────────────────────
 function onDateChange(iso) {
-  const cycle = packCycleDates(iso || isoToday());
-  d1Date = cycle.d1; d2Date = cycle.d2;
+  const c = packCycleDates(iso||isoToday());
+  d1Date=c.d1; d2Date=c.d2;
   $id('cycle-label').textContent = `D1: ${shortDate(d1Date)}  ·  D2: ${shortDate(d2Date)}`;
+  $id('d1-hs').closest('.card').querySelector('.card-title').textContent = `Harvest Schedule — D1 · ${shortDate(d1Date)}`;
+  $id('d2-hs').closest('.card').querySelector('.card-title').textContent = `Harvest Schedule — D2 · ${shortDate(d2Date)}`;
   applyDates();
 }
-
 const dateEl = $id('pack-date');
 dateEl.value = isoToday();
 dateEl.addEventListener('change', () => onDateChange(dateEl.value));
@@ -802,15 +652,13 @@ onDateChange(dateEl.value);
 
 loadData();
 
-// Version stamp
-fetch('', {method:'HEAD'}).then(r => {
-  const d = new Date(r.headers.get('last-modified'));
-  if (!d || isNaN(d)) return;
-  const hst = new Date(d.getTime() - 10*60*60*1000);
-  const p = n => String(n).padStart(2,'0');
-  $id('version').textContent = `${p(hst.getUTCMonth()+1)}-${p(hst.getUTCDate())} ${p(hst.getUTCHours())}:${p(hst.getUTCMinutes())}`;
+fetch('',{method:'HEAD'}).then(r=>{
+  const d=new Date(r.headers.get('last-modified'));
+  if(!d||isNaN(d)) return;
+  const hst=new Date(d.getTime()-10*60*60*1000);
+  const p=n=>String(n).padStart(2,'0');
+  $id('version').textContent=`${p(hst.getUTCMonth()+1)}-${p(hst.getUTCDate())} ${p(hst.getUTCHours())}:${p(hst.getUTCMinutes())}`;
 }).catch(()=>{});
-
 </script>
 </body>
 </html>
