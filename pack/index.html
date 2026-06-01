@@ -404,12 +404,13 @@ function sortedEntries(byKey) {
 
 function applyDisp(byKey, dispose, store) {
   const ponds = sortedEntries(byKey);
-  let rd=+dispose||0, rs=+store||0;
+  const total = ponds.reduce((s,p) => s+p.rows, 0);
+  const df = total > 0 ? dispose / total : 0;
+  const sf = total > 0 ? store   / total : 0;
   ponds.forEach(p => {
-    p.d  = Math.min(p.rows, rd); rd=Math.max(0,rd-p.rows);
-    const rem = p.rows-p.d;
-    p.s  = Math.min(rem, rs); rs=Math.max(0,rs-rem);
-    p.ph = p.rows-p.d-p.s;
+    p.d  = Math.max(0, Math.round(p.rows * df));
+    p.s  = Math.max(0, Math.min(p.rows - p.d, Math.round(p.rows * sf)));
+    p.ph = p.rows - p.d - p.s;
   });
   return ponds;
 }
