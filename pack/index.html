@@ -33,25 +33,30 @@ input[type=date]:focus { outline:none; border-color:#4ecca3; }
 /* Card sections */
 .card { background:#16213e; border-radius:8px; border:1px solid #0f3460; padding:12px 14px; }
 
+/* Shared column layout — both tables use the same 5-col proportions */
+#plan-tbl, .ot { width:100%; border-collapse:collapse; table-layout:fixed; }
+#plan-tbl { font-size:0.83rem; }
+.ot { font-size:0.82rem; }
+.col-lbl  { width:25%; }
+.col-data { width:18.75%; }
+
 /* Planning table */
-#plan-tbl { width:100%; border-collapse:collapse; font-size:0.83rem; }
 #plan-tbl thead th { padding:3px 10px 8px; color:#4ecca3; font-weight:600; font-size:0.84rem; text-align:left; border-bottom:1px solid #0f3460; }
-#plan-tbl thead th:not(:first-child) { text-align:right; }
 #plan-tbl tbody td { padding:5px 10px; vertical-align:middle; border-bottom:1px solid #0a1428; }
 #plan-tbl tbody tr:last-child td { border-bottom:none; }
-.row-lbl { color:#4ecca3; font-size:0.82rem; white-space:nowrap; width:160px; }
+.row-lbl { color:#4ecca3; font-size:0.82rem; white-space:nowrap; }
 .row-lbl-sub { color:#6ab4f5 !important; padding-left:18px !important; }
-.plan-val { color:#e0e0e0; font-variant-numeric:tabular-nums; text-align:right; }
+.section-hdr { font-size:0.7rem; color:#888; text-transform:uppercase; letter-spacing:.06em; padding-top:10px !important; border-bottom:none !important; }
+.plan-val { color:#e0e0e0; font-variant-numeric:tabular-nums; }
 .plan-val.pos { color:#4ecca3; }
 .plan-val.neg { color:#f1c40f; }
-input.plan-inp { width:90px; text-align:right; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:3px 6px; font-size:0.82rem; float:right; }
+input.plan-inp { width:110px; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:3px 6px; font-size:0.82rem; text-align:left; }
 input.plan-inp:focus { outline:none; border-color:#4ecca3; }
 input.plan-inp::-webkit-outer-spin-button,
 input.plan-inp::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
 input.plan-inp[type=number] { -moz-appearance:textfield; }
 
 /* Orders table */
-.ot { width:100%; border-collapse:collapse; font-size:0.82rem; }
 .ot th { color:#555; font-weight:500; padding:2px 8px 5px; border-bottom:1px solid #0f3460; text-align:right; }
 .ot th:first-child { text-align:left; }
 .ot td { padding:3px 8px; text-align:right; font-variant-numeric:tabular-nums; }
@@ -64,8 +69,6 @@ input.ot-inp:focus { outline:none; border-color:#4ecca3; }
 .ot th:nth-child(3), .ot td:nth-child(3) { border-right:1px solid #2a3a5e; }
 .ot th:nth-child(4), .ot td:nth-child(4) { border-left:1px solid #2a3a5e; }
 .ot th:nth-child(5), .ot td:nth-child(5) { border-right:1px solid #2a3a5e; }
-.ot th:nth-child(6), .ot td:nth-child(6) { border-left:1px solid #2a3a5e; }
-.ot th:nth-child(7), .ot td:nth-child(7) { border-right:1px solid #2a3a5e; }
 
 /* Operations */
 .ops-row { display:flex; align-items:center; justify-content:space-between; padding:6px 0; border-bottom:1px solid #0a1428; font-size:0.82rem; }
@@ -107,24 +110,29 @@ input[type=time]:focus { outline:none; border-color:#4ecca3; }
 <!-- Planning table -->
 <div class="card">
   <table id="plan-tbl">
+    <colgroup>
+      <col class="col-lbl">
+      <col class="col-data"><col class="col-data">
+      <col class="col-data"><col class="col-data">
+    </colgroup>
     <thead>
       <tr>
         <th></th>
-        <th id="d1-plan-hdr">D1</th>
-        <th id="d2-plan-hdr">D2</th>
+        <th colspan="2" id="d1-plan-hdr">D1</th>
+        <th colspan="2" id="d2-plan-hdr">D2</th>
       </tr>
     </thead>
     <tbody>
       <tr>
         <td class="row-lbl">Wetness</td>
-        <td style="text-align:right">
+        <td colspan="2">
           <div class="seg" id="seg-d1-wet">
             <button data-val="wet">Wet</button>
             <button data-val="avg" class="active">Avg</button>
             <button data-val="dry">Dry</button>
           </div>
         </td>
-        <td style="text-align:right">
+        <td colspan="2">
           <div class="seg" id="seg-d2-wet">
             <button data-val="wet">Wet</button>
             <button data-val="avg" class="active">Avg</button>
@@ -132,35 +140,36 @@ input[type=time]:focus { outline:none; border-color:#4ecca3; }
           </div>
         </td>
       </tr>
+      <tr><td colspan="5" class="section-hdr">Pounds</td></tr>
       <tr>
-        <td class="row-lbl row-lbl-sub">Harvest (t-14) lb</td>
-        <td id="d1-act14" class="plan-val">—</td>
-        <td id="d2-act14" class="plan-val">—</td>
+        <td class="row-lbl row-lbl-sub">Harvest (t-14)</td>
+        <td colspan="2" id="d1-act14" class="plan-val">—</td>
+        <td colspan="2" id="d2-act14" class="plan-val">—</td>
       </tr>
       <tr>
-        <td class="row-lbl row-lbl-sub">Harvest (t-7) lb</td>
-        <td id="d1-act7" class="plan-val">—</td>
-        <td id="d2-act7" class="plan-val">—</td>
+        <td class="row-lbl row-lbl-sub">Harvest (t-7)</td>
+        <td colspan="2" id="d1-act7" class="plan-val">—</td>
+        <td colspan="2" id="d2-act7" class="plan-val">—</td>
       </tr>
       <tr>
-        <td class="row-lbl">Harvest (lb)</td>
-        <td style="text-align:right"><input type="number" class="plan-inp" id="d1-hlb" value="0" min="0"></td>
-        <td style="text-align:right"><input type="number" class="plan-inp" id="d2-hlb" value="0" min="0"></td>
+        <td class="row-lbl">Harvest</td>
+        <td colspan="2"><input type="number" class="plan-inp" id="d1-hlb" value="0" min="0"></td>
+        <td colspan="2"><input type="number" class="plan-inp" id="d2-hlb" value="0" min="0"></td>
       </tr>
       <tr>
-        <td class="row-lbl">Orders (lb)</td>
-        <td id="d1-order-total" class="plan-val">—</td>
-        <td id="d2-order-total" class="plan-val">—</td>
+        <td class="row-lbl">Orders</td>
+        <td colspan="2" id="d1-order-total" class="plan-val">—</td>
+        <td colspan="2" id="d2-order-total" class="plan-val">—</td>
       </tr>
       <tr>
         <td class="row-lbl">Extra</td>
-        <td id="d1-extra" class="plan-val">—</td>
-        <td id="d2-extra" class="plan-val">—</td>
+        <td colspan="2" id="d1-extra" class="plan-val">—</td>
+        <td colspan="2" id="d2-extra" class="plan-val">—</td>
       </tr>
       <tr>
         <td class="row-lbl row-lbl-sub">% Needed</td>
-        <td id="d1-pct-needed" class="plan-val">—</td>
-        <td id="d2-pct-needed" class="plan-val">—</td>
+        <td colspan="2" id="d1-pct-needed" class="plan-val">—</td>
+        <td colspan="2" id="d2-pct-needed" class="plan-val">—</td>
       </tr>
     </tbody>
   </table>
@@ -169,12 +178,16 @@ input[type=time]:focus { outline:none; border-color:#4ecca3; }
 <!-- Orders -->
 <div class="card">
   <table class="ot">
+    <colgroup>
+      <col class="col-lbl">
+      <col class="col-data"><col class="col-data">
+      <col class="col-data"><col class="col-data">
+    </colgroup>
     <thead>
       <tr>
         <th>SKU</th>
         <th>D1 Cases</th><th>D1 Lb</th>
         <th>D2 Cases</th><th>D2 Lb</th>
-        <th>Total Cases</th><th>Total Lb</th>
       </tr>
     </thead>
     <tbody id="order-body"></tbody>
@@ -188,11 +201,11 @@ input[type=time]:focus { outline:none; border-color:#4ecca3; }
     <input type="time" id="d1-hstart" value="08:00">
   </div>
   <div class="ops-row">
-    <span class="ops-lbl">Cut Height</span>
+    <span class="ops-lbl">Baseline Cut Height</span>
     <div class="seg" id="seg-d1-cut">
-      <button data-val="hi">High</button>
-      <button data-val="med" class="active">Med</button>
-      <button data-val="lo">Low</button>
+      <button data-val="5">5</button>
+      <button data-val="20" class="active">20</button>
+      <button data-val="40">40</button>
     </div>
   </div>
   <div class="ops-row">
@@ -230,8 +243,8 @@ input[type=time]:focus { outline:none; border-color:#4ecca3; }
   <div class="ops-row">
     <span class="ops-lbl">Cold Room Store</span>
     <div class="seg" id="seg-d1-cool">
-      <button data-val="y" class="active">Yes</button>
-      <button data-val="n">No</button>
+      <button data-val="y">Yes</button>
+      <button data-val="n" class="active">No</button>
     </div>
   </div>
 </div>
@@ -298,9 +311,7 @@ function shortDate(iso) {
       <td><input class="ot-inp" type="number" id="d1-${s}" min="0" value="0"></td>
       <td class="lb-cell" id="d1-${s}-lb">0</td>
       <td><input class="ot-inp" type="number" id="d2-${s}" min="0" value="0"></td>
-      <td class="lb-cell" id="d2-${s}-lb">0</td>
-      <td class="lb-cell" id="tot-${s}-cs">0</td>
-      <td class="lb-cell" id="tot-${s}-lb">0</td>`;
+      <td class="lb-cell" id="d2-${s}-lb">0</td>`;
     tb.appendChild(tr);
   });
   const tf = document.createElement('tr');
@@ -309,9 +320,7 @@ function shortDate(iso) {
     <td class="lb-cell" id="ot-d1-cs">0</td>
     <td class="lb-cell" id="ot-d1-total">0</td>
     <td class="lb-cell" id="ot-d2-cs">0</td>
-    <td class="lb-cell" id="ot-d2-total">0</td>
-    <td class="lb-cell" id="ot-tot-cs">0</td>
-    <td class="lb-cell" id="ot-tot-total">0</td>`;
+    <td class="lb-cell" id="ot-d2-total">0</td>`;
   tb.appendChild(tf);
 })();
 
@@ -503,17 +512,13 @@ function update() {
     const d1cs=numVal(`d1-${s}`), d2cs=numVal(`d2-${s}`);
     const d1lb=d1cs*SKU_LB[sku], d2lb=d2cs*SKU_LB[sku];
     d1Total+=d1lb; d2Total+=d2lb; d1TotalCs+=d1cs; d2TotalCs+=d2cs;
-    $id(`d1-${s}-lb`).textContent  = fmt(d1lb);
-    $id(`d2-${s}-lb`).textContent  = fmt(d2lb);
-    $id(`tot-${s}-cs`).textContent = fmt(d1cs+d2cs);
-    $id(`tot-${s}-lb`).textContent = fmt(d1lb+d2lb);
+    $id(`d1-${s}-lb`).textContent = fmt(d1lb);
+    $id(`d2-${s}-lb`).textContent = fmt(d2lb);
   });
   $id('ot-d1-cs').textContent    = fmt(d1TotalCs);
   $id('ot-d1-total').textContent = fmt(d1Total);
   $id('ot-d2-cs').textContent    = fmt(d2TotalCs);
   $id('ot-d2-total').textContent = fmt(d2Total);
-  $id('ot-tot-cs').textContent   = fmt(d1TotalCs+d2TotalCs);
-  $id('ot-tot-total').textContent= fmt(d1Total+d2Total);
 
   // Planning table: orders and extra
   $id('d1-order-total').textContent = fmt(d1Total);
@@ -522,7 +527,7 @@ function update() {
   const d1extra=d1hlb-d1Total, d2extra=d2hlb-d2Total;
   const setExtra = (id, val, hasData) => {
     const el=$id(id);
-    el.textContent = hasData ? (val>=0?'+':'')+fmt(val)+' lb' : '—';
+    el.textContent = hasData ? (val>=0?'+':'')+fmt(val) : '—';
     el.className = 'plan-val' + (!hasData?'':val>0?' pos':val<0?' neg':'');
   };
   setExtra('d1-extra', d1extra, d1hlb>0||d1Total>0);
@@ -531,15 +536,15 @@ function update() {
     const el=$id(id);
     if (!harvest) { el.textContent='—'; el.className='plan-val'; return; }
     const pct = orders/harvest*100;
-    el.textContent = pct.toFixed(1)+'%';
-    el.className = 'plan-val' + (pct<=90?' pos':pct<=100?' neg':' neg');
+    el.textContent = Math.round(pct)+'%';
+    el.className = 'plan-val' + (pct<=90?' pos':' neg');
   };
   setPct('d1-pct-needed', d1Total, d1hlb);
   setPct('d2-pct-needed', d2Total, d2hlb);
 
   // Planning table: actual hist lb
   if (d1Date) {
-    const get = iso => { const v=cachedActualLb[iso]; return v!=null ? fmt(Math.round(v))+' lb' : '—'; };
+    const get = iso => { const v=cachedActualLb[iso]; return v!=null ? fmt(Math.round(v)) : '—'; };
     $id('d1-act14').textContent = get(isoAddDays(d1Date,-14));
     $id('d1-act7').textContent  = get(isoAddDays(d1Date,-7));
     $id('d2-act14').textContent = get(isoAddDays(d2Date,-14));
@@ -647,6 +652,13 @@ wireSeg('seg-dryer-fans');
 
 document.querySelectorAll('input[type=number], input[type=time]').forEach(el => {
   el.addEventListener('input', update);
+});
+$id('d1-hstart').addEventListener('change', () => {
+  const val = $id('d1-hstart').value;
+  if (!val) return;
+  const [h, m] = val.split(':').map(Number);
+  const ph = new Date(2000,0,1,h+1,m);
+  $id('d1-phstart').value = `${String(ph.getHours()).padStart(2,'0')}:${String(ph.getMinutes()).padStart(2,'0')}`;
 });
 
 // ── Date picker ───────────────────────────────────────────────────────────────
