@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pack Plan</title>
+<title>Pack Plan <!-- 06-03 09:26 --></title>
 <script src="../lib/data-source.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#1a1a2e; color:#e0e0e0; min-height:100vh; padding:16px 12px 32px; }
@@ -20,6 +21,9 @@ input[type=date]:focus { outline:none; border-color:#4ecca3; }
 .ds.loaded  { color:#4ecca3; }
 .ds.error   { color:#e07070; }
 #version { font-size:0.7rem; color:#e0e0e0; margin-left:auto; white-space:nowrap; }
+#email-btn { background:#0f3460; color:#4ecca3; border:1px solid #4ecca3; border-radius:4px; padding:3px 10px; font-size:0.76rem; cursor:pointer; white-space:nowrap; }
+#email-btn:hover { background:#4ecca3; color:#1a1a2e; }
+#email-btn:disabled { opacity:0.5; cursor:default; }
 
 /* Segment toggles */
 .seg { display:inline-flex; border:1px solid #2a3a5e; border-radius:4px; overflow:hidden; }
@@ -104,6 +108,7 @@ input[type=time]:focus { outline:none; border-color:#4ecca3; }
     <button data-val="sheets">Sheets</button>
     <button data-val="db">DB</button>
   </div>
+  <button id="email-btn" onclick="sendPackPlanEmail()">Email Plan</button>
   <span id="version"></span>
 </div>
 
@@ -678,6 +683,85 @@ dateEl.addEventListener('change', () => onDateChange(dateEl.value));
 onDateChange(dateEl.value);
 
 loadData();
+
+// ── Email plan ────────────────────────────────────────────────────────────────
+const GMAIL_CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com';
+const GMAIL_TO = [
+  'avon@hawaiifarming.com','julio@hawaiifarming.com','matt@hawaiifarming.com',
+  'eric@hawaiifarming.com','vicky@hawaiifarming.com','maria@hawaiifarming.com',
+  'maju@hawaiifarming.com'
+].join(', ');
+
+function buildEmailBody() {
+  const d1Label = $id('d1-plan-hdr').textContent;
+  const d2Label = $id('d2-plan-hdr').textContent;
+  const d1hlb = numVal('d1-hlb'), d2hlb = numVal('d2-hlb');
+  const d1wet = $id('seg-d1-wet').querySelector('button.active')?.dataset.val || '';
+  const d2wet = $id('seg-d2-wet').querySelector('button.active')?.dataset.val || '';
+  const segVal = id => $id(id)?.querySelector('button.active')?.dataset.val || '';
+  const segLbl = (id, map) => map[segVal(id)] || segVal(id);
+
+  let orders = '';
+  SKUS.forEach(sku => {
+    const s = sku.toLowerCase();
+    const d1cs = numVal(`d1-${s}`), d2cs = numVal(`d2-${s}`);
+    if (d1cs || d2cs) orders += `  ${sku}: D1 ${d1cs} cs  D2 ${d2cs} cs\n`;
+  });
+
+  return `Lettuce Pack Plan
+
+D1: ${d1Label}  |  D2: ${d2Label}
+
+POUNDS
+  D1  ${fmt(d1hlb)} lb (${d1wet})  Orders: ${$id('d1-order-total').textContent} lb  Extra: ${$id('d1-extra').textContent}  Needed: ${$id('d1-pct-needed').textContent}
+  D2  ${fmt(d2hlb)} lb (${d2wet})  Orders: ${$id('d2-order-total').textContent} lb  Extra: ${$id('d2-extra').textContent}  Needed: ${$id('d2-pct-needed').textContent}
+
+ORDERS
+${orders || '  (none)\n'}
+OPERATIONS
+  Harvest Start:    ${$id('d1-hstart').value}
+  PH Start:         ${$id('d1-phstart').value}
+  Cut Height:       ${segVal('seg-d1-cut')}
+  Heater On:        ${segLbl('seg-d1-heat',{y:'Yes',n:'No'})}
+  Dryer Fans:       ${segLbl('seg-dryer-fans',{y:'Yes',n:'No'})}
+  Dryer/GH Speed:   ${segLbl('seg-d1-speed',{med:'Normal',lo:'Slow'})}
+  PH Fans:          ${segLbl('seg-d1-fans',{y:'Yes',n:'No'})}
+  Cold Room Store:  ${segLbl('seg-d1-cool',{y:'Yes',n:'No'})}`;
+}
+
+async function sendPackPlanEmail() {
+  const btn = $id('email-btn');
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  try {
+    const tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GMAIL_CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/gmail.send',
+      callback: async tr => {
+        if (tr.error) { alert('Auth error: ' + tr.error); btn.textContent='Email Plan'; btn.disabled=false; return; }
+        btn.textContent = 'Sending…';
+        const d1Label = $id('d1-plan-hdr').textContent, d2Label = $id('d2-plan-hdr').textContent;
+        const subject = `Pack Plan — ${d1Label} / ${d2Label}`;
+        const body = buildEmailBody();
+        const msg = `To: ${GMAIL_TO}\r\nSubject: ${subject}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${body}`;
+        const raw = btoa(unescape(encodeURIComponent(msg))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+        const resp = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+          method:'POST',
+          headers:{'Authorization':'Bearer '+tr.access_token,'Content-Type':'application/json'},
+          body: JSON.stringify({raw})
+        });
+        if (resp.ok) {
+          btn.textContent = 'Sent ✓';
+          setTimeout(() => { btn.textContent='Email Plan'; btn.disabled=false; }, 3000);
+        } else {
+          const e = await resp.json();
+          alert('Send failed: ' + (e.error?.message || resp.status));
+          btn.textContent='Email Plan'; btn.disabled=false;
+        }
+      }
+    });
+    tokenClient.requestAccessToken({prompt:''});
+  } catch(e) { alert('Error: ' + e.message); btn.textContent='Email Plan'; btn.disabled=false; }
+}
 
 fetch('',{method:'HEAD'}).then(r=>{
   const d=new Date(r.headers.get('last-modified'));
