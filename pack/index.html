@@ -477,50 +477,37 @@ function renderSchedule(day, ponds, p1by, p2by, dateISO) {
   const p2Hdr = shortDate(isoAddDays(dateISO, -14));
   const p1Hdr = shortDate(isoAddDays(dateISO, -7));
   let totDisLb=0, totStoLb=0, totPhLb=0, tot2Lb=0, tot1Lb=0, totEstLb=0, totRows=0;
-  let bodyHtml = ponds.map(p => {
+  ponds.forEach(p => {
     const key  = `${p.pond}|${p.side}`;
     const est  = computeEstLb(p, p1by, p2by, dateISO);
     const lbRow = p.rows > 0 ? est / p.rows : 0;
-    const w2   = p2by[key]?.expLb || 0;
-    const w1   = p1by[key]?.expLb || 0;
-    const disLb = p.d  * lbRow;
-    const stoLb = p.s  * lbRow;
-    const phLb  = p.ph * lbRow;
-    tot2Lb   += w2;  tot1Lb  += w1;  totEstLb += est;  totRows += p.rows;
-    totDisLb += disLb; totStoLb += stoLb; totPhLb += phLb;
-    const fans = POND_FANS.has(p.pond) ? '<sup class="pond-fans">★</sup>' : '';
-    const lbl  = p.side ? `${p.pond}/${p.side}` : p.pond;
-    const vars = p.varieties.join('/') || '—';
-    return `<tr>
-      <td>${lbl}${fans}</td>
-      <td>${vars}</td>
-      <td>${fw(w2)}</td>
-      <td>${fw(w1)}</td>
-      <td>${fw(est)}</td>
-      <td class="dis-col">${p.d||''}</td>
-      <td class="sto-col">${p.s||''}</td>
-      <td class="ph-col">${p.ph||''}</td>
-      <td>${p.rows}</td>
-    </tr>`;
-  }).join('');
+    tot2Lb   += p2by[key]?.expLb || 0;
+    tot1Lb   += p1by[key]?.expLb || 0;
+    totEstLb += est;
+    totRows  += p.rows;
+    totDisLb += p.d * lbRow;
+    totStoLb += p.s * lbRow;
+    totPhLb  += p.ph * lbRow;
+  });
   return `<table class="hs">
     <thead><tr>
-      <th>Pond</th><th>Var</th>
-      <th>${p2Hdr} lb</th><th>${p1Hdr} lb</th><th>Est lb</th>
+      <th style="text-align:left">${p2Hdr}</th>
+      <th style="text-align:left">${p1Hdr}</th>
+      <th style="text-align:left">Est</th>
       <th class="dis-hdr">Dispose</th>
       <th class="sto-hdr">Store</th>
       <th class="ph-hdr">Pack</th>
       <th>Rows</th>
     </tr></thead>
-    <tbody>${bodyHtml}</tbody>
-    <tfoot><tr>
-      <td>Total</td><td></td>
-      <td>${fw(tot2Lb)}</td><td>${fw(tot1Lb)}</td><td>${fw(totEstLb)}</td>
+    <tbody><tr>
+      <td style="text-align:left">${fw(tot2Lb)} lb</td>
+      <td style="text-align:left">${fw(tot1Lb)} lb</td>
+      <td style="text-align:left">${fw(totEstLb)} lb</td>
       <td class="dis-col">${fw(totDisLb)} lb</td>
       <td class="sto-col">${fw(totStoLb)} lb</td>
       <td class="ph-col">${fw(totPhLb)} lb</td>
       <td>${totRows}r</td>
-    </tr></tfoot>
+    </tr></tbody>
   </table>`;
 }
 
