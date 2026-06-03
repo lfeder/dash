@@ -160,7 +160,7 @@ input[type=time]:focus { outline:none; border-color:#4ecca3; }
         <th>SKU</th>
         <th>D1 Cases</th><th>D1 Lb</th>
         <th>D2 Cases</th><th>D2 Lb</th>
-        <th>Total Lb</th>
+        <th>Total Cases</th><th>Total Lb</th>
       </tr>
     </thead>
     <tbody id="order-body"></tbody>
@@ -285,14 +285,18 @@ function shortDate(iso) {
       <td class="lb-cell" id="d1-${s}-lb">0</td>
       <td><input class="ot-inp" type="number" id="d2-${s}" min="0" value="0"></td>
       <td class="lb-cell" id="d2-${s}-lb">0</td>
+      <td class="lb-cell" id="tot-${s}-cs">0</td>
       <td class="lb-cell" id="tot-${s}-lb">0</td>`;
     tb.appendChild(tr);
   });
   const tf = document.createElement('tr');
   tf.className = 'total-row';
-  tf.innerHTML = `<td>Total</td><td></td>
-    <td class="lb-cell" id="ot-d1-total">0</td><td></td>
+  tf.innerHTML = `<td>Total</td>
+    <td class="lb-cell" id="ot-d1-cs">0</td>
+    <td class="lb-cell" id="ot-d1-total">0</td>
+    <td class="lb-cell" id="ot-d2-cs">0</td>
     <td class="lb-cell" id="ot-d2-total">0</td>
+    <td class="lb-cell" id="ot-tot-cs">0</td>
     <td class="lb-cell" id="ot-tot-total">0</td>`;
   tb.appendChild(tf);
 })();
@@ -479,19 +483,23 @@ function renderSchedule(day, ponds, p1by, p2by, dateISO) {
 // ── Main update ───────────────────────────────────────────────────────────────
 function update() {
   // Orders table
-  let d1Total=0, d2Total=0;
+  let d1Total=0, d2Total=0, d1TotalCs=0, d2TotalCs=0;
   SKUS.forEach(sku => {
     const s=sku.toLowerCase();
     const d1cs=numVal(`d1-${s}`), d2cs=numVal(`d2-${s}`);
     const d1lb=d1cs*SKU_LB[sku], d2lb=d2cs*SKU_LB[sku];
-    d1Total+=d1lb; d2Total+=d2lb;
+    d1Total+=d1lb; d2Total+=d2lb; d1TotalCs+=d1cs; d2TotalCs+=d2cs;
     $id(`d1-${s}-lb`).textContent  = fmt(d1lb);
     $id(`d2-${s}-lb`).textContent  = fmt(d2lb);
+    $id(`tot-${s}-cs`).textContent = fmt(d1cs+d2cs);
     $id(`tot-${s}-lb`).textContent = fmt(d1lb+d2lb);
   });
-  $id('ot-d1-total').textContent  = fmt(d1Total);
-  $id('ot-d2-total').textContent  = fmt(d2Total);
-  $id('ot-tot-total').textContent = fmt(d1Total+d2Total);
+  $id('ot-d1-cs').textContent    = fmt(d1TotalCs);
+  $id('ot-d1-total').textContent = fmt(d1Total);
+  $id('ot-d2-cs').textContent    = fmt(d2TotalCs);
+  $id('ot-d2-total').textContent = fmt(d2Total);
+  $id('ot-tot-cs').textContent   = fmt(d1TotalCs+d2TotalCs);
+  $id('ot-tot-total').textContent= fmt(d1Total+d2Total);
 
   // Planning table: orders and extra
   $id('d1-order-total').textContent = fmt(d1Total);
