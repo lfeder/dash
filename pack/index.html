@@ -7,234 +7,238 @@
 <script src="../lib/data-source.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#1a1a2e; color:#e0e0e0; height:100vh; display:flex; flex-direction:column; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#1a1a2e; color:#e0e0e0; min-height:100vh; padding:16px 12px 32px; }
+#page { max-width:600px; margin:0 auto; display:flex; flex-direction:column; gap:14px; }
 
 /* Header */
-#hdr { background:#16213e; padding:7px 16px; display:flex; align-items:center; gap:10px; border-bottom:1px solid #0f3460; flex-shrink:0; flex-wrap:wrap; }
+#hdr { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 #hdr h1 { font-size:1rem; color:#4ecca3; white-space:nowrap; }
-#version { margin-left:auto; font-size:0.7rem; color:#e0e0e0; white-space:nowrap; }
 input[type=date] { background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:3px 7px; font-size:0.82rem; }
 input[type=date]:focus { outline:none; border-color:#4ecca3; }
-#cycle-label { font-size:0.76rem; color:#777; white-space:nowrap; }
 .ds { font-size:0.74rem; }
 .ds.loading { color:#f1c40f; }
 .ds.loaded  { color:#4ecca3; }
 .ds.error   { color:#e07070; }
+#version { font-size:0.7rem; color:#e0e0e0; margin-left:auto; white-space:nowrap; }
 
 /* Segment toggles */
-.seg { display:flex; border:1px solid #2a3a5e; border-radius:4px; overflow:hidden; }
-.seg button { padding:3px 9px; font-size:0.76rem; background:transparent; color:#555; border:none; cursor:pointer; }
+.seg { display:inline-flex; border:1px solid #2a3a5e; border-radius:4px; overflow:hidden; }
+.seg button { padding:3px 9px; font-size:0.76rem; background:transparent; color:#555; border:none; cursor:pointer; white-space:nowrap; }
+.seg button.active { background:#0f3460; color:#e0e0e0; }
 .seg button[data-val="wet"].active    { background:rgba(52,152,219,.2);  color:#6ab4f5; }
 .seg button[data-val="avg"].active    { background:rgba(241,196,15,.18); color:#f1c40f; }
 .seg button[data-val="dry"].active    { background:rgba(78,204,163,.18); color:#4ecca3; }
-.seg button[data-val="better"].active { background:rgba(78,204,163,.18); color:#4ecca3; }
-.seg button[data-val="same"].active   { background:rgba(241,196,15,.18); color:#f1c40f; }
-.seg button[data-val="worse"].active  { background:rgba(231,76,60,.18);  color:#e07070; }
-.seg button.active { background:#0f3460; color:#e0e0e0; }
+.seg.sm button { padding:2px 7px; font-size:0.7rem; }
 
-/* Two-panel layout */
-#body { flex:1; display:flex; overflow:hidden; }
-
-/* Left panel */
-#left { width:230px; flex-shrink:0; background:#16213e; border-right:1px solid #0f3460; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:12px; }
-.sb { display:flex; flex-direction:column; gap:7px; }
-.sb-title { font-size:0.68rem; color:#555; text-transform:uppercase; letter-spacing:.06em; padding-bottom:5px; border-bottom:1px solid #0f3460; }
-.sf { display:flex; align-items:center; justify-content:space-between; gap:6px; font-size:0.78rem; }
-.sf label { color:#888; white-space:nowrap; }
-input[type=number].sm { width:72px; text-align:right; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:2px 5px; font-size:0.82rem; }
-input[type=number].sm:focus { outline:none; border-color:#4ecca3; }
-input[type=time] { width:95px; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:2px 6px; font-size:0.8rem; }
-input[type=time]:focus { outline:none; border-color:#4ecca3; }
-.fill-line { display:flex; align-items:center; gap:6px; }
-.fill-pct { font-size:0.95rem; font-weight:700; }
-.badge { display:inline-block; padding:1px 7px; border-radius:8px; font-size:0.68rem; font-weight:600; }
-.badge-full { background:rgba(78,204,163,.18); color:#4ecca3; }
-.badge-sel  { background:rgba(241,196,15,.18); color:#f1c40f; }
-.badge-lite { background:rgba(52,152,219,.18); color:#6ab4f5; }
-.fill-track { flex:1; background:#0a1428; border-radius:3px; height:4px; overflow:hidden; }
-.fill-bar   { height:100%; border-radius:3px; transition:width .3s,background .3s; }
-
-/* Right panel */
-#right { flex:1; overflow-y:auto; padding:12px 14px; display:flex; flex-direction:column; gap:12px; }
+/* Card sections */
 .card { background:#16213e; border-radius:8px; border:1px solid #0f3460; padding:12px 14px; }
-.card-title { font-size:0.68rem; color:#555; text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px; }
-.card-subtitle { font-size:0.72rem; color:#888; margin-top:-4px; margin-bottom:8px; }
+
+/* Planning table */
+#plan-tbl { width:100%; border-collapse:collapse; font-size:0.83rem; }
+#plan-tbl thead th { padding:3px 10px 8px; color:#4ecca3; font-weight:600; font-size:0.84rem; text-align:left; border-bottom:1px solid #0f3460; }
+#plan-tbl thead th:not(:first-child) { text-align:right; }
+#plan-tbl tbody td { padding:5px 10px; vertical-align:middle; border-bottom:1px solid #0a1428; }
+#plan-tbl tbody tr:last-child td { border-bottom:none; }
+.row-lbl { color:#4ecca3; font-size:0.82rem; white-space:nowrap; width:160px; }
+.row-lbl-sub { color:#6ab4f5 !important; padding-left:18px !important; }
+.plan-val { color:#e0e0e0; font-variant-numeric:tabular-nums; text-align:right; }
+.plan-val.pos { color:#4ecca3; }
+.plan-val.neg { color:#f1c40f; }
+input.plan-inp { width:90px; text-align:right; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:3px 6px; font-size:0.82rem; float:right; }
+input.plan-inp:focus { outline:none; border-color:#4ecca3; }
 
 /* Orders table */
 .ot { width:100%; border-collapse:collapse; font-size:0.82rem; }
-.ot th { color:#555; font-weight:500; padding:2px 8px 5px; border-bottom:1px solid #0f3460; }
+.ot th { color:#555; font-weight:500; padding:2px 8px 5px; border-bottom:1px solid #0f3460; text-align:right; }
 .ot th:first-child { text-align:left; }
-.ot th:not(:first-child) { text-align:right; }
-.ot td { padding:2px 8px; text-align:right; font-variant-numeric:tabular-nums; }
+.ot td { padding:3px 8px; text-align:right; font-variant-numeric:tabular-nums; }
 .ot td:first-child { text-align:left; color:#bbb; }
-.ot .lb-cell { color:#888; }
+.lb-cell { color:#888; }
 .ot .total-row td { border-top:1px solid #0f3460; padding-top:4px; font-weight:600; color:#e0e0e0; }
 input.ot-inp { width:62px; text-align:right; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:2px 5px; font-size:0.82rem; }
 input.ot-inp:focus { outline:none; border-color:#4ecca3; }
 
-/* Harvest schedule table */
+/* Operations */
+.ops-row { display:flex; align-items:center; justify-content:space-between; padding:6px 0; border-bottom:1px solid #0a1428; font-size:0.82rem; }
+.ops-row:last-child { border-bottom:none; }
+.ops-lbl { color:#4ecca3; }
+input[type=time] { background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:2px 6px; font-size:0.8rem; }
+input[type=time]:focus { outline:none; border-color:#4ecca3; }
+
+/* Harvest schedule */
+.sched-hdr { font-size:0.68rem; color:#555; text-transform:uppercase; letter-spacing:.06em; margin-bottom:4px; }
+.sched-sub { font-size:0.72rem; color:#888; margin-bottom:8px; }
 .hs { width:100%; border-collapse:collapse; font-size:0.8rem; }
 .hs th { color:#555; font-weight:500; padding:2px 8px 5px; border-bottom:1px solid #0f3460; text-align:right; white-space:nowrap; }
-.hs th:first-child, .hs th:nth-child(2) { text-align:left; }
-.hs td { padding:3px 8px; text-align:right; font-variant-numeric:tabular-nums; vertical-align:middle; color:#aaa; }
-.hs td:first-child { text-align:left; color:#ccc; font-weight:600; white-space:nowrap; }
-.hs td:nth-child(2) { text-align:left; color:#888; }
-.hs tr:hover td { background:rgba(255,255,255,.03); }
-.hs tfoot td { border-top:1px solid #0f3460; padding-top:5px; font-weight:600; color:#e0e0e0; }
-.hs tfoot td:first-child { color:#888; }
+.hs td { padding:3px 8px; text-align:right; font-variant-numeric:tabular-nums; color:#aaa; }
 .dis-hdr { color:#e07070 !important; }
 .sto-hdr { color:#6ab4f5 !important; }
 .ph-hdr  { color:#4ecca3 !important; }
 .dis-col { color:#c05050; }
 .sto-col { color:#5090c0; }
 .ph-col  { color:#3aaa85; }
-.pond-fans { font-size:0.6rem; color:#4ecca3; vertical-align:super; }
-.no-data  { color:#444; font-size:0.76rem; padding:8px 0; }
+.no-data { color:#444; font-size:0.76rem; padding:8px 0; }
 </style>
 </head>
 <body>
+<div id="page">
 
+<!-- Header -->
 <div id="hdr">
   <h1>Lettuce Pack Plan</h1>
   <input type="date" id="pack-date">
-  <span id="cycle-label"></span>
   <span id="data-status" class="ds">—</span>
+  <div class="seg sm" id="seg-data-mode">
+    <button data-val="sheets">Sheets</button>
+    <button data-val="db">DB</button>
+  </div>
   <span id="version"></span>
 </div>
 
-<div id="body">
+<!-- Planning table -->
+<div class="card">
+  <table id="plan-tbl">
+    <thead>
+      <tr>
+        <th></th>
+        <th id="d1-plan-hdr">D1</th>
+        <th id="d2-plan-hdr">D2</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="row-lbl">Wetness</td>
+        <td style="text-align:right">
+          <div class="seg" id="seg-d1-wet">
+            <button data-val="wet">Wet</button>
+            <button data-val="avg" class="active">Avg</button>
+            <button data-val="dry">Dry</button>
+          </div>
+        </td>
+        <td style="text-align:right">
+          <div class="seg" id="seg-d2-wet">
+            <button data-val="wet">Wet</button>
+            <button data-val="avg" class="active">Avg</button>
+            <button data-val="dry">Dry</button>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="row-lbl row-lbl-sub">Harvest (t-14) lb</td>
+        <td id="d1-act14" class="plan-val">—</td>
+        <td id="d2-act14" class="plan-val">—</td>
+      </tr>
+      <tr>
+        <td class="row-lbl row-lbl-sub">Harvest (t-7) lb</td>
+        <td id="d1-act7" class="plan-val">—</td>
+        <td id="d2-act7" class="plan-val">—</td>
+      </tr>
+      <tr>
+        <td class="row-lbl">Harvest (lb)</td>
+        <td style="text-align:right"><input type="number" class="plan-inp" id="d1-hlb" value="0" min="0"></td>
+        <td style="text-align:right"><input type="number" class="plan-inp" id="d2-hlb" value="0" min="0"></td>
+      </tr>
+      <tr>
+        <td class="row-lbl">Orders (lb)</td>
+        <td id="d1-order-total" class="plan-val">—</td>
+        <td id="d2-order-total" class="plan-val">—</td>
+      </tr>
+      <tr>
+        <td class="row-lbl">Extra</td>
+        <td id="d1-extra" class="plan-val">—</td>
+        <td id="d2-extra" class="plan-val">—</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
-<!-- LEFT PANEL -->
-<div id="left">
+<!-- Orders -->
+<div class="card">
+  <table class="ot">
+    <thead>
+      <tr>
+        <th>SKU</th>
+        <th>D1 Cases</th><th>D1 Lb</th>
+        <th>D2 Cases</th><th>D2 Lb</th>
+        <th>Total Lb</th>
+      </tr>
+    </thead>
+    <tbody id="order-body"></tbody>
+  </table>
+</div>
 
-  <!-- Conditions -->
-  <div class="sb">
-    <div class="sb-title">Conditions</div>
-    <div class="sf"><label>Today</label>
-      <div class="seg" id="seg-today">
-        <button data-val="wet">Wet</button>
-        <button data-val="avg" class="active">Avg</button>
-        <button data-val="dry">Dry</button>
-      </div>
-    </div>
-    <div class="sf"><label>Tomorrow</label>
-      <div class="seg" id="seg-tomorrow">
-        <button data-val="better">Better</button>
-        <button data-val="same" class="active">Same</button>
-        <button data-val="worse">Worse</button>
-      </div>
-    </div>
-    <div class="sf"><label>Data</label>
-      <div class="seg" id="seg-data-mode">
-        <button data-val="sheets" class="active">Sheets</button>
-        <button data-val="db">DB</button>
-      </div>
+<!-- Operations -->
+<div class="card">
+  <div class="ops-row">
+    <span class="ops-lbl">Harvest Start</span>
+    <input type="time" id="d1-hstart">
+  </div>
+  <div class="ops-row">
+    <span class="ops-lbl">Cut Height</span>
+    <div class="seg" id="seg-d1-cut">
+      <button data-val="hi">High</button>
+      <button data-val="med" class="active">Med</button>
+      <button data-val="lo">Low</button>
     </div>
   </div>
-
-  <!-- D1 -->
-  <div class="sb">
-    <div class="sb-title">D1 Plan</div>
-    <div class="sf"><label>Harvest lb</label><input type="number" class="sm" id="d1-hlb" value="3500" min="0"></div>
-    <div class="sf"><label>Rows</label><input type="number" class="sm" id="d1-rows" value="9" min="1"></div>
-    <div class="fill-line">
-      <span class="fill-pct" id="d1-fillpct">0%</span>
-      <span class="badge badge-lite" id="d1-badge">—</span>
-      <div class="fill-track"><div class="fill-bar" id="d1-fillbar" style="width:0%"></div></div>
-    </div>
-    <div class="sf"><label>Harvest start</label><input type="time" id="d1-hstart"></div>
-    <div class="sf"><label>Cut height</label>
-      <div class="seg" id="seg-d1-cut"><button data-val="hi">Hi</button><button data-val="med" class="active">Med</button><button data-val="lo">Lo</button></div>
-    </div>
-    <div class="sf"><label>PH start</label><input type="time" id="d1-phstart"></div>
-    <div class="sf"><label>PH fans</label>
-      <div class="seg" id="seg-d1-fans"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div>
-    </div>
-    <div class="sf"><label>Dryer heat</label>
-      <div class="seg" id="seg-d1-heat"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div>
-    </div>
-    <div class="sf"><label>Blowers</label>
-      <div class="seg" id="seg-d1-blow"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div>
-    </div>
-    <div class="sf"><label>Speed</label>
-      <div class="seg" id="seg-d1-speed"><button data-val="lo">Lo</button><button data-val="med" class="active">Med</button><button data-val="hi">Hi</button></div>
-    </div>
-    <div class="sf"><label>Cool room</label>
-      <div class="seg" id="seg-d1-cool"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div>
+  <div class="ops-row">
+    <span class="ops-lbl">PH Start</span>
+    <input type="time" id="d1-phstart">
+  </div>
+  <div class="ops-row">
+    <span class="ops-lbl">Heater On</span>
+    <div class="seg" id="seg-d1-heat">
+      <button data-val="y">Yes</button>
+      <button data-val="n" class="active">No</button>
     </div>
   </div>
-
-  <!-- D2 -->
-  <div class="sb">
-    <div class="sb-title">D2 Plan</div>
-    <div class="sf"><label>Harvest lb</label><input type="number" class="sm" id="d2-hlb" value="2500" min="0"></div>
-    <div class="sf"><label>Rows</label><input type="number" class="sm" id="d2-rows" value="6" min="1"></div>
-    <div class="fill-line">
-      <span class="fill-pct" id="d2-fillpct">0%</span>
-      <span class="badge badge-lite" id="d2-badge">—</span>
-      <div class="fill-track"><div class="fill-bar" id="d2-fillbar" style="width:0%"></div></div>
+  <div class="ops-row">
+    <span class="ops-lbl">Dryer Fans</span>
+    <div class="seg" id="seg-dryer-fans">
+      <button data-val="y">Yes</button>
+      <button data-val="n" class="active">No</button>
     </div>
-    <div class="sf"><label>Harvest start</label><input type="time" id="d2-hstart"></div>
-    <div class="sf"><label>Cut height</label>
-      <div class="seg" id="seg-d2-cut"><button data-val="hi">Hi</button><button data-val="med" class="active">Med</button><button data-val="lo">Lo</button></div>
-    </div>
-    <div class="sf"><label>PH start</label><input type="time" id="d2-phstart"></div>
-    <div class="sf"><label>PH fans</label>
-      <div class="seg" id="seg-d2-fans"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div>
-    </div>
-    <div class="sf"><label>Dryer heat</label>
-      <div class="seg" id="seg-d2-heat"><button data-val="y">Y</button><button data-val="n" class="active">N</button></div>
-    </div>
-    <div class="sf"><label>Blowers</label>
-      <div class="seg" id="seg-d2-blow"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div>
-    </div>
-    <div class="sf"><label>Speed</label>
-      <div class="seg" id="seg-d2-speed"><button data-val="lo">Lo</button><button data-val="med" class="active">Med</button><button data-val="hi">Hi</button></div>
-    </div>
-    <div class="sf"><label>Cool room</label>
-      <div class="seg" id="seg-d2-cool"><button data-val="y" class="active">Y</button><button data-val="n">N</button></div>
-    </div>
-    <!-- D1 carry-in note -->
-    <div id="d2-pull-note" style="font-size:0.72rem;color:#555"></div>
   </div>
-
-</div><!-- #left -->
-
-<!-- RIGHT PANEL -->
-<div id="right">
-
-  <!-- Orders -->
-  <div class="card">
-    <div class="card-title">Orders</div>
-    <table class="ot">
-      <thead>
-        <tr>
-          <th>SKU</th>
-          <th style="text-align:right">D1 Cases</th><th style="text-align:right">D1 Lb</th>
-          <th style="text-align:right">D2 Cases</th><th style="text-align:right">D2 Lb</th>
-          <th style="text-align:right">Total Lb</th>
-        </tr>
-      </thead>
-      <tbody id="order-body"></tbody>
-    </table>
+  <div class="ops-row">
+    <span class="ops-lbl">Dryer / GH Speed</span>
+    <div class="seg" id="seg-d1-speed">
+      <button data-val="med" class="active">Normal</button>
+      <button data-val="lo">Slow</button>
+    </div>
   </div>
-
-  <!-- Harvest Schedule D1 -->
-  <div class="card">
-    <div class="card-title">Harvest Schedule — D1</div>
-    <div class="card-subtitle" id="d1-hs-sub"></div>
-    <div id="d1-hs"></div>
+  <div class="ops-row">
+    <span class="ops-lbl">PH Fans</span>
+    <div class="seg" id="seg-d1-fans">
+      <button data-val="y">Yes</button>
+      <button data-val="n" class="active">No</button>
+    </div>
   </div>
-
-  <!-- Harvest Schedule D2 -->
-  <div class="card">
-    <div class="card-title">Harvest Schedule — D2</div>
-    <div class="card-subtitle" id="d2-hs-sub"></div>
-    <div id="d2-hs"></div>
+  <div class="ops-row">
+    <span class="ops-lbl">Cold Room Store</span>
+    <div class="seg" id="seg-d1-cool">
+      <button data-val="y" class="active">Yes</button>
+      <button data-val="n">No</button>
+    </div>
   </div>
+</div>
 
-</div><!-- #right -->
-</div><!-- #body -->
+<!-- Harvest Schedules -->
+<div class="card">
+  <div class="sched-hdr" id="d1-sched-hdr">Harvest Schedule — D1</div>
+  <div class="sched-sub" id="d1-hs-sub"></div>
+  <div id="d1-hs"></div>
+</div>
+<div class="card">
+  <div class="sched-hdr" id="d2-sched-hdr">Harvest Schedule — D2</div>
+  <div class="sched-sub" id="d2-hs-sub"></div>
+  <div id="d2-hs"></div>
+</div>
+
+</div><!-- #page -->
+
+<!-- Hidden inputs for row counts (used in recPlan calculations) -->
+<input type="hidden" id="d1-rows" value="0">
+<input type="hidden" id="d2-rows" value="0">
 
 <script>
 const SKU_LB = {LW:10.5, LR:2.25, LF:10.0, WR:2.25};
@@ -243,15 +247,13 @@ const POND_ORDER = ['P1','P2','P3','P4','P5','P6','P7'];
 const SIDE_ORDER = {'C':0,'A':1,'B':2,'AB':3};
 const POND_FANS  = new Set(['P7']);
 
-let weatherToday = 'avg', tomorrowTrend = 'same';
+let d1Weather = 'avg', d2Weather = 'avg';
 let packDataMode = localStorage.getItem('packPlanDataMode') || 'sheets';
 let d1Date = '', d2Date = '';
 
 function $id(id) { return document.getElementById(id); }
 function numVal(id) { return parseFloat($id(id).value) || 0; }
-function segVal(id) { const b = document.querySelector(`#${id} button.active`); return b ? b.dataset.val : null; }
 function fmt(n) { return Math.round(n).toLocaleString(); }
-function fmtLb(n) { return fmt(n) + ' lb'; }
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 function isoToday() {
@@ -260,9 +262,6 @@ function isoToday() {
 }
 function isoAddDays(iso, n) {
   const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n);
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-function toISO(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 function packCycleDates(iso) {
@@ -296,17 +295,13 @@ function shortDate(iso) {
   const tf = document.createElement('tr');
   tf.className = 'total-row';
   tf.innerHTML = `<td>Total</td><td></td>
-    <td class="lb-cell" id="d1-order-total">0</td><td></td>
-    <td class="lb-cell" id="d2-order-total">0</td>
-    <td class="lb-cell" id="tot-order-total">0</td>`;
+    <td class="lb-cell" id="ot-d1-total">0</td><td></td>
+    <td class="lb-cell" id="ot-d2-total">0</td>
+    <td class="lb-cell" id="ot-tot-total">0</td>`;
   tb.appendChild(tf);
 })();
 
 // ── Calculation ───────────────────────────────────────────────────────────────
-function orderLb(day) {
-  return SKUS.reduce((s,sku) => s + numVal(`${day}-${sku.toLowerCase()}`) * SKU_LB[sku], 0);
-}
-
 function recPlan(orderLb, harvestLb, rows, weather, tomorrow, storageLb) {
   if (rows === 0 || harvestLb === 0) return {dispose:0, store:0, ph:0, mode:'—', fillRate:0, lbRow:0};
   if (orderLb === 0) return {dispose:0, store:0, ph:0, mode:'No orders', fillRate:0, lbRow:harvestLb/rows};
@@ -334,16 +329,9 @@ function recPlan(orderLb, harvestLb, rows, weather, tomorrow, storageLb) {
   return {dispose, store, ph, mode, fillRate, lbRow};
 }
 
-function fillColor(r) { return r>0.9?'#4ecca3':r>0.6?'#f1c40f':'#6ab4f5'; }
-function badgeClass(m) {
-  if (m==='Full send') return 'badge badge-full';
-  if (m==='Selective')  return 'badge badge-sel';
-  return 'badge badge-lite';
-}
-
 // ── Grow data ─────────────────────────────────────────────────────────────────
 let cachedOrders=null, cachedHarvest=null, cachedGrow=null;
-let cachedActualLb = {}; // harvest_date → actual net lb from grow_harvest_weight
+let cachedActualLb = {};
 
 function gvizToISO(cell) {
   if (!cell || cell.v === null || cell.v === undefined) return null;
@@ -443,41 +431,17 @@ function ordersByDate(dateISO) {
   return result;
 }
 
-function harvestByDate(dateISO) {
-  if (!cachedHarvest) return null;
-  const {cols, rows} = cachedHarvest;
-  const di=colIdx(cols,'HarvestDate'), bppi=colIdx(cols,'BoardsPerPond');
-  const plbi=colIdx(cols,'PoundsPerBoard'), gnwi=colIdx(cols,'GreenhouseNetWeight');
-  if (di<0) return null;
-  const matching = rows.filter(r => gvizToISO(r.c[di]) === dateISO);
-  if (!matching.length) return null;
-  const totalLb = matching.reduce((sum,r) => {
-    const gnw = gnwi>=0 ? r.c[gnwi]?.v : null;
-    if (gnw) return sum+gnw;
-    const bpp = bppi>=0?(r.c[bppi]?.v||0):0;
-    const plb = plbi>=0?(r.c[plbi]?.v||0):0;
-    return sum+bpp*plb;
-  }, 0);
-  return {rowCount:matching.length, totalLb};
-}
-
 function populateDay(day, dateISO) {
   const orders = ordersByDate(dateISO);
   if (orders) SKUS.forEach(sku => { $id(`${day}-${sku.toLowerCase()}`).value = orders[sku]||0; });
-  const harv = harvestByDate(dateISO);
-  if (harv) {
-    $id(`${day}-hlb`).value  = Math.round(harv.totalLb);
-    $id(`${day}-rows`).value = harv.rowCount;
-  }
 }
 
 // ── Harvest schedule table ────────────────────────────────────────────────────
 function renderSchedule(day, ponds, p1by, p2by, dateISO) {
   if (!ponds.length) return '<div class="no-data">No grow data for this date</div>';
   const fw = lb => (lb && lb > 0) ? fmt(Math.round(lb)) : '—';
-  const p2Hdr = shortDate(isoAddDays(dateISO, -14));
-  const p1Hdr = shortDate(isoAddDays(dateISO, -7));
   const p1ISO = isoAddDays(dateISO, -7), p2ISO = isoAddDays(dateISO, -14);
+  const p2Hdr = shortDate(p2ISO), p1Hdr = shortDate(p1ISO);
   let totDisLb=0, totStoLb=0, totPhLb=0, tot2Lb=0, tot1Lb=0, totEstLb=0, totRows=0;
   ponds.forEach(p => {
     const key  = `${p.pond}|${p.side}`;
@@ -518,7 +482,7 @@ function renderSchedule(day, ponds, p1by, p2by, dateISO) {
 
 // ── Main update ───────────────────────────────────────────────────────────────
 function update() {
-  // Orders
+  // Orders table
   let d1Total=0, d2Total=0;
   SKUS.forEach(sku => {
     const s=sku.toLowerCase();
@@ -529,41 +493,36 @@ function update() {
     $id(`d2-${s}-lb`).textContent  = fmt(d2lb);
     $id(`tot-${s}-lb`).textContent = fmt(d1lb+d2lb);
   });
-  $id('d1-order-total').textContent  = fmt(d1Total);
-  $id('d2-order-total').textContent  = fmt(d2Total);
-  $id('tot-order-total').textContent = fmt(d1Total+d2Total);
+  $id('ot-d1-total').textContent  = fmt(d1Total);
+  $id('ot-d2-total').textContent  = fmt(d2Total);
+  $id('ot-tot-total').textContent = fmt(d1Total+d2Total);
 
-  // D1 fill rate
-  const d1hlb=numVal('d1-hlb'), d1rows=numVal('d1-rows');
-  const d1rec = recPlan(d1Total, d1hlb, d1rows, weatherToday, tomorrowTrend, 0);
-  $id('d1-fillpct').textContent = Math.round(d1rec.fillRate*100)+'%';
-  $id('d1-fillbar').style.width = Math.min(100,d1rec.fillRate*100)+'%';
-  $id('d1-fillbar').style.background = fillColor(d1rec.fillRate);
-  const b1=$id('d1-badge'); b1.textContent=d1rec.mode; b1.className=badgeClass(d1rec.mode);
+  // Planning table: orders and extra
+  $id('d1-order-total').textContent = fmt(d1Total);
+  $id('d2-order-total').textContent = fmt(d2Total);
+  const d1hlb=numVal('d1-hlb'), d2hlb=numVal('d2-hlb');
+  const d1extra=d1hlb-d1Total, d2extra=d2hlb-d2Total;
+  const setExtra = (id, val, hasData) => {
+    const el=$id(id);
+    el.textContent = hasData ? (val>=0?'+':'')+fmt(val)+' lb' : '—';
+    el.className = 'plan-val' + (!hasData?'':val>0?' pos':val<0?' neg':'');
+  };
+  setExtra('d1-extra', d1extra, d1hlb>0||d1Total>0);
+  setExtra('d2-extra', d2extra, d2hlb>0||d2Total>0);
 
-  // D1 storage carry-in to D2
-  const d1actStore = d1rec.store;
-  const d1storeLb  = d1actStore * d1rec.lbRow;
-
-  // D2 fill rate
-  const d2hlb=numVal('d2-hlb'), d2rows=numVal('d2-rows');
-  const d2weather = tomorrowTrend==='better'?'dry':tomorrowTrend==='worse'?'wet':'avg';
-  const d2rec = recPlan(d2Total, d2hlb, d2rows, d2weather, 'same', 0);
-  $id('d2-fillpct').textContent = Math.round(d2rec.fillRate*100)+'%';
-  $id('d2-fillbar').style.width = Math.min(100,d2rec.fillRate*100)+'%';
-  $id('d2-fillbar').style.background = fillColor(d2rec.fillRate);
-  const b2=$id('d2-badge'); b2.textContent=d2rec.mode; b2.className=badgeClass(d2rec.mode);
-
-  // D2 pull note
-  const pullNote = $id('d2-pull-note');
-  if (d1storeLb > 0) {
-    pullNote.textContent = `Day 1 reserve: ~${fmt(d1storeLb)} lb in cold storage`;
-    pullNote.style.color = '#6ab4f5';
-  } else {
-    pullNote.textContent = '';
+  // Planning table: actual hist lb
+  if (d1Date) {
+    const get = iso => { const v=cachedActualLb[iso]; return v!=null ? fmt(Math.round(v))+' lb' : '—'; };
+    $id('d1-act14').textContent = get(isoAddDays(d1Date,-14));
+    $id('d1-act7').textContent  = get(isoAddDays(d1Date,-7));
+    $id('d2-act14').textContent = get(isoAddDays(d2Date,-14));
+    $id('d2-act7').textContent  = get(isoAddDays(d2Date,-7));
   }
 
   // Harvest schedules
+  const d1rows=numVal('d1-rows'), d2rows=numVal('d2-rows');
+  const d1rec = recPlan(d1Total, d1hlb, d1rows, d1Weather, 'same', 0);
+  const d2rec = recPlan(d2Total, d2hlb, d2rows, d2Weather, 'same', 0);
   if (cachedGrow) {
     const d1by=growByDate(d1Date), d2by=growByDate(d2Date);
     const d1p1=growByDate(isoAddDays(d1Date,-7)),  d1p2=growByDate(isoAddDays(d1Date,-14));
@@ -604,7 +563,7 @@ function applyDates() {
 }
 
 async function loadActualHarvestLb() {
-  if (packDataMode !== 'db' || !d1Date) { cachedActualLb = {}; return; }
+  if (packDataMode !== 'db' || !d1Date) { cachedActualLb = {}; update(); return; }
   const dates = [...new Set([
     isoAddDays(d1Date,-7), isoAddDays(d1Date,-14),
     isoAddDays(d2Date,-7), isoAddDays(d2Date,-14),
@@ -621,6 +580,15 @@ async function loadActualHarvestLb() {
     cachedActualLb = {};
     data.forEach(r => {
       cachedActualLb[r.harvest_date] = (cachedActualLb[r.harvest_date] || 0) + (parseFloat(r.net_weight) || 0);
+    });
+    // Auto-set harvest lb inputs from avg(t-14, t-7)
+    ['d1','d2'].forEach(day => {
+      const date = day==='d1' ? d1Date : d2Date;
+      const a14 = cachedActualLb[isoAddDays(date,-14)];
+      const a7  = cachedActualLb[isoAddDays(date,-7)];
+      if (a14 != null && a7 != null) $id(`${day}-hlb`).value = Math.round((a14+a7)/2);
+      else if (a7  != null)          $id(`${day}-hlb`).value = Math.round(a7);
+      else if (a14 != null)          $id(`${day}-hlb`).value = Math.round(a14);
     });
   } catch(e) { console.warn('loadActualHarvestLb:', e); }
   update();
@@ -645,11 +613,10 @@ wireSeg('seg-data-mode', v => {
   packDataMode=v; localStorage.setItem('packPlanDataMode',v);
   cachedOrders=null; cachedHarvest=null; cachedGrow=null; loadData();
 });
-wireSeg('seg-today',    v => { weatherToday  = v; });
-wireSeg('seg-tomorrow', v => { tomorrowTrend = v; });
-['d1','d2'].forEach(day => {
-  ['cut','fans','heat','blow','speed','cool'].forEach(ctrl => wireSeg(`seg-${day}-${ctrl}`));
-});
+wireSeg('seg-d1-wet', v => { d1Weather = v; });
+wireSeg('seg-d2-wet', v => { d2Weather = v; });
+['cut','fans','heat','speed','cool'].forEach(ctrl => wireSeg(`seg-d1-${ctrl}`));
+wireSeg('seg-dryer-fans');
 
 document.querySelectorAll('input[type=number], input[type=time]').forEach(el => {
   el.addEventListener('input', update);
@@ -659,9 +626,10 @@ document.querySelectorAll('input[type=number], input[type=time]').forEach(el => 
 function onDateChange(iso) {
   const c = packCycleDates(iso||isoToday());
   d1Date=c.d1; d2Date=c.d2;
-  $id('cycle-label').textContent = `D1: ${shortDate(d1Date)}  ·  D2: ${shortDate(d2Date)}`;
-  $id('d1-hs').closest('.card').querySelector('.card-title').textContent = `Harvest Schedule — D1 · ${shortDate(d1Date)}`;
-  $id('d2-hs').closest('.card').querySelector('.card-title').textContent = `Harvest Schedule — D2 · ${shortDate(d2Date)}`;
+  $id('d1-plan-hdr').textContent = shortDate(d1Date);
+  $id('d2-plan-hdr').textContent = shortDate(d2Date);
+  $id('d1-sched-hdr').textContent = `Harvest Schedule — D1 · ${shortDate(d1Date)}`;
+  $id('d2-sched-hdr').textContent = `Harvest Schedule — D2 · ${shortDate(d2Date)}`;
   applyDates();
   loadActualHarvestLb();
 }
