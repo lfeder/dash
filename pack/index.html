@@ -171,7 +171,7 @@ input[type=time]:focus { outline:none; border-color:#4ecca3; }
 <div class="card">
   <div class="ops-row">
     <span class="ops-lbl">Harvest Start</span>
-    <input type="time" id="d1-hstart">
+    <input type="time" id="d1-hstart" value="08:00">
   </div>
   <div class="ops-row">
     <span class="ops-lbl">Cut Height</span>
@@ -183,7 +183,7 @@ input[type=time]:focus { outline:none; border-color:#4ecca3; }
   </div>
   <div class="ops-row">
     <span class="ops-lbl">PH Start</span>
-    <input type="time" id="d1-phstart">
+    <input type="time" id="d1-phstart" value="09:00">
   </div>
   <div class="ops-row">
     <span class="ops-lbl">Heater On</span>
@@ -222,17 +222,13 @@ input[type=time]:focus { outline:none; border-color:#4ecca3; }
   </div>
 </div>
 
-<!-- Harvest Schedules -->
-<div class="card">
-  <div class="sched-hdr" id="d1-sched-hdr">Harvest Schedule — D1</div>
-  <div class="sched-sub" id="d1-hs-sub"></div>
-  <div id="d1-hs"></div>
-</div>
-<div class="card">
-  <div class="sched-hdr" id="d2-sched-hdr">Harvest Schedule — D2</div>
-  <div class="sched-sub" id="d2-hs-sub"></div>
-  <div id="d2-hs"></div>
-</div>
+<!-- Hidden schedule containers (still computed for fill/dispose logic) -->
+<div id="d1-hs" style="display:none"></div>
+<div id="d2-hs" style="display:none"></div>
+<div id="d1-hs-sub" style="display:none"></div>
+<div id="d2-hs-sub" style="display:none"></div>
+<div id="d1-sched-hdr" style="display:none"></div>
+<div id="d2-sched-hdr" style="display:none"></div>
 
 </div><!-- #page -->
 
