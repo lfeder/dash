@@ -563,13 +563,13 @@ function applyDates() {
 }
 
 async function loadActualHarvestLb() {
-  if (packDataMode !== 'db' || !d1Date) { cachedActualLb = {}; update(); return; }
+  if (!d1Date) { cachedActualLb = {}; update(); return; }
   const dates = [...new Set([
     isoAddDays(d1Date,-7), isoAddDays(d1Date,-14),
     isoAddDays(d2Date,-7), isoAddDays(d2Date,-14),
   ])];
   try {
-    const client = await DataSource.getClient(DataSource.getMode());
+    const client = await DataSource.getClient('prod');
     const { data, error } = await client
       .from('grow_harvest_weight')
       .select('harvest_date,site_id,net_weight')
