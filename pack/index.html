@@ -50,7 +50,7 @@ input[type=date]:focus { outline:none; border-color:#4ecca3; }
 .plan-val { color:#e0e0e0; font-variant-numeric:tabular-nums; text-align:right; }
 .plan-val.pos { color:#4ecca3; }
 .plan-val.neg { color:#f1c40f; }
-input.plan-inp { width:100%; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:3px 6px; font-size:0.82rem; text-align:right; }
+input.plan-inp { width:100%; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:5px 10px; font-size:0.82rem; text-align:right; display:block; }
 input.plan-inp:focus { outline:none; border-color:#4ecca3; }
 input.plan-inp::-webkit-outer-spin-button,
 input.plan-inp::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
@@ -63,7 +63,7 @@ input.plan-inp[type=number] { -moz-appearance:textfield; }
 .ot td:first-child { text-align:left; color:#bbb; }
 .lb-cell { color:#888; }
 .ot .total-row td { border-top:1px solid #0f3460; padding-top:4px; font-weight:600; color:#e0e0e0; }
-input.ot-inp { width:100%; text-align:right; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:2px 5px; font-size:0.82rem; }
+input.ot-inp { width:100%; text-align:right; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:3px 8px; font-size:0.82rem; display:block; }
 input.ot-inp:focus { outline:none; border-color:#4ecca3; }
 .ot th:nth-child(2), .ot td:nth-child(2) { border-left:1px solid #2a3a5e; }
 .ot th:nth-child(3), .ot td:nth-child(3) { border-right:1px solid #2a3a5e; }
@@ -153,8 +153,8 @@ input[type=time]:focus { outline:none; border-color:#4ecca3; }
       </tr>
       <tr>
         <td class="row-lbl">Harvest</td>
-        <td colspan="2"><input type="number" class="plan-inp" id="d1-hlb" value="0" min="0"></td>
-        <td colspan="2"><input type="number" class="plan-inp" id="d2-hlb" value="0" min="0"></td>
+        <td colspan="2" style="padding:0"><input type="number" class="plan-inp" id="d1-hlb" value="0" min="0"></td>
+        <td colspan="2" style="padding:0"><input type="number" class="plan-inp" id="d2-hlb" value="0" min="0"></td>
       </tr>
       <tr>
         <td class="row-lbl">Orders</td>
@@ -308,9 +308,9 @@ function shortDate(iso) {
     const s = sku.toLowerCase();
     const tr = document.createElement('tr');
     tr.innerHTML = `<td>${sku}</td>
-      <td><input class="ot-inp" type="number" id="d1-${s}" min="0" value="0"></td>
+      <td style="padding:0"><input class="ot-inp" type="number" id="d1-${s}" min="0" value="0"></td>
       <td class="lb-cell" id="d1-${s}-lb">0</td>
-      <td><input class="ot-inp" type="number" id="d2-${s}" min="0" value="0"></td>
+      <td style="padding:0"><input class="ot-inp" type="number" id="d2-${s}" min="0" value="0"></td>
       <td class="lb-cell" id="d2-${s}-lb">0</td>`;
     tb.appendChild(tr);
   });
