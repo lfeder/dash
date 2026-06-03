@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pack Plan <!-- 06-03 09:52 --></title>
+<title>Pack Plan <!-- 06-03 10:00 --></title>
 <script src="../lib/data-source.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
@@ -692,28 +692,52 @@ function buildEmailBody() {
   const d1Label = $id('d1-plan-hdr').textContent;
   const d2Label = $id('d2-plan-hdr').textContent;
   const d1hlb = numVal('d1-hlb'), d2hlb = numVal('d2-hlb');
-  const d1wet = $id('seg-d1-wet').querySelector('button.active')?.dataset.val || '';
-  const d2wet = $id('seg-d2-wet').querySelector('button.active')?.dataset.val || '';
   const segVal = id => $id(id)?.querySelector('button.active')?.dataset.val || '';
   const segLbl = (id, map) => map[segVal(id)] || segVal(id);
+  const cap = s => s ? s[0].toUpperCase() + s.slice(1) : '—';
+  const r = (s, w) => String(s).padStart(w);
+  const l = (s, w) => String(s).padEnd(w);
 
-  let orders = '';
-  SKUS.forEach(sku => {
+  const d1wet = cap(segVal('seg-d1-wet'));
+  const d2wet = cap(segVal('seg-d2-wet'));
+
+  // Orders table
+  let d1TotalCs = 0, d2TotalCs = 0, d1TotalLb = 0, d2TotalLb = 0;
+  const orderRows = SKUS.map(sku => {
     const s = sku.toLowerCase();
     const d1cs = numVal(`d1-${s}`), d2cs = numVal(`d2-${s}`);
-    if (d1cs || d2cs) orders += `  ${sku}: D1 ${d1cs} cs  D2 ${d2cs} cs\n`;
+    const d1lb = Math.round(d1cs * SKU_LB[sku]), d2lb = Math.round(d2cs * SKU_LB[sku]);
+    d1TotalCs += d1cs; d2TotalCs += d2cs; d1TotalLb += d1lb; d2TotalLb += d2lb;
+    return l(sku,5) + r(d1cs,6) + r(d1lb+'lb',8) + '   ' + r(d2cs,6) + r(d2lb+'lb',8);
   });
+  const orderHdr = l('SKU',5) + r('Cs',6) + r('Lb',8) + '   ' + r('Cs',6) + r('Lb',8);
+  const orderTot = l('Total',5) + r(d1TotalCs,6) + r(d1TotalLb+'lb',8) + '   ' + r(d2TotalCs,6) + r(d2TotalLb+'lb',8);
+  const orderTable = [orderHdr, ...orderRows, orderTot].join('\n');
+
+  // Pounds section
+  const C = 12;
+  const pndHdr = l('',10)        + r('D1',C)                              + r('D2',C);
+  const pndHvt = l('Harvest',10) + r(fmt(d1hlb)+' lb',C)                  + r(fmt(d2hlb)+' lb',C);
+  const pndOrd = l('Orders',10)  + r($id('d1-order-total').textContent+' lb',C) + r($id('d2-order-total').textContent+' lb',C);
+  const pndExt = l('Extra',10)   + r($id('d1-extra').textContent+' lb',C) + r($id('d2-extra').textContent+' lb',C);
+  const pndPct = l('Needed',10)  + r($id('d1-pct-needed').textContent,C)  + r($id('d2-pct-needed').textContent,C);
+  const pndWet = l('Wetness',10) + r(d1wet,C)                             + r(d2wet,C);
 
   return `Lettuce Pack Plan
 
 D1: ${d1Label}  |  D2: ${d2Label}
 
 POUNDS
-  D1  ${fmt(d1hlb)} lb (${d1wet})  Orders: ${$id('d1-order-total').textContent} lb  Extra: ${$id('d1-extra').textContent}  Needed: ${$id('d1-pct-needed').textContent}
-  D2  ${fmt(d2hlb)} lb (${d2wet})  Orders: ${$id('d2-order-total').textContent} lb  Extra: ${$id('d2-extra').textContent}  Needed: ${$id('d2-pct-needed').textContent}
+${pndHdr}
+${pndHvt}
+${pndOrd}
+${pndExt}
+${pndPct}
+${pndWet}
 
 ORDERS
-${orders || '  (none)\n'}
+${orderTable}
+
 OPERATIONS
   Harvest Start:    ${$id('d1-hstart').value}
   PH Start:         ${$id('d1-phstart').value}
@@ -738,8 +762,10 @@ async function sendPackPlanEmail() {
         const d1Label = $id('d1-plan-hdr').textContent, d2Label = $id('d2-plan-hdr').textContent;
         const subject = `Pack Plan — ${d1Label} / ${d2Label}`;
         const body = buildEmailBody();
-        const msg = `To: ${GMAIL_TO}\r\nSubject: ${subject}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${body}`;
-        const raw = btoa(unescape(encodeURIComponent(msg))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+        const msg = `To: ${GMAIL_TO}\r\nSubject: =?utf-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${body}`;
+        const bytes = new TextEncoder().encode(msg);
+        let bin = ''; bytes.forEach(b => bin += String.fromCharCode(b));
+        const raw = btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
         const resp = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
           method:'POST',
           headers:{'Authorization':'Bearer '+tr.access_token,'Content-Type':'application/json'},
