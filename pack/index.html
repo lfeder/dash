@@ -46,6 +46,9 @@ input[type=date]:focus { outline:none; border-color:#4ecca3; }
 .plan-val.neg { color:#f1c40f; }
 input.plan-inp { width:90px; text-align:right; background:#0f3460; color:#e0e0e0; border:1px solid #2a3a5e; border-radius:4px; padding:3px 6px; font-size:0.82rem; float:right; }
 input.plan-inp:focus { outline:none; border-color:#4ecca3; }
+input.plan-inp::-webkit-outer-spin-button,
+input.plan-inp::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+input.plan-inp[type=number] { -moz-appearance:textfield; }
 
 /* Orders table */
 .ot { width:100%; border-collapse:collapse; font-size:0.82rem; }
@@ -153,6 +156,11 @@ input[type=time]:focus { outline:none; border-color:#4ecca3; }
         <td class="row-lbl">Extra</td>
         <td id="d1-extra" class="plan-val">—</td>
         <td id="d2-extra" class="plan-val">—</td>
+      </tr>
+      <tr>
+        <td class="row-lbl row-lbl-sub">% Needed</td>
+        <td id="d1-pct-needed" class="plan-val">—</td>
+        <td id="d2-pct-needed" class="plan-val">—</td>
       </tr>
     </tbody>
   </table>
@@ -519,6 +527,15 @@ function update() {
   };
   setExtra('d1-extra', d1extra, d1hlb>0||d1Total>0);
   setExtra('d2-extra', d2extra, d2hlb>0||d2Total>0);
+  const setPct = (id, orders, harvest) => {
+    const el=$id(id);
+    if (!harvest) { el.textContent='—'; el.className='plan-val'; return; }
+    const pct = orders/harvest*100;
+    el.textContent = pct.toFixed(1)+'%';
+    el.className = 'plan-val' + (pct<=90?' pos':pct<=100?' neg':' neg');
+  };
+  setPct('d1-pct-needed', d1Total, d1hlb);
+  setPct('d2-pct-needed', d2Total, d2hlb);
 
   // Planning table: actual hist lb
   if (d1Date) {
