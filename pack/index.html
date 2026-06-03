@@ -474,6 +474,8 @@ function populateDay(day, dateISO) {
 function renderSchedule(day, ponds, p1by, p2by, dateISO) {
   if (!ponds.length) return '<div class="no-data">No grow data for this date</div>';
   const fw = lb => (lb && lb > 0) ? fmt(Math.round(lb)) : '—';
+  const p2Hdr = shortDate(isoAddDays(dateISO, -14));
+  const p1Hdr = shortDate(isoAddDays(dateISO, -7));
   let totDisLb=0, totStoLb=0, totPhLb=0, tot2Lb=0, tot1Lb=0, totEstLb=0, totRows=0;
   let bodyHtml = ponds.map(p => {
     const key  = `${p.pond}|${p.side}`;
@@ -504,7 +506,7 @@ function renderSchedule(day, ponds, p1by, p2by, dateISO) {
   return `<table class="hs">
     <thead><tr>
       <th>Pond</th><th>Var</th>
-      <th>-2w lb</th><th>-1w lb</th><th>Est lb</th>
+      <th>${p2Hdr} lb</th><th>${p1Hdr} lb</th><th>Est lb</th>
       <th class="dis-hdr">Dispose</th>
       <th class="sto-hdr">Store</th>
       <th class="ph-hdr">Pack</th>
