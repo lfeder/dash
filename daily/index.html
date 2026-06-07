@@ -18,6 +18,9 @@
   .toggle-btn:first-child { border-radius: 4px 0 0 4px; }
   .toggle-btn:last-child { border-radius: 0 4px 4px 0; }
   .toggle-btn.active { background: #4a8c5c; color: #fff; border-color: #4a8c5c; }
+  .date-picker { margin-left: 12px; padding: 5px 10px; font-size: 0.85rem; border: 1px solid #999; border-radius: 4px; background: #e0dbd5; color: #666; cursor: pointer; font-family: inherit; }
+  .date-picker.active { background: #4a8c5c; color: #fff; border-color: #4a8c5c; }
+  .date-picker.active::-webkit-calendar-picker-indicator { filter: invert(1); }
   table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 24px; }
   th { text-align: left; padding: 6px 10px; border-bottom: 2px solid #ccc; color: #4a8c5c; font-weight: 600; }
   th.num, td.num { text-align: right; }
@@ -41,6 +44,7 @@
   <div class="toggle-bar">
     <button class="toggle-btn active" id="btnToday" onclick="setDay('today')">Today</button>
     <button class="toggle-btn" id="btnYesterday" onclick="setDay('yesterday')">Yesterday</button>
+    <input type="date" class="date-picker" id="datePicker" onchange="setDate(this.value)">
   </div>
 
   <div id="sales-section">
@@ -123,13 +127,34 @@ function hstToday() {
 let refDate = hstToday();
 let dayMode = 'today';
 
+function fmtDateInput(d) {
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${m}-${dd}`;
+}
+
+function syncControls() {
+  document.getElementById('btnToday').classList.toggle('active', dayMode === 'today');
+  document.getElementById('btnYesterday').classList.toggle('active', dayMode === 'yesterday');
+  document.getElementById('datePicker').classList.toggle('active', dayMode === 'date');
+  document.getElementById('datePicker').value = fmtDateInput(refDate);
+  document.getElementById('date-line').textContent = refDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+}
+
 function setDay(mode) {
   dayMode = mode;
   refDate = hstToday();
   if (mode === 'yesterday') refDate.setUTCDate(refDate.getUTCDate() - 1);
-  document.getElementById('btnToday').classList.toggle('active', mode === 'today');
-  document.getElementById('btnYesterday').classList.toggle('active', mode === 'yesterday');
-  document.getElementById('date-line').textContent = refDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+  syncControls();
+  render();
+}
+
+function setDate(val) {
+  if (!val) return;
+  const [y, m, d] = val.split('-').map(Number);
+  refDate = new Date(Date.UTC(y, m - 1, d));
+  dayMode = 'date';
+  syncControls();
   render();
 }
 
